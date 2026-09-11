@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { logout } from './authSlice';
 
-const API_URL = 'http://localhost:5000/api/documents';
+const API_URL = `${import.meta.env.VITE_API_URL}/documents`;
 
 export const fetchDocuments = createAsyncThunk('documents/fetchDocuments', async (_, { getState, dispatch, rejectWithValue }) => {
   try {
