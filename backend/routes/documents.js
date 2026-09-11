@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 // Get all documents for user
 router.get('/', auth, async (req, res) => {
   try {
-    const documents = await Document.find({ owner: req.user.userId }).sort({ updatedAt: -1 });
+    const documents = await Document.find({}).sort({ updatedAt: -1 });
     res.json(documents);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -16,7 +16,7 @@ router.get('/', auth, async (req, res) => {
 // Get a single document
 router.get('/:id', auth, async (req, res) => {
   try {
-    const document = await Document.findOne({ _id: req.params.id, owner: req.user.userId });
+    const document = await Document.findOne({ _id: req.params.id });
     if (!document) return res.status(404).json({ message: 'Document not found' });
     res.json(document);
   } catch (error) {
@@ -43,7 +43,7 @@ router.post('/', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   try {
     const document = await Document.findOneAndUpdate(
-      { _id: req.params.id, owner: req.user.userId },
+      { _id: req.params.id },
       { $set: { title: req.body.title, content: req.body.content } },
       { new: true }
     );
@@ -57,7 +57,7 @@ router.put('/:id', auth, async (req, res) => {
 // Delete a document
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const document = await Document.findOneAndDelete({ _id: req.params.id, owner: req.user.userId });
+    const document = await Document.findOneAndDelete({ _id: req.params.id });
     if (!document) return res.status(404).json({ message: 'Document not found' });
     res.json({ message: 'Document deleted' });
   } catch (error) {
