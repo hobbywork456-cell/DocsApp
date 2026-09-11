@@ -1,0 +1,232 @@
+import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { Box, Typography, InputBase, Button, Paper, IconButton, Dialog } from '@mui/material';
+import CloudDoneOutlinedIcon from '@mui/icons-material/CloudDoneOutlined';
+import EditIcon from '@mui/icons-material/Edit';
+import CloseIcon from '@mui/icons-material/Close';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
+import { updateDocument, removeOpenDocument } from '../../slices/documentSlice';
+import html2pdf from 'html2pdf.js';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import './DocumentEditor.css';
+
+const DocumentEditor = ({ documentId }) => {
+  const dispatch = useDispatch();
+  const { documents } = useSelector((state) => state.documents);
+  const selectedDocument = documents.find(doc => doc._id === documentId);
+
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  useEffect(() => {
+    if (selectedDocument) {
+      setTitle(selectedDocument.title || '');
+      setContent(selectedDocument.content || '');
+      setIsEditing(false);
+    }
+  }, [selectedDocument]);
+
+  const handleSave = async () => {
+    if (!selectedDocument) return;
+    setIsSaving(true);
+    await dispatch(updateDocument({ id: selectedDocument._id, title, content }));
+    setIsSaving(false);
+    setIsEditing(false);
+  };
+
+  const handleDownloadPdf = () => {
+    if (!selectedDocument) return;
+    setIsDownloading(true);
+    
+    const element = document.createElement('div');
+    element.innerHTML = `
+      <style>
+        .pdf-container {
+          font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+          width: 100%;
+          max-width: 210mm; /* A4 width */
+        }
+        .pdf-container img, .pdf-container video {
+          max-width: 100%;
+          height: auto;
+          page-break-inside: avoid;
+        }
+        .pdf-container p, .pdf-container h1, .pdf-container h2, .pdf-container h3, .pdf-container h4, .pdf-container h5, .pdf-container h6, .pdf-container table, .pdf-container tr, .pdf-container div.ql-code-block {
+          page-break-inside: avoid;
+        }
+      </style>
+      <div class="pdf-container">
+        <h1 style="font-size: 2.2rem; font-weight: 900; color: #4a4a4a; margin-bottom: 20px; border-bottom: 2px solid #ff84ba; padding-bottom: 10px;">${title || 'Untitled Document'}</h1>
+        <div style="font-size: 1.05rem; color: #374151; line-height: 1.6;">
+          ${content}
+        </div>
+      </div>
+    `;
+    
+    const opt = {
+      margin:       [20, 15, 20, 15], // [top, left, bottom, right] for header and footer margins
+      filename:     `${title || 'document'}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:    { mode: ['css', 'legacy'] }
+    };
+    
+    html2pdf().set(opt).from(element).save().then(() => {
+      setIsDownloading(false);
+    }).catch((err) => {
+      console.error('PDF generation error:', err);
+      setIsDownloading(false);
+    });
+  };
+
+  const handleEditorClick = (e) => {
+    if (!isEditing) {
+      if (e.target.tagName === 'IMG') {
+        setSelectedMedia({ type: 'image', src: e.target.src });
+      } else if (e.target.tagName === 'VIDEO') {
+        setSelectedMedia({ type: 'video', src: e.target.src });
+      }
+    } else {
+      // In edit mode, maybe also allow clicking, but quill might intercept. 
+      // It's mostly useful for reading view, but we can enable it for both.
+      if (e.target.tagName === 'IMG') {
+        setSelectedMedia({ type: 'image', src: e.target.src });
+      } else if (e.target.tagName === 'VIDEO') {
+        setSelectedMedia({ type: 'video', src: e.target.src });
+      }
+    }
+  };
+
+  const modules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'color': [] }, { 'background': [] }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      [{ 'align': [] }],
+      ['link', 'image'],
+      ['clean']
+    ],
+  };
+
+  if (!selectedDocument) return null;
+
+  return (
+    <Box className="h-full flex flex-col p-6 bg-white/40 backdrop-blur-sm relative">
+      <Box className="flex justify-between items-center mb-6">
+        <InputBase
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Document Title"
+          readOnly={!isEditing}
+          sx={{ 
+            fontSize: '2.5rem', 
+            fontWeight: '900', 
+            color: '#4a4a4a', 
+            letterSpacing: '-0.02em',
+            opacity: isEditing ? 1 : 0.8
+          }}
+          fullWidth
+          className="mr-6"
+        />
+        <Box className="flex gap-3">
+          <Button
+            variant="outlined"
+            startIcon={<FileDownloadOutlinedIcon />}
+            onClick={handleDownloadPdf}
+            disabled={isDownloading}
+            className={`shrink-0 px-4 py-2 rounded-xl font-bold transition-all ${
+              isDownloading 
+                ? 'border-gray-200 text-gray-400' 
+                : 'border-[#849bff] text-[#6b8be0] hover:bg-blue-50 hover:border-[#6b8be0]'
+            }`}
+            sx={{ textTransform: 'none' }}
+          >
+            {isDownloading ? '...' : 'PDF'}
+          </Button>
+          {!isEditing ? (
+            <Button
+              variant="contained"
+              startIcon={<EditIcon />}
+              onClick={() => setIsEditing(true)}
+              className="shrink-0 px-6 py-2 rounded-xl font-bold transition-all bg-[#ff84ba] text-white hover:bg-[#e06b9e] shadow-md hover:shadow-lg"
+              sx={{ textTransform: 'none', boxShadow: '0 4px 10px 0 rgba(255, 132, 186, 0.4)' }}
+            >
+              Edit
+            </Button>
+          ) : (
+            <Button
+              variant="outlined"
+              startIcon={<CloudDoneOutlinedIcon />}
+              onClick={handleSave}
+              disabled={isSaving}
+              className={`shrink-0 px-6 py-2 rounded-xl font-bold transition-all ${
+                isSaving 
+                  ? 'border-gray-200 text-gray-400' 
+                  : 'border-[#ff84ba] text-[#e06b9e] hover:bg-pink-50 hover:border-[#e06b9e]'
+              }`}
+              sx={{ textTransform: 'none' }}
+            >
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+          )}
+          <IconButton onClick={() => dispatch(removeOpenDocument(documentId))} sx={{ color: '#ef4444', bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca' }, ml: 1, borderRadius: '12px' }}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </Box>
+      
+      <Paper 
+        elevation={0} 
+        onClick={handleEditorClick}
+        className={`flex-1 rounded-2xl overflow-hidden bg-white/80 shadow-sm flex flex-col ${isEditing ? 'border-2 border-[#ff84ba]' : 'border border-pink-100'} ${!isEditing ? 'editor-readonly' : ''}`}
+      >
+        <ReactQuill
+          theme="snow"
+          value={content}
+          onChange={setContent}
+          readOnly={!isEditing}
+          modules={modules}
+          className="flex-1 flex flex-col min-h-0 custom-quill"
+        />
+      </Paper>
+      
+      <Dialog 
+        open={!!selectedMedia} 
+        onClose={() => setSelectedMedia(null)} 
+        maxWidth="lg"
+        PaperProps={{
+          sx: {
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <Box className="relative flex flex-col items-center justify-center">
+          <IconButton 
+            onClick={() => setSelectedMedia(null)} 
+            sx={{ position: 'absolute', top: 12, right: 12, bgcolor: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'white' }, zIndex: 10 }}
+          >
+            <CloseIcon />
+          </IconButton>
+          {selectedMedia?.type === 'image' && (
+            <img src={selectedMedia.src} alt="Detail view" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '12px' }} />
+          )}
+          {selectedMedia?.type === 'video' && (
+            <video src={selectedMedia.src} controls style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: '12px' }} />
+          )}
+        </Box>
+      </Dialog>
+      
+    </Box>
+  );
+};
+
+export default DocumentEditor;
