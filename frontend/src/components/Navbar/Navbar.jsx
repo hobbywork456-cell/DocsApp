@@ -17,8 +17,8 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
   };
 
   return (
-    <AppBar position="static" color="transparent" elevation={0} className="bg-white/60 backdrop-blur-md border-b border-white/80 pt-0.5 sm:pt-1 pb-0.5 sm:pb-1">
-      <Toolbar className="px-3 sm:px-6 min-h-[52px] sm:min-h-[64px]">
+    <AppBar component="header" id="app-header" position="static" color="transparent" elevation={0} className="bg-white/60 backdrop-blur-md border-b border-white/80 pt-0.5 sm:pt-1 pb-0.5 sm:pb-1">
+      <Toolbar component="nav" id="app-navigation" aria-label="Main Navigation" className="px-3 sm:px-6 min-h-[52px] sm:min-h-[64px]">
         <Box className="flex items-center">
           <MenuBookIcon sx={{ color: '#ff84ba', mr: 1, fontSize: { xs: 24, sm: 28 } }} />
           <Typography 
@@ -33,8 +33,9 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         {/* Mobile View Switcher when documents are open */}
         {hasOpenDocuments && (
-          <Box className="flex md:hidden ml-2 sm:ml-4 bg-white/70 rounded-full p-0.5 border border-pink-200 shadow-sm">
+          <Box className="flex md:hidden ml-2 sm:ml-4 bg-white/70 rounded-full p-0.5 border border-pink-200 shadow-sm" role="group" aria-label="View Mode Switcher">
             <Button
+              id="mobile-view-sidebar-btn"
               size="small"
               onClick={() => onToggleMobileView && onToggleMobileView('sidebar')}
               startIcon={<LibraryBooksIcon sx={{ fontSize: 14 }} />}
@@ -57,6 +58,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               Library
             </Button>
             <Button
+              id="mobile-view-editor-btn"
               size="small"
               onClick={() => onToggleMobileView && onToggleMobileView('editor')}
               startIcon={<DescriptionIcon sx={{ fontSize: 14 }} />}
@@ -91,13 +93,15 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             </Typography>
           </Box>
           <Tooltip title={user?.email || 'User'}>
-            <Box className="sm:hidden w-7 h-7 rounded-full bg-gradient-to-tr from-[#ff84ba] to-[#ff9ecc] text-white flex items-center justify-center font-bold text-xs shadow-sm cursor-pointer">
+            <Box aria-label="User Avatar" className="sm:hidden w-7 h-7 rounded-full bg-gradient-to-tr from-[#ff84ba] to-[#ff9ecc] text-white flex items-center justify-center font-bold text-xs shadow-sm cursor-pointer">
               {user?.email?.[0]?.toUpperCase() || 'U'}
             </Box>
           </Tooltip>
 
           <Button 
+            id="navbar-logout-btn"
             variant="text" 
+            aria-label="Log out"
             startIcon={<LogoutIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />} 
             onClick={handleLogout}
             sx={{ 

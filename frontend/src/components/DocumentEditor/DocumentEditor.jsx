@@ -119,13 +119,20 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   if (!selectedDocument) return null;
 
   return (
-    <Box className="h-full flex flex-col p-3 sm:p-6 bg-white/40 backdrop-blur-sm relative">
+    <Box 
+      component="article" 
+      id={`document-editor-article-${documentId}`} 
+      aria-label={`Document Editor for ${title || 'Untitled Document'}`}
+      className="h-full flex flex-col p-3 sm:p-6 bg-white/40 backdrop-blur-sm relative"
+    >
       <Box className="flex items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-6">
         {/* Title area with optional mobile back-to-library button */}
         <Box className="flex items-center flex-1 min-w-0 mr-1 sm:mr-4">
           {onBackToLibrary && (
             <Tooltip title="Back to Library">
               <IconButton 
+                id={`doc-back-library-btn-${documentId}`}
+                aria-label="Back to Library"
                 onClick={onBackToLibrary} 
                 size="small"
                 className="md:hidden mr-1.5 shrink-0" 
@@ -143,6 +150,11 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
             </Tooltip>
           )}
           <InputBase
+            id={`doc-title-input-${documentId}`}
+            inputProps={{
+              'aria-label': 'Document Title',
+              id: `doc-title-field-${documentId}`
+            }}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Document Title"
@@ -163,7 +175,9 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         <Box className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <Tooltip title="Document History">
             <Button
+              id={`doc-history-btn-${documentId}`}
               variant="contained"
+              aria-label="View Document History"
               onClick={() => setHistoryOpen(true)}
               className="shrink-0 px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-bold transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
               sx={{ 
@@ -184,7 +198,9 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
 
           <Tooltip title="Download PDF">
             <Button
+              id={`doc-pdf-download-btn-${documentId}`}
               variant="contained"
+              aria-label="Download Document as PDF"
               onClick={handleDownloadPdf}
               disabled={isDownloading}
               className="shrink-0 px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-bold transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
@@ -207,7 +223,9 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
 
           {!isEditing ? (
             <Button
+              id={`doc-edit-btn-${documentId}`}
               variant="contained"
+              aria-label="Edit Document"
               onClick={() => setIsEditing(true)}
               className="shrink-0 px-3 sm:px-6 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-black transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
               sx={{ 
@@ -224,7 +242,9 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
             </Button>
           ) : (
             <Button
+              id={`doc-save-btn-${documentId}`}
               variant="contained"
+              aria-label="Save Document"
               onClick={handleSave}
               disabled={isSaving}
               className="shrink-0 px-3 sm:px-6 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-black transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
@@ -246,6 +266,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           
           <Tooltip title="Close Document">
             <IconButton 
+              id={`doc-close-btn-${documentId}`}
+              aria-label="Close Document"
               onClick={() => dispatch(removeOpenDocument(documentId))} 
               size="small"
               sx={{ 

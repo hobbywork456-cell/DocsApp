@@ -53,16 +53,18 @@ const Sidebar = ({ onSelectDocument }) => {
   };
 
   return (
-    <Box className="p-3.5 sm:p-5 h-full relative flex flex-col bg-white/30 backdrop-blur-sm">
+    <Box component="aside" id="sidebar-panel" aria-label="Document Library" className="p-3.5 sm:p-5 h-full relative flex flex-col bg-white/30 backdrop-blur-sm">
       <Box className="flex justify-between items-center mb-4 sm:mb-6">
-        <Typography variant="subtitle1" className="font-extrabold text-gray-700 tracking-wider uppercase text-xs sm:text-sm">
+        <Typography variant="subtitle1" component="h2" className="font-extrabold text-gray-700 tracking-wider uppercase text-xs sm:text-sm">
           Library
         </Typography>
         <Button 
+          id="sidebar-create-new-btn"
           variant="contained" 
           startIcon={<AddIcon />} 
           size="small" 
           onClick={handleCreateNew}
+          aria-label="Create new document"
           className="rounded-full gradient-bg text-white shadow-md hover:shadow-lg transition-all border-none font-bold capitalize"
           sx={{ boxShadow: '0 4px 10px 0 rgba(255, 132, 186, 0.4)', px: 2 }}
         >
@@ -72,11 +74,13 @@ const Sidebar = ({ onSelectDocument }) => {
 
       <Box className="mb-3 sm:mb-4">
         <TextField
+          id="sidebar-search-input"
           placeholder="Search documents..."
           size="small"
           fullWidth
           value={searchQuery || ''}
           onChange={(e) => dispatch(setSearchQuery(e.target.value))}
+          inputProps={{ 'aria-label': 'Search documents', id: 'sidebar-search-field' }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -88,7 +92,7 @@ const Sidebar = ({ onSelectDocument }) => {
         />
       </Box>
       
-      <List className="flex-1 overflow-y-auto px-0 space-y-2 pb-16 sm:pb-20 custom-scrollbar">
+      <List id="sidebar-doc-list" aria-label="List of documents" className="flex-1 overflow-y-auto px-0 space-y-2 pb-16 sm:pb-20 custom-scrollbar">
         {filteredDocuments.length === 0 ? (
           <Box className="flex flex-col items-center justify-center h-40 opacity-65">
             <DescriptionIcon sx={{ fontSize: 40, color: '#ff84ba', mb: 1 }} />
@@ -102,6 +106,7 @@ const Sidebar = ({ onSelectDocument }) => {
             return (
               <ListItem 
                 key={doc._id} 
+                id={`sidebar-doc-${doc._id}`}
                 button 
                 draggable
                 onDragStart={(e) => {
@@ -132,6 +137,8 @@ const Sidebar = ({ onSelectDocument }) => {
                   
                   {/* Delete Button - visible on touch devices or hover on desktop */}
                   <IconButton 
+                    id={`sidebar-delete-btn-${doc._id}`}
+                    aria-label={`Delete document ${doc.title || 'Untitled'}`}
                     size="small" 
                     onClick={(e) => openDeleteDialog(e, doc)}
                     className={`transition-opacity shrink-0 ${isSelected ? 'opacity-100' : 'opacity-70 sm:opacity-0 sm:group-hover:opacity-100'}`}
@@ -147,6 +154,7 @@ const Sidebar = ({ onSelectDocument }) => {
       </List>
 
       <Dialog 
+        id="delete-doc-dialog"
         open={deleteDialogOpen} 
         onClose={closeDeleteDialog}
         fullWidth
@@ -161,6 +169,7 @@ const Sidebar = ({ onSelectDocument }) => {
             Please type <strong>confirm</strong> to delete.
           </DialogContentText>
           <TextField
+            id="delete-confirm-input"
             autoFocus
             margin="dense"
             label="Type 'confirm'"
@@ -169,13 +178,15 @@ const Sidebar = ({ onSelectDocument }) => {
             variant="outlined"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
+            inputProps={{ id: 'delete-confirm-field', 'aria-label': "Type confirm to proceed" }}
           />
         </DialogContent>
         <DialogActions className="p-4 pt-0">
-          <Button onClick={closeDeleteDialog} color="inherit" className="font-bold">
+          <Button id="delete-cancel-btn" onClick={closeDeleteDialog} color="inherit" className="font-bold">
             Cancel
           </Button>
           <Button 
+            id="delete-submit-btn"
             onClick={handleDeleteConfirm} 
             color="error" 
             variant="contained" 

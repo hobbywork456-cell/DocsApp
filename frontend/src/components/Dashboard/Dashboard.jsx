@@ -3,6 +3,7 @@ import { Box, Typography, Button } from '@mui/material';
 import Navbar from '../Navbar/Navbar';
 import Sidebar from '../Sidebar/Sidebar';
 import DocumentEditor from '../DocumentEditor/DocumentEditor';
+import SEO from '../SEO/SEO';
 import './Dashboard.css';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchDocuments, addOpenDocument } from '../../slices/documentSlice';
@@ -52,9 +53,21 @@ const Dashboard = () => {
   };
 
   const currentMobileDocId = activeMobileDocId || (openDocuments.length > 0 ? openDocuments[0] : null);
+  const activeDoc = documents.find((d) => d._id === (activeMobileDocId || openDocuments[0]));
+  const pageTitle = activeDoc?.title ? `${activeDoc.title} - Document Workspace` : 'Workspace';
+  const pageDesc = activeDoc?.title
+    ? `Edit and manage "${activeDoc.title}" on DocsApp. Export to PDF, view edit history, and format notes.`
+    : 'DocsApp document workspace. Access your personal library, write in rich text, and export your files with ease.';
 
   return (
-    <Box className="min-h-[100dvh] h-[100dvh] flex flex-col overflow-hidden">
+    <Box component="main" id="dashboard-workspace" className="min-h-[100dvh] h-[100dvh] flex flex-col overflow-hidden">
+      <SEO title={pageTitle} description={pageDesc} />
+
+      {/* Accessible single h1 heading for screen readers & search engines */}
+      <Typography variant="h1" className="sr-only">
+        DocsApp Document Workspace
+      </Typography>
+
       <Navbar 
         mobileView={mobileView}
         onToggleMobileView={setMobileView}
@@ -67,6 +80,7 @@ const Dashboard = () => {
         {/* Desktop: always visible on the left */}
         {/* Mobile: visible when mobileView is 'sidebar' or no documents are open */}
         <Box 
+          id="dashboard-sidebar-container"
           className={`
             rounded-2xl overflow-hidden glass-effect shadow-sm flex flex-col border border-white/60
             ${mobileView === 'sidebar' || openDocuments.length === 0 ? 'flex w-full' : 'hidden'}
@@ -80,6 +94,9 @@ const Dashboard = () => {
         {/* Desktop: always visible, shows empty state or open documents side-by-side */}
         {/* Mobile: visible when mobileView is 'editor' and openDocuments.length > 0 */}
         <Box 
+          component="section"
+          id="dashboard-editor-container"
+          aria-label="Document Workspace Area"
           className={`
             flex-1 overflow-hidden
             ${mobileView === 'editor' && openDocuments.length > 0 ? 'flex flex-col w-full' : 'hidden'}
@@ -90,9 +107,9 @@ const Dashboard = () => {
         >
           {openDocuments.length === 0 ? (
             /* Desktop Empty State (mobile defaults to viewing Library when 0 docs) */
-            <Box className="hidden md:flex flex-1 rounded-2xl overflow-hidden glass-effect shadow-sm border border-white/60 flex-col items-center justify-center bg-white/40 p-6 text-center">
+            <Box id="empty-state-welcome" className="hidden md:flex flex-1 rounded-2xl overflow-hidden glass-effect shadow-sm border border-white/60 flex-col items-center justify-center bg-white/40 p-6 text-center">
               <EditNoteIcon sx={{ fontSize: 80, color: '#ffb6d8', mb: 2, opacity: 0.8 }} />
-              <Typography variant="h5" className="font-bold text-gray-700 mb-2">
+              <Typography variant="h5" component="h2" className="font-bold text-gray-700 mb-2">
                 Ready to Write?
               </Typography>
               <Typography variant="body1" className="text-gray-500 max-w-md mx-auto">
@@ -103,13 +120,16 @@ const Dashboard = () => {
             <>
               {/* Mobile View: Document Tabs when multiple docs are open */}
               {openDocuments.length > 1 && (
-                <Box className="flex md:hidden items-center gap-1.5 p-1 mb-2 bg-white/70 backdrop-blur-md rounded-xl border border-white/60 overflow-x-auto shrink-0">
+                <Box id="mobile-doc-tabs" role="tablist" aria-label="Open documents" className="flex md:hidden items-center gap-1.5 p-1 mb-2 bg-white/70 backdrop-blur-md rounded-xl border border-white/60 overflow-x-auto shrink-0">
                   {openDocuments.map((id) => {
                     const doc = documents.find((d) => d._id === id);
                     const isActive = currentMobileDocId === id;
                     return (
                       <Button
                         key={id}
+                        id={`mobile-tab-${id}`}
+                        role="tab"
+                        aria-selected={isActive}
                         size="small"
                         onClick={() => setActiveMobileDocId(id)}
                         className={`text-xs font-bold rounded-lg px-3 py-1 truncate max-w-[140px] transition-all ${
@@ -151,3 +171,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

@@ -1,0 +1,17 @@
+{
+  "name": "DocsApp - Modern Document Creation",
+  "short_name": "DocsApp",
+  "description": "Fast, distraction-free document editor and workspace with rich text editing, side-by-side view, and instant PDF download.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff0f6",
+  "theme_color": "#ff84ba",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

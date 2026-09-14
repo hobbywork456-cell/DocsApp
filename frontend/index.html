@@ -2,11 +2,82 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DocsApp</title>
+    <title>DocsApp - Modern Document Creation &amp; Collaboration Workspace</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="DocsApp is a fast, elegant, and modern web application for writing, editing, and managing your documents. Features distraction-free rich text editing, side-by-side view, version history, and one-click PDF export." />
+    <meta name="keywords" content="document editor, docs app, rich text editor, note taking, writing workspace, PDF export, document collaboration, version history" />
+    <meta name="author" content="DocsApp Team" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#ff84ba" />
+    <meta name="color-scheme" content="light" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://docsapp.vercel.app/" />
+
+    <!-- Favicon & PWA Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://docsapp.vercel.app/" />
+    <meta property="og:title" content="DocsApp - Modern Document Creation &amp; Collaboration Workspace" />
+    <meta property="og:description" content="A beautiful, distraction-free document editor. Create, edit, and organize your ideas with rich text editing, multi-document comparison, and instant PDF export." />
+    <meta property="og:image" content="/favicon.svg" />
+    <meta property="og:site_name" content="DocsApp" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:url" content="https://docsapp.vercel.app/" />
+    <meta name="twitter:title" content="DocsApp - Modern Document Creation &amp; Collaboration Workspace" />
+    <meta name="twitter:description" content="Write, edit, and organize notes and documents with ease. Rich text editor, side-by-side view, and instant PDF downloads." />
+    <meta name="twitter:image" content="/favicon.svg" />
+
+    <!-- Schema.org JSON-LD Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "DocsApp",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "All",
+        "browserRequirements": "Requires JavaScript. Requires modern HTML5-compliant browser.",
+        "description": "DocsApp is a modern cloud document editor and note-taking workspace featuring rich text editing, side-by-side editing, document version history, and PDF export.",
+        "url": "https://docsapp.vercel.app/",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "Rich Text Editing with formatting toolbar",
+          "Multi-document side-by-side editing and drag-and-drop organization",
+          "Document edit history tracking",
+          "One-click high-fidelity PDF export",
+          "Fast, secure authentication"
+        ]
+      }
+    </script>
   </head>
   <body>
+    <noscript>
+      <div style="font-family: system-ui, -apple-system, sans-serif; padding: 2rem; max-width: 650px; margin: 2rem auto; text-align: center; border-radius: 1rem; background-color: #fff0f6; border: 2px solid #ff84ba; color: #374151;">
+        <h1 style="color: #ff84ba; font-size: 1.8rem; margin-bottom: 0.5rem;">DocsApp - Your Creative Writing &amp; Document Workspace</h1>
+        <p style="font-size: 1rem; line-height: 1.6; margin-bottom: 1rem;">
+          DocsApp is a modern document creation platform. Please enable JavaScript to log in, write, edit, and export your documents seamlessly.
+        </p>
+        <ul style="text-align: left; display: inline-block; line-height: 1.8; color: #4b5563;">
+          <li>✨ Rich text formatting and multimedia embedding</li>
+          <li>📑 Dual-document side-by-side split screen</li>
+          <li>🕒 Detailed document revision history</li>
+          <li>📄 One-click instant PDF download</li>
+        </ul>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

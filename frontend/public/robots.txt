@@ -1,0 +1,11 @@
+# Robots.txt for DocsApp
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /home
+
+# Disallow API requests from crawler indexation
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://docsapp.vercel.app/sitemap.xml

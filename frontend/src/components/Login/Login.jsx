@@ -4,6 +4,7 @@ import { loginSuccess } from '../../slices/authSlice';
 import { Box, Button, TextField, Typography, Container, Paper, Tabs, Tab } from '@mui/material';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import axios from 'axios';
+import SEO from '../SEO/SEO';
 import './Login.css';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/auth`;
@@ -28,13 +29,21 @@ const Login = () => {
   };
 
   return (
-    <Box className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-[#fff0f6]">
+    <Box component="main" id="login-main-section" className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-[#fff0f6]">
+      <SEO 
+        title={tab === 0 ? 'Sign In' : 'Create Free Account'} 
+        description={tab === 0 
+          ? 'Sign in to DocsApp to access your personal document library, rich text notes, and version history.' 
+          : 'Create your free DocsApp account to start writing, organizing notes, and exporting documents to PDF.'} 
+      />
       {/* Abstract Background Curves */}
       <Box 
+        aria-hidden="true"
         className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob" 
         style={{ background: 'linear-gradient(135deg, #ff9ecc 0%, #ff84ba 100%)' }} 
       />
       <Box 
+        aria-hidden="true"
         className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000" 
         style={{ background: 'linear-gradient(135deg, #ffb6d8 0%, #ff84ba 100%)' }} 
       />
@@ -59,10 +68,12 @@ const Login = () => {
           
           <Box className="border-2 sm:border-3 border-white/80 rounded-[1.5rem] sm:rounded-[2.5rem] p-4 sm:p-8 bg-white/40 backdrop-blur-md shadow-inner mt-2">
             <Tabs 
+            id="auth-tabs"
             value={tab} 
             onChange={(e, newValue) => setTab(newValue)} 
             variant="fullWidth" 
             className="mb-8"
+            aria-label="Sign in or registration switch"
             TabIndicatorProps={{ style: { backgroundColor: '#ff84ba', height: 4, borderRadius: '4px 4px 0 0' } }}
             sx={{
               '& .MuiTab-root': {
@@ -77,12 +88,13 @@ const Login = () => {
               }
             }}
           >
-            <Tab label="Login" />
-            <Tab label="Register" />
+            <Tab id="tab-login" label="Login" aria-controls="auth-panel" />
+            <Tab id="tab-register" label="Register" aria-controls="auth-panel" />
           </Tabs>
 
-          <form onSubmit={handleSubmit} className="space-y-8 mt-8">
+          <form id="auth-form" onSubmit={handleSubmit} className="space-y-8 mt-8">
             <TextField
+              id="auth-email-input"
               fullWidth
               label="Email Address"
               variant="outlined"
@@ -90,6 +102,7 @@ const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              inputProps={{ 'aria-label': 'Email Address', id: 'auth-email-input' }}
               InputProps={{
                 sx: { borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.7)', paddingLeft: '8px' }
               }}
@@ -102,6 +115,7 @@ const Login = () => {
             />
             <br /><br />
             <TextField
+              id="auth-password-input"
               fullWidth
               label="Password"
               variant="outlined"
@@ -109,6 +123,7 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              inputProps={{ 'aria-label': 'Password', id: 'auth-password-input' }}
               InputProps={{
                 sx: { borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.7)', paddingLeft: '8px' }
               }}
@@ -121,12 +136,13 @@ const Login = () => {
             />
             <br /> <br />
             {error && (
-              <Box className="bg-red-50 p-3 rounded-2xl border border-red-100 text-center">
+              <Box id="auth-error-message" role="alert" className="bg-red-50 p-3 rounded-2xl border border-red-100 text-center">
                 <Typography color="error" variant="body2" className="font-bold">{error}</Typography>
               </Box>
             )}
             
             <Button
+              id="auth-submit-button"
               fullWidth
               variant="contained"
               size="large"
