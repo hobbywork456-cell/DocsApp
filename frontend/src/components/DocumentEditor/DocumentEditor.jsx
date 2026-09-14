@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Box, Typography, InputBase, Button, Paper, IconButton, Dialog, List, ListItem, ListItemText, Divider } from '@mui/material';
+import { Box, Typography, InputBase, Button, Paper, IconButton, Dialog, List, ListItem, ListItemText, Divider, Tooltip } from '@mui/material';
 import CloudDoneOutlinedIcon from '@mui/icons-material/CloudDoneOutlined';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
 import HistoryIcon from '@mui/icons-material/History';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { updateDocument, removeOpenDocument } from '../../slices/documentSlice';
@@ -12,7 +13,7 @@ import html2pdf from 'html2pdf.js';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import './DocumentEditor.css';
 
-const DocumentEditor = ({ documentId }) => {
+const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const dispatch = useDispatch();
   const { documents } = useSelector((state) => state.documents);
   const selectedDocument = documents.find(doc => doc._id === documentId);
@@ -95,8 +96,6 @@ const DocumentEditor = ({ documentId }) => {
         setSelectedMedia({ type: 'video', src: e.target.src });
       }
     } else {
-      // In edit mode, maybe also allow clicking, but quill might intercept. 
-      // It's mostly useful for reading view, but we can enable it for both.
       if (e.target.tagName === 'IMG') {
         setSelectedMedia({ type: 'image', src: e.target.src });
       } else if (e.target.tagName === 'VIDEO') {
@@ -120,99 +119,147 @@ const DocumentEditor = ({ documentId }) => {
   if (!selectedDocument) return null;
 
   return (
-    <Box className="h-full flex flex-col p-6 bg-white/40 backdrop-blur-sm relative">
-      <Box className="flex justify-between items-center mb-6">
-        <InputBase
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Document Title"
-          readOnly={!isEditing}
-          sx={{ 
-            fontSize: '2.5rem', 
-            fontWeight: '900', 
-            color: '#4a4a4a', 
-            letterSpacing: '-0.02em',
-            opacity: isEditing ? 1 : 0.8
-          }}
-          fullWidth
-          className="mr-6"
-        />
-        <Box className="flex gap-3">
-          <Button
-            variant="contained"
-            startIcon={<HistoryIcon />}
-            onClick={() => setHistoryOpen(true)}
-            className="shrink-0 px-5 py-2 rounded-2xl font-bold transition-all duration-300 hover:-translate-y-1"
+    <Box className="h-full flex flex-col p-3 sm:p-6 bg-white/40 backdrop-blur-sm relative">
+      <Box className="flex items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-6">
+        {/* Title area with optional mobile back-to-library button */}
+        <Box className="flex items-center flex-1 min-w-0 mr-1 sm:mr-4">
+          {onBackToLibrary && (
+            <Tooltip title="Back to Library">
+              <IconButton 
+                onClick={onBackToLibrary} 
+                size="small"
+                className="md:hidden mr-1.5 shrink-0" 
+                sx={{ 
+                  color: '#ff84ba', 
+                  bgcolor: 'rgba(255, 255, 255, 0.85)', 
+                  border: '1px solid rgba(255, 132, 186, 0.3)',
+                  p: '6px',
+                  borderRadius: '10px',
+                  '&:hover': { bgcolor: '#fff0f6' }
+                }}
+              >
+                <ArrowBackIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          <InputBase
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Document Title"
+            readOnly={!isEditing}
             sx={{ 
-              textTransform: 'none', 
-              bgcolor: 'rgba(255, 255, 255, 0.7)', 
-              color: '#9c27b0',
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 4px 15px rgba(156, 39, 176, 0.1)',
-              border: '1px solid rgba(156, 39, 176, 0.2)',
-              '&:hover': { bgcolor: '#fff0ff', boxShadow: '0 6px 20px rgba(156, 39, 176, 0.2)', borderColor: 'rgba(156, 39, 176, 0.4)' }
+              fontSize: { xs: '1.35rem', sm: '2rem', md: '2.5rem' }, 
+              fontWeight: '900', 
+              color: '#4a4a4a', 
+              letterSpacing: '-0.02em',
+              opacity: isEditing ? 1 : 0.85,
+              lineHeight: 1.2
             }}
-          >
-            History
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<FileDownloadOutlinedIcon />}
-            onClick={handleDownloadPdf}
-            disabled={isDownloading}
-            className="shrink-0 px-5 py-2 rounded-2xl font-bold transition-all duration-300 hover:-translate-y-1"
-            sx={{ 
-              textTransform: 'none', 
-              bgcolor: 'rgba(255, 255, 255, 0.7)', 
-              color: '#3b82f6',
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 4px 15px rgba(59, 130, 246, 0.1)',
-              border: '1px solid rgba(59, 130, 246, 0.2)',
-              '&:hover': { bgcolor: '#eff6ff', boxShadow: '0 6px 20px rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 0.4)' },
-              '&.Mui-disabled': { bgcolor: 'rgba(255, 255, 255, 0.4)', color: '#9ca3af', borderColor: 'transparent' }
-            }}
-          >
-            {isDownloading ? '...' : 'PDF'}
-          </Button>
+            fullWidth
+          />
+        </Box>
+
+        {/* Action Buttons */}
+        <Box className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <Tooltip title="Document History">
+            <Button
+              variant="contained"
+              onClick={() => setHistoryOpen(true)}
+              className="shrink-0 px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-bold transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
+              sx={{ 
+                textTransform: 'none', 
+                bgcolor: 'rgba(255, 255, 255, 0.7)', 
+                color: '#9c27b0',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 4px 15px rgba(156, 39, 176, 0.1)',
+                border: '1px solid rgba(156, 39, 176, 0.2)',
+                minWidth: { xs: '36px', sm: 'auto' },
+                '&:hover': { bgcolor: '#fff0ff', boxShadow: '0 6px 20px rgba(156, 39, 176, 0.2)', borderColor: 'rgba(156, 39, 176, 0.4)' }
+              }}
+            >
+              <HistoryIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: { xs: 0, sm: 0.8 } }} />
+              <span className="hidden sm:inline">History</span>
+            </Button>
+          </Tooltip>
+
+          <Tooltip title="Download PDF">
+            <Button
+              variant="contained"
+              onClick={handleDownloadPdf}
+              disabled={isDownloading}
+              className="shrink-0 px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-bold transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
+              sx={{ 
+                textTransform: 'none', 
+                bgcolor: 'rgba(255, 255, 255, 0.7)', 
+                color: '#3b82f6',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                minWidth: { xs: '36px', sm: 'auto' },
+                '&:hover': { bgcolor: '#eff6ff', boxShadow: '0 6px 20px rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 0.4)' },
+                '&.Mui-disabled': { bgcolor: 'rgba(255, 255, 255, 0.4)', color: '#9ca3af', borderColor: 'transparent' }
+              }}
+            >
+              <FileDownloadOutlinedIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: { xs: 0, sm: 0.8 } }} />
+              <span className="hidden sm:inline">{isDownloading ? '...' : 'PDF'}</span>
+            </Button>
+          </Tooltip>
+
           {!isEditing ? (
             <Button
               variant="contained"
-              startIcon={<EditIcon />}
               onClick={() => setIsEditing(true)}
-              className="shrink-0 px-6 py-2 rounded-2xl font-black transition-all duration-300 hover:-translate-y-1"
+              className="shrink-0 px-3 sm:px-6 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-black transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
               sx={{ 
                 textTransform: 'none', 
                 background: 'linear-gradient(135deg, #ff9ecc 0%, #ff84ba 100%)',
                 color: 'white',
-                boxShadow: '0 8px 20px rgba(255, 132, 186, 0.4)',
+                boxShadow: '0 6px 16px rgba(255, 132, 186, 0.4)',
+                minWidth: { xs: '36px', sm: 'auto' },
                 '&:hover': { background: 'linear-gradient(135deg, #ff84ba 0%, #ff6da7 100%)', boxShadow: '0 10px 25px rgba(255, 132, 186, 0.6)' }
               }}
             >
-              Edit
+              <EditIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: { xs: 0, sm: 0.8 } }} />
+              <span className="hidden sm:inline">Edit</span>
             </Button>
           ) : (
             <Button
               variant="contained"
-              startIcon={<CloudDoneOutlinedIcon />}
               onClick={handleSave}
               disabled={isSaving}
-              className="shrink-0 px-6 py-2 rounded-2xl font-black transition-all duration-300 hover:-translate-y-1"
+              className="shrink-0 px-3 sm:px-6 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-black transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
               sx={{ 
                 textTransform: 'none', 
                 bgcolor: 'white',
                 color: '#ff84ba',
                 border: '2px solid #ff84ba',
-                boxShadow: '0 8px 20px rgba(255, 132, 186, 0.2)',
+                boxShadow: '0 6px 16px rgba(255, 132, 186, 0.2)',
+                minWidth: { xs: '36px', sm: 'auto' },
                 '&:hover': { bgcolor: '#fff0f6', boxShadow: '0 10px 25px rgba(255, 132, 186, 0.3)' },
                 '&.Mui-disabled': { borderColor: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' }
               }}
             >
-              {isSaving ? 'Saving...' : 'Save'}
+              <CloudDoneOutlinedIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: { xs: 0, sm: 0.8 } }} />
+              <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save'}</span>
             </Button>
           )}
-          <IconButton onClick={() => dispatch(removeOpenDocument(documentId))} sx={{ color: '#ef4444', bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca' }, ml: 1, borderRadius: '12px' }}>
-            <CloseIcon />
-          </IconButton>
+          
+          <Tooltip title="Close Document">
+            <IconButton 
+              onClick={() => dispatch(removeOpenDocument(documentId))} 
+              size="small"
+              sx={{ 
+                color: '#ef4444', 
+                bgcolor: '#fee2e2', 
+                '&:hover': { bgcolor: '#fecaca' }, 
+                ml: { xs: 0.5, sm: 1 }, 
+                borderRadius: { xs: '10px', sm: '12px' },
+                p: { xs: '6px', sm: '8px' }
+              }}
+            >
+              <CloseIcon sx={{ fontSize: { xs: 18, sm: 22 } }} />
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
       

@@ -42,22 +42,22 @@ const Login = () => {
       <Container maxWidth="sm" className="relative z-10">
         <Paper 
           elevation={0} 
-          className="p-10 shadow-2xl glass-effect border-[4px] border-white/80"
-          style={{ borderRadius: '3rem', boxShadow: '0 25px 50px -12px rgba(255, 132, 186, 0.25), inset 0 2px 6px rgba(255, 255, 255, 0.8)' }} // Curve and detailed edge design
+          className="p-5 sm:p-10 shadow-2xl glass-effect border-2 sm:border-[4px] border-white/80 rounded-[2rem] sm:rounded-[3rem]"
+          style={{ boxShadow: '0 25px 50px -12px rgba(255, 132, 186, 0.25), inset 0 2px 6px rgba(255, 255, 255, 0.8)' }}
         >
-          <Box className="flex flex-col  items-center mb-6">
-            <Box className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center shadow-lg mb-4" style={{ boxShadow: '0 8px 20px 0 rgba(255, 132, 186, 0.5)' }}>
-              <MenuBookIcon sx={{ color: 'white', fontSize: 32 }} />
+          <Box className="flex flex-col items-center mb-6">
+            <Box className="w-14 sm:w-16 h-14 sm:h-16 rounded-full gradient-bg flex items-center justify-center shadow-lg mb-3 sm:mb-4" style={{ boxShadow: '0 8px 20px 0 rgba(255, 132, 186, 0.5)' }}>
+              <MenuBookIcon sx={{ color: 'white', fontSize: { xs: 28, sm: 32 } }} />
             </Box>
-            <Typography variant="h3" component="h1" align="center" className="font-black gradient-text tracking-wide">
+            <Typography variant="h4" component="h1" align="center" className="font-black gradient-text tracking-wide text-2xl sm:text-4xl">
               DocsApp
             </Typography>
-            <Typography variant="body1" align="center" color="textSecondary" className="mt-2 font-medium">
+            <Typography variant="body2" align="center" color="textSecondary" className="mt-1 sm:mt-2 font-medium text-xs sm:text-base">
               Step into your creative space.
             </Typography>
           </Box>
           
-          <Box className="border-3 border-white/80 rounded-[2.5rem] p-8 bg-white/40 backdrop-blur-md shadow-inner mt-2">
+          <Box className="border-2 sm:border-3 border-white/80 rounded-[1.5rem] sm:rounded-[2.5rem] p-4 sm:p-8 bg-white/40 backdrop-blur-md shadow-inner mt-2">
             <Tabs 
             value={tab} 
             onChange={(e, newValue) => setTab(newValue)} 
