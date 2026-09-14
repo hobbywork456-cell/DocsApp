@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 // Get all documents for user
 router.get('/', auth, async (req, res) => {
   try {
-    const documents = await Document.find({}).sort({ updatedAt: -1 });
+    const documents = await Document.find({}).sort({ updatedAt: -1 }).populate('history.editedBy', 'email');
     res.json(documents);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -16,7 +16,7 @@ router.get('/', auth, async (req, res) => {
 // Get a single document
 router.get('/:id', auth, async (req, res) => {
   try {
-    const document = await Document.findOne({ _id: req.params.id });
+    const document = await Document.findOne({ _id: req.params.id }).populate('history.editedBy', 'email');
     if (!document) return res.status(404).json({ message: 'Document not found' });
     res.json(document);
   } catch (error) {
@@ -44,9 +44,12 @@ router.put('/:id', auth, async (req, res) => {
   try {
     const document = await Document.findOneAndUpdate(
       { _id: req.params.id },
-      { $set: { title: req.body.title, content: req.body.content } },
+      { 
+        $set: { title: req.body.title, content: req.body.content },
+        $push: { history: { editedBy: req.user.userId, editedAt: new Date() } }
+      },
       { new: true }
-    );
+    ).populate('history.editedBy', 'email');
     if (!document) return res.status(404).json({ message: 'Document not found' });
     res.json(document);
   } catch (error) {

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Box, Typography, InputBase, Button, Paper, IconButton, Dialog } from '@mui/material';
+import { Box, Typography, InputBase, Button, Paper, IconButton, Dialog, List, ListItem, ListItemText, Divider } from '@mui/material';
 import CloudDoneOutlinedIcon from '@mui/icons-material/CloudDoneOutlined';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
+import HistoryIcon from '@mui/icons-material/History';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { updateDocument, removeOpenDocument } from '../../slices/documentSlice';
@@ -22,6 +23,7 @@ const DocumentEditor = ({ documentId }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (selectedDocument) {
@@ -138,6 +140,15 @@ const DocumentEditor = ({ documentId }) => {
         <Box className="flex gap-3">
           <Button
             variant="outlined"
+            startIcon={<HistoryIcon />}
+            onClick={() => setHistoryOpen(true)}
+            className="shrink-0 px-4 py-2 rounded-xl font-bold transition-all border-[#9c27b0] text-[#9c27b0] hover:bg-purple-50 hover:border-[#9c27b0]"
+            sx={{ textTransform: 'none' }}
+          >
+            History
+          </Button>
+          <Button
+            variant="outlined"
             startIcon={<FileDownloadOutlinedIcon />}
             onClick={handleDownloadPdf}
             disabled={isDownloading}
@@ -225,6 +236,48 @@ const DocumentEditor = ({ documentId }) => {
         </Box>
       </Dialog>
       
+      <Dialog 
+        open={historyOpen} 
+        onClose={() => setHistoryOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '16px', p: 2 } }}
+      >
+        <Box className="flex justify-between items-center mb-4 px-2">
+          <Typography variant="h6" fontWeight="bold">Document History</Typography>
+          <IconButton onClick={() => setHistoryOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        <Divider />
+        <List sx={{ maxHeight: 400, overflow: 'auto', p: 2 }}>
+          {!selectedDocument?.history || selectedDocument.history.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+              No edit history found.
+            </Typography>
+          ) : (
+            selectedDocument.history.slice().reverse().map((entry, index) => (
+              <Box key={index}>
+                <ListItem sx={{ py: 2 }}>
+                  <ListItemText 
+                    primary={
+                      <Typography variant="body1" fontWeight="bold">
+                        Edited by {entry.editedBy?.email || 'Unknown User'}
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {new Date(entry.editedAt).toLocaleString()}
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+                {index < selectedDocument.history.length - 1 && <Divider />}
+              </Box>
+            ))
+          )}
+        </List>
+      </Dialog>
     </Box>
   );
 };
