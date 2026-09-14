@@ -13,16 +13,69 @@ app.use(express.json());
 // Routes
 const authRoutes = require('./routes/auth');
 const documentRoutes = require('./routes/documents');
+const groupRoutes = require('./routes/groups');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/groups', groupRoutes);
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/docs_app';
 
+const Group = require('./models/Group');
+const Document = require('./models/Document');
+const User = require('./models/User');
+
+async function initDefaultGroupAndMigrate() {
+  try {
+    const defaultGroupId = 'nkoor-it';
+    const allUsers = await User.find({});
+    const allUserIds = allUsers.map(u => u._id);
+
+    let defaultGroup = await Group.findOne({ groupId: defaultGroupId });
+    if (!defaultGroup) {
+      const creatorId = allUserIds[0] || new mongoose.Types.ObjectId();
+      defaultGroup = new Group({
+        name: 'NKORR IT',
+        groupId: defaultGroupId,
+        createdBy: creatorId,
+        members: allUserIds
+      });
+      await defaultGroup.save();
+      console.log(`Created default group '${defaultGroupId}' with ${allUserIds.length} members`);
+    } else {
+      // Ensure all current users have access to nkoor-it
+      let updatedMembers = false;
+      allUserIds.forEach(id => {
+        if (!defaultGroup.members.some(m => m.toString() === id.toString())) {
+          defaultGroup.members.push(id);
+          updatedMembers = true;
+        }
+      });
+      if (updatedMembers) {
+        await defaultGroup.save();
+        console.log(`Updated '${defaultGroupId}' group memberships`);
+      }
+    }
+
+    // Migrate any existing documents without groupId
+    const migrationResult = await Document.updateMany(
+      { $or: [{ groupId: { $exists: false } }, { groupId: null }, { groupId: '' }] },
+      { $set: { groupId: defaultGroupId } }
+    );
+
+    if (migrationResult.modifiedCount > 0) {
+      console.log(`Migrated ${migrationResult.modifiedCount} documents to group '${defaultGroupId}'`);
+    }
+  } catch (err) {
+    console.error('Error during group migration:', err);
+  }
+}
+
 mongoose.connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('Connected to MongoDB');
+    await initDefaultGroupAndMigrate();
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
