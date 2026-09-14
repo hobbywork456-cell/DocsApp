@@ -139,25 +139,38 @@ const DocumentEditor = ({ documentId }) => {
         />
         <Box className="flex gap-3">
           <Button
-            variant="outlined"
+            variant="contained"
             startIcon={<HistoryIcon />}
             onClick={() => setHistoryOpen(true)}
-            className="shrink-0 px-4 py-2 rounded-xl font-bold transition-all border-[#9c27b0] text-[#9c27b0] hover:bg-purple-50 hover:border-[#9c27b0]"
-            sx={{ textTransform: 'none' }}
+            className="shrink-0 px-5 py-2 rounded-2xl font-bold transition-all duration-300 hover:-translate-y-1"
+            sx={{ 
+              textTransform: 'none', 
+              bgcolor: 'rgba(255, 255, 255, 0.7)', 
+              color: '#9c27b0',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 4px 15px rgba(156, 39, 176, 0.1)',
+              border: '1px solid rgba(156, 39, 176, 0.2)',
+              '&:hover': { bgcolor: '#fff0ff', boxShadow: '0 6px 20px rgba(156, 39, 176, 0.2)', borderColor: 'rgba(156, 39, 176, 0.4)' }
+            }}
           >
             History
           </Button>
           <Button
-            variant="outlined"
+            variant="contained"
             startIcon={<FileDownloadOutlinedIcon />}
             onClick={handleDownloadPdf}
             disabled={isDownloading}
-            className={`shrink-0 px-4 py-2 rounded-xl font-bold transition-all ${
-              isDownloading 
-                ? 'border-gray-200 text-gray-400' 
-                : 'border-[#849bff] text-[#6b8be0] hover:bg-blue-50 hover:border-[#6b8be0]'
-            }`}
-            sx={{ textTransform: 'none' }}
+            className="shrink-0 px-5 py-2 rounded-2xl font-bold transition-all duration-300 hover:-translate-y-1"
+            sx={{ 
+              textTransform: 'none', 
+              bgcolor: 'rgba(255, 255, 255, 0.7)', 
+              color: '#3b82f6',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 4px 15px rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              '&:hover': { bgcolor: '#eff6ff', boxShadow: '0 6px 20px rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 0.4)' },
+              '&.Mui-disabled': { bgcolor: 'rgba(255, 255, 255, 0.4)', color: '#9ca3af', borderColor: 'transparent' }
+            }}
           >
             {isDownloading ? '...' : 'PDF'}
           </Button>
@@ -166,23 +179,33 @@ const DocumentEditor = ({ documentId }) => {
               variant="contained"
               startIcon={<EditIcon />}
               onClick={() => setIsEditing(true)}
-              className="shrink-0 px-6 py-2 rounded-xl font-bold transition-all bg-[#ff84ba] text-white hover:bg-[#e06b9e] shadow-md hover:shadow-lg"
-              sx={{ textTransform: 'none', boxShadow: '0 4px 10px 0 rgba(255, 132, 186, 0.4)' }}
+              className="shrink-0 px-6 py-2 rounded-2xl font-black transition-all duration-300 hover:-translate-y-1"
+              sx={{ 
+                textTransform: 'none', 
+                background: 'linear-gradient(135deg, #ff9ecc 0%, #ff84ba 100%)',
+                color: 'white',
+                boxShadow: '0 8px 20px rgba(255, 132, 186, 0.4)',
+                '&:hover': { background: 'linear-gradient(135deg, #ff84ba 0%, #ff6da7 100%)', boxShadow: '0 10px 25px rgba(255, 132, 186, 0.6)' }
+              }}
             >
               Edit
             </Button>
           ) : (
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<CloudDoneOutlinedIcon />}
               onClick={handleSave}
               disabled={isSaving}
-              className={`shrink-0 px-6 py-2 rounded-xl font-bold transition-all ${
-                isSaving 
-                  ? 'border-gray-200 text-gray-400' 
-                  : 'border-[#ff84ba] text-[#e06b9e] hover:bg-pink-50 hover:border-[#e06b9e]'
-              }`}
-              sx={{ textTransform: 'none' }}
+              className="shrink-0 px-6 py-2 rounded-2xl font-black transition-all duration-300 hover:-translate-y-1"
+              sx={{ 
+                textTransform: 'none', 
+                bgcolor: 'white',
+                color: '#ff84ba',
+                border: '2px solid #ff84ba',
+                boxShadow: '0 8px 20px rgba(255, 132, 186, 0.2)',
+                '&:hover': { bgcolor: '#fff0f6', boxShadow: '0 10px 25px rgba(255, 132, 186, 0.3)' },
+                '&.Mui-disabled': { borderColor: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' }
+              }}
             >
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
