@@ -8,6 +8,14 @@ const DocumentSchema = new mongoose.Schema({
   history: [{
     editedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     editedAt: { type: Date, default: Date.now },
+    changesSummary: { type: String }
+  }],
+  attachments: [{
+    name: { type: String },
+    url: { type: String },
+    type: { type: String },
+    size: { type: Number },
+    uploadedAt: { type: Date, default: Date.now }
   }]
 }, { timestamps: true });
 

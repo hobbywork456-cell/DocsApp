@@ -41,6 +41,10 @@ import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import LinkIcon from '@mui/icons-material/Link';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../slices/authSlice';
 import { 
@@ -49,7 +53,10 @@ import {
   setActiveGroupId, 
   fetchGroupMembers,
   removeGroupMember,
-  deleteGroup
+  deleteGroup,
+  acceptJoinRequest,
+  rejectJoinRequest,
+  fetchInviteToken
 } from '../../slices/groupSlice';
 import './Navbar.css';
 
@@ -61,6 +68,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
     activeGroupId, 
     actionLoading, 
     currentGroupMembers, 
+    currentJoinRequests,
     isCurrentUserAdmin, 
     membersLoading 
   } = useSelector((state) => state.groups);
@@ -222,6 +230,28 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
     }
   };
 
+  const handleAcceptRequest = async (userId) => {
+    await dispatch(acceptJoinRequest({ groupId: activeGroupId, userId }));
+  };
+
+  const handleRejectRequest = async (userId) => {
+    await dispatch(rejectJoinRequest({ groupId: activeGroupId, userId }));
+  };
+
+  const handleCopyInviteLink = async () => {
+    const resultAction = await dispatch(fetchInviteToken({ groupId: activeGroupId }));
+    if (fetchInviteToken.fulfilled.match(resultAction)) {
+      const inviteToken = resultAction.payload.inviteToken;
+      const inviteUrl = `${window.location.origin}/invite/${inviteToken}`;
+      navigator.clipboard.writeText(inviteUrl);
+      setToastMessage('Invite link copied to clipboard!');
+      setToastSeverity('success');
+    } else {
+      setToastMessage('Failed to generate invite link');
+      setToastSeverity('error');
+    }
+  };
+
   // Delete Group Handlers
   const handleOpenDeleteGroupDialog = () => {
     setDeleteConfirmText('');
@@ -258,7 +288,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
       position="static" 
       color="transparent" 
       elevation={0} 
-      className="bg-white/70 backdrop-blur-md border-b border-pink-100/80 pt-0.5 sm:pt-1 pb-0.5 sm:pb-1"
+      className="bg-white border-b border-gray-200 pt-0.5 sm:pt-1 pb-0.5 sm:pb-1"
     >
       <Toolbar component="nav" id="app-navigation" aria-label="Main Navigation" className="px-2 sm:px-6 min-h-[56px] sm:min-h-[64px] flex items-center justify-between gap-1 sm:gap-4">
         {/* Left Side: Brand Logo, Group Switcher & Members Button */}
@@ -287,17 +317,17 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               onClick={handleOpenGroupMenu}
               endIcon={<KeyboardArrowDownIcon sx={{ fontSize: 18 }} />}
               sx={{
-                bgcolor: 'rgba(255, 255, 255, 0.9)',
-                border: '1.5px solid #ffb6d8',
-                borderRadius: '9999px',
+                bgcolor: 'white',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
                 px: { xs: 1.2, sm: 2 },
                 py: { xs: 0.4, sm: 0.6 },
                 textTransform: 'none',
                 maxWidth: { xs: '140px', sm: '220px' },
-                boxShadow: '0 2px 8px rgba(255, 132, 186, 0.15)',
+                boxShadow: 'none',
                 '&:hover': {
-                  bgcolor: '#fff0f6',
-                  borderColor: '#ff84ba'
+                  bgcolor: '#f9fafb',
+                  borderColor: '#d1d5db'
                 }
               }}
             >
@@ -322,10 +352,10 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 size="small"
                 onClick={handleOpenMembersDialog}
                 sx={{
-                  color: '#ff84ba',
-                  bgcolor: 'rgba(255, 255, 255, 0.9)',
-                  border: '1px solid #ffb6d8',
-                  borderRadius: '12px',
+                  color: '#4b5563',
+                  bgcolor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
                   p: { xs: '5px', sm: '7px' },
                   '&:hover': { bgcolor: '#fff0f6', borderColor: '#ff84ba' }
                 }}
@@ -343,12 +373,12 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             onClose={handleCloseGroupMenu}
             PaperProps={{
               sx: {
-                borderRadius: '16px',
+                borderRadius: '6px',
                 mt: 1,
                 minWidth: '240px',
                 maxWidth: '320px',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-                border: '1px solid #ffe4ef',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                border: '1px solid #e5e7eb',
                 p: 0.5
               }
             }}
@@ -366,7 +396,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                   className={`rounded-xl my-0.5 transition-all ${isSelected ? 'bg-pink-50 font-bold' : ''}`}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    {isSelected ? <CheckIcon sx={{ color: '#ff84ba', fontSize: 18 }} /> : <GroupIcon sx={{ color: '#9ca3af', fontSize: 18 }} />}
+                    {isSelected ? <CheckIcon sx={{ color: '#000', fontSize: 18 }} /> : <GroupIcon sx={{ color: '#9ca3af', fontSize: 18 }} />}
                   </ListItemIcon>
                   <Box className="flex flex-col">
                     <Typography 
@@ -393,22 +423,22 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               </Box>
             )}
 
-            <Box className="border-t border-pink-100 my-1 pt-1">
+            <Box className="border-t border-gray-200 my-1 pt-1">
               {currentGroup && (
-                <MenuItem onClick={handleOpenMembersDialog} className="rounded-xl text-xs font-bold text-gray-700">
+                <MenuItem onClick={handleOpenMembersDialog} className="rounded-md text-xs font-bold text-gray-700 hover:bg-gray-50">
                   <ListItemIcon sx={{ minWidth: 28 }}>
-                    <PeopleIcon sx={{ color: '#ff84ba', fontSize: 18 }} />
+                    <PeopleIcon sx={{ color: '#4b5563', fontSize: 18 }} />
                   </ListItemIcon>
                   Manage Group Members
                 </MenuItem>
               )}
-              <MenuItem onClick={handleOpenAddDialog} className="rounded-xl text-xs font-bold text-[#ff84ba]">
+              <MenuItem onClick={handleOpenAddDialog} className="rounded-md text-xs font-bold text-gray-900 hover:bg-gray-50">
                 <ListItemIcon sx={{ minWidth: 28 }}>
-                  <GroupAddIcon sx={{ color: '#ff84ba', fontSize: 18 }} />
+                  <GroupAddIcon sx={{ color: '#4b5563', fontSize: 18 }} />
                 </ListItemIcon>
                 Create New Group
               </MenuItem>
-              <MenuItem onClick={handleOpenJoinDialog} className="rounded-xl text-xs font-bold text-gray-700">
+              <MenuItem onClick={handleOpenJoinDialog} className="rounded-md text-xs font-bold text-gray-700 hover:bg-gray-50">
                 <ListItemIcon sx={{ minWidth: 28 }}>
                   <GroupIcon sx={{ color: '#6b7280', fontSize: 18 }} />
                 </ListItemIcon>
@@ -419,25 +449,25 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           {/* Mobile View Switcher when documents are open */}
           {hasOpenDocuments && (
-            <Box className="flex md:hidden bg-white/80 rounded-full p-0.5 border border-pink-200 shadow-sm shrink-0" role="group" aria-label="View Mode Switcher">
+            <Box className="flex md:hidden bg-white rounded-md p-0.5 border border-gray-200 shadow-sm shrink-0" role="group" aria-label="View Mode Switcher">
               <Button
                 id="mobile-view-sidebar-btn"
                 size="small"
                 onClick={() => onToggleMobileView && onToggleMobileView('sidebar')}
                 startIcon={<LibraryBooksIcon sx={{ fontSize: 13 }} />}
                 sx={{
-                  borderRadius: '9999px',
+                  borderRadius: '4px',
                   textTransform: 'none',
                   fontSize: '0.7rem',
                   fontWeight: 700,
                   px: 1,
                   py: 0.2,
                   minWidth: 'auto',
-                  bgcolor: mobileView === 'sidebar' ? '#ff84ba' : 'transparent',
+                  bgcolor: mobileView === 'sidebar' ? '#000' : 'transparent',
                   color: mobileView === 'sidebar' ? 'white' : '#6b7280',
-                  boxShadow: mobileView === 'sidebar' ? '0 2px 6px rgba(255,132,186,0.3)' : 'none',
+                  boxShadow: 'none',
                   '&:hover': {
-                    bgcolor: mobileView === 'sidebar' ? '#e06b9e' : 'rgba(255,132,186,0.1)'
+                    bgcolor: mobileView === 'sidebar' ? '#333' : '#f3f4f6'
                   }
                 }}
               >
@@ -449,7 +479,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 onClick={() => onToggleMobileView && onToggleMobileView('editor')}
                 startIcon={<DescriptionIcon sx={{ fontSize: 13 }} />}
                 sx={{
-                  borderRadius: '9999px',
+                  borderRadius: '4px',
                   textTransform: 'none',
                   fontSize: '0.7rem',
                   fontWeight: 700,
@@ -483,16 +513,16 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             sx={{
               background: 'linear-gradient(135deg, #ff9ecc 0%, #ff84ba 100%)',
               color: 'white',
-              borderRadius: '9999px',
+              borderRadius: '6px',
               textTransform: 'none',
-              fontWeight: 800,
+              fontWeight: 600,
               fontSize: { xs: '0.75rem', sm: '0.85rem' },
               px: { xs: 1.2, sm: 2 },
               py: { xs: 0.4, sm: 0.6 },
-              boxShadow: '0 4px 12px rgba(255, 132, 186, 0.35)',
+              boxShadow: 'none',
               '&:hover': {
-                background: 'linear-gradient(135deg, #ff84ba 0%, #ff6da7 100%)',
-                boxShadow: '0 6px 16px rgba(255, 132, 186, 0.5)',
+                background: '#333',
+                boxShadow: 'none',
               }
             }}
           >
@@ -512,7 +542,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               borderColor: '#ff84ba',
               color: '#ff84ba',
               bgcolor: 'rgba(255, 255, 255, 0.8)',
-              borderRadius: '9999px',
+              borderRadius: '8px',
               textTransform: 'none',
               fontWeight: 800,
               fontSize: { xs: '0.75rem', sm: '0.85rem' },
@@ -530,7 +560,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           </Button>
 
           {/* User Email Pill (Desktop) / Initial Circle (Mobile) */}
-          <Box className="hidden lg:block px-3 py-1 rounded-full bg-white/90 border border-pink-200">
+          <Box className="hidden lg:block px-3 py-1 rounded-xl bg-white/90 border border-pink-100 shadow-sm">
             <Typography variant="caption" className="font-semibold text-gray-700">
               {user?.email}
             </Typography>
@@ -551,7 +581,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               color: '#e06b9e', 
               bgcolor: 'rgba(255, 255, 255, 0.7)',
               border: '1px solid rgba(255, 132, 186, 0.3)',
-              borderRadius: '10px',
+              borderRadius: '8px',
               p: { xs: '5px', sm: '7px' },
               '&:hover': { backgroundColor: '#fff0f6', borderColor: '#ff84ba' }, 
             }}
@@ -561,7 +591,6 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         </Box>
       </Toolbar>
 
-      {/* CREATE GROUP DIALOG */}
       <Dialog
         id="add-group-dialog"
         open={addDialogOpen}
@@ -572,7 +601,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           sx: {
             borderRadius: '20px',
             p: 1,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
             border: '1px solid #ffe4ef'
           }
         }}
@@ -580,7 +609,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         <Box component="form" onSubmit={handleCreateGroupSubmit}>
           <DialogTitle className="flex justify-between items-center pb-2">
             <Box className="flex items-center gap-2">
-              <Box className="p-2 rounded-xl bg-pink-100 text-[#ff84ba]">
+              <Box className="p-2 rounded-xl bg-pink-50 text-[#ff84ba] border border-pink-100">
                 <GroupAddIcon fontSize="small" />
               </Box>
               <Typography variant="h6" className="font-extrabold text-gray-800">
@@ -681,8 +710,8 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               type="submit"
               variant="contained"
               disabled={actionLoading || !newGroupName.trim()}
-              className="rounded-xl font-bold capitalize gradient-bg text-white shadow-md"
-              sx={{ px: 3 }}
+              className="rounded-xl font-bold capitalize bg-gradient-to-r from-[#ff9ecc] to-[#ff84ba] text-white shadow-md hover:shadow-lg"
+              sx={{ px: 3, textTransform: 'none' }}
             >
               {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Create Group'}
             </Button>
@@ -701,7 +730,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           sx: {
             borderRadius: '20px',
             p: 1,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
             border: '1px solid #ffe4ef'
           }
         }}
@@ -709,7 +738,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         <Box component="form" onSubmit={handleJoinGroupSubmit}>
           <DialogTitle className="flex justify-between items-center pb-2">
             <Box className="flex items-center gap-2">
-              <Box className="p-2 rounded-xl bg-pink-100 text-[#ff84ba]">
+              <Box className="p-2 rounded-xl bg-pink-50 text-[#ff84ba] border border-pink-100">
                 <GroupIcon fontSize="small" />
               </Box>
               <Typography variant="h6" className="font-extrabold text-gray-800">
@@ -723,7 +752,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           <DialogContent className="pt-2 pb-2">
             <Typography variant="body2" className="text-gray-500 mb-4 text-xs sm:text-sm">
-              Enter the unique Group ID (for example: <strong className="text-pink-600">nkoor-it</strong>). Once joined, you can read and write all documents inside this group anytime.
+              Enter the unique Group ID (for example: <strong className="text-pink-600">nkoor-it</strong>). This will send a request to the admin. Once approved, you can read and write documents inside this group.
             </Typography>
 
             {joinDialogError && (
@@ -767,8 +796,8 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               type="submit"
               variant="contained"
               disabled={actionLoading || !joinInputId.trim()}
-              className="rounded-xl font-bold capitalize gradient-bg text-white shadow-md"
-              sx={{ px: 3 }}
+              className="rounded-xl font-bold capitalize bg-gradient-to-r from-[#ff9ecc] to-[#ff84ba] text-white shadow-md hover:shadow-lg"
+              sx={{ px: 3, textTransform: 'none' }}
             >
               {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Join Group'}
             </Button>
@@ -787,14 +816,14 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           sx: {
             borderRadius: '20px',
             p: 1,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
             border: '1px solid #ffe4ef'
           }
         }}
       >
         <DialogTitle className="flex justify-between items-center pb-2">
           <Box className="flex items-center gap-2">
-            <Box className="p-2 rounded-xl bg-pink-100 text-[#ff84ba]">
+            <Box className="p-2 rounded-xl bg-pink-50 text-[#ff84ba] border border-pink-100">
               <PeopleIcon fontSize="small" />
             </Box>
             <Box>
@@ -813,7 +842,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         <DialogContent className="pt-2 pb-2">
           {/* Group Info Banner */}
-          <Box className="flex items-center justify-between p-3 rounded-2xl bg-white/70 border border-pink-100 mb-4">
+          <Box className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-pink-50 to-white border border-pink-100 mb-4 shadow-sm">
             <Box>
               <Typography variant="body2" className="font-bold text-gray-700">
                 Total Members: <span className="text-[#e06b9e]">{currentGroupMembers.length}</span>
@@ -827,7 +856,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 icon={<AdminPanelSettingsIcon sx={{ fontSize: 16 }} />} 
                 label="Group Admin" 
                 size="small"
-                className="bg-gradient-to-r from-pink-500 to-[#ff84ba] text-white font-bold text-xs" 
+                className="bg-gradient-to-r from-pink-400 to-[#ff84ba] text-white font-bold text-xs shadow-sm" 
               />
             )}
           </Box>
@@ -846,7 +875,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               {currentGroupMembers.map((member) => (
                 <ListItem 
                   key={member._id}
-                  className="p-2.5 rounded-xl bg-white/80 border border-gray-100 flex items-center justify-between"
+                  className="p-2.5 rounded-xl bg-white border border-pink-50 flex items-center justify-between shadow-sm"
                 >
                   <Box className="flex items-center gap-3 overflow-hidden">
                     <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#ff84ba' : '#e0e7ff', color: member.isAdmin ? 'white' : '#4338ca', fontSize: 13, fontWeight: 'bold' }}>
@@ -898,10 +927,64 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             </List>
           )}
 
+          {/* JOIN REQUESTS (ADMIN ONLY) */}
+          {isCurrentUserAdmin && currentJoinRequests && currentJoinRequests.length > 0 && (
+            <Box className="mt-4 pt-4 border-t border-pink-100">
+              <Typography variant="subtitle2" className="font-bold text-gray-700 mb-2 uppercase text-[11px] tracking-wider">
+                Pending Join Requests ({currentJoinRequests.length})
+              </Typography>
+              <List className="p-0 space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar">
+                {currentJoinRequests.map((req) => (
+                  <ListItem key={req._id} className="p-2.5 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-between shadow-sm">
+                    <Box className="flex items-center gap-2 overflow-hidden">
+                      <Avatar sx={{ width: 28, height: 28, bgcolor: '#f97316', fontSize: 12, fontWeight: 'bold' }}>
+                        {req.email?.[0]?.toUpperCase()}
+                      </Avatar>
+                      <Typography variant="body2" className="font-bold text-gray-800 truncate text-xs">
+                        {req.email}
+                      </Typography>
+                    </Box>
+                    <Box className="flex items-center gap-1 shrink-0">
+                      <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: '#10b981', bgcolor: '#ecfdf5', '&:hover': { bgcolor: '#d1fae5' } }}>
+                        <CheckCircleIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" onClick={() => handleRejectRequest(req._id)} sx={{ color: '#ef4444', bgcolor: '#fef2f2', '&:hover': { bgcolor: '#fee2e2' } }}>
+                        <CancelIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          )}
+
+          {/* INVITE LINK (ADMIN ONLY) */}
+          {isCurrentUserAdmin && (
+            <Box className="mt-4 pt-4 border-t border-pink-100">
+              <Box className="p-3.5 rounded-xl bg-gradient-to-r from-pink-50 to-white border border-pink-100 flex flex-col items-start gap-2 shadow-sm">
+                <Typography variant="subtitle2" className="font-extrabold text-[#e06b9e] flex items-center gap-1">
+                  <LinkIcon fontSize="small" /> Share Invite Link
+                </Typography>
+                <Typography variant="caption" className="text-gray-600 leading-relaxed">
+                  Users who click the invite link will automatically join without needing approval.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ContentCopyIcon />}
+                  onClick={handleCopyInviteLink}
+                  sx={{ mt: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', borderColor: '#ffb6d8', color: '#e06b9e', '&:hover': { borderColor: '#ff84ba', bgcolor: '#fff0f6' } }}
+                >
+                  Copy Link
+                </Button>
+              </Box>
+            </Box>
+          )}
+
           {/* DANGER ZONE (ADMIN ONLY) */}
           {isCurrentUserAdmin && (
             <Box className="mt-6 pt-4 border-t border-red-100">
-              <Box className="p-3.5 rounded-2xl bg-red-50/70 border border-red-200">
+              <Box className="p-3.5 rounded-xl bg-red-50/70 border border-red-200 shadow-sm">
                 <Box className="flex items-center gap-2 mb-1.5">
                   <WarningAmberIcon color="error" fontSize="small" />
                   <Typography variant="subtitle2" className="font-extrabold text-red-700">
@@ -919,12 +1002,12 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                   startIcon={<DeleteForeverIcon />}
                   onClick={handleOpenDeleteGroupDialog}
                   sx={{
-                    borderRadius: '10px',
+                    borderRadius: '8px',
                     textTransform: 'none',
-                    fontWeight: 800,
+                    fontWeight: 700,
                     fontSize: '0.78rem',
                     boxShadow: 'none',
-                    '&:hover': { boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)' }
+                    '&:hover': { boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)', bgcolor: '#dc2626' }
                   }}
                 >
                   Delete Group & Documents
@@ -935,7 +1018,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         </DialogContent>
 
         <DialogActions className="p-3 pt-1">
-          <Button onClick={handleCloseMembersDialog} className="font-bold text-gray-600 capitalize">
+          <Button onClick={handleCloseMembersDialog} className="font-bold text-gray-500 capitalize">
             Close
           </Button>
         </DialogActions>
@@ -952,7 +1035,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           sx: {
             borderRadius: '20px',
             p: 1,
-            boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
             border: '2px solid #fca5a5'
           }
         }}
@@ -984,7 +1067,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
             InputProps={{
-              className: 'rounded-xl bg-white font-mono'
+              className: 'rounded-xl bg-white/70 font-mono'
             }}
           />
         </DialogContent>
@@ -1004,8 +1087,8 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             color="error"
             disabled={deleteConfirmText.trim() !== 'delete group' || actionLoading}
             onClick={handleDeleteGroupSubmit}
-            className="rounded-xl font-bold capitalize shadow-md"
-            sx={{ px: 3 }}
+            className="rounded-xl font-bold capitalize shadow-md hover:shadow-lg"
+            sx={{ px: 3, textTransform: 'none' }}
           >
             {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Delete Group'}
           </Button>

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useSelector } from 'react-redux';
 import Login from './components/Login/Login';
 import Dashboard from './components/Dashboard/Dashboard';
+import InviteHandler from './components/Invite/InviteHandler';
 
 function PrivateRoute({ children }) {
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
@@ -26,6 +27,8 @@ function App() {
             <Login />
           </PublicRoute>
         } />
+        
+        <Route path="/invite/:token" element={<InviteHandler />} />
         
         <Route path="/home" element={
           <PrivateRoute>

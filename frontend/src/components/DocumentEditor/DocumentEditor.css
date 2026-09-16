@@ -15,6 +15,17 @@
   padding: 12px 16px !important;
 }
 
+/* Increase space between toolbar icons */
+.custom-quill .ql-toolbar.ql-snow .ql-formats {
+  margin-right: 2px !important;
+}
+.custom-quill .ql-toolbar.ql-snow button {
+  margin-right: 8px !important;
+}
+.custom-quill .ql-toolbar.ql-snow .ql-picker {
+  margin-right: 8px !important;
+}
+
 /* Mobile toolbar scrolling: keeps toolbar compact and horizontally swipeable */
 @media (max-width: 767px) {
   .custom-quill .ql-toolbar {

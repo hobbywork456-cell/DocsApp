@@ -10,6 +10,15 @@ app.use(cors({
 }));
 app.use(express.json());
 
+const path = require('path');
+
+const fs = require('fs');
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+app.use('/uploads', express.static(uploadsDir));
+
 // Routes
 const authRoutes = require('./routes/auth');
 const documentRoutes = require('./routes/documents');
@@ -43,19 +52,6 @@ async function initDefaultGroupAndMigrate() {
       });
       await defaultGroup.save();
       console.log(`Created default group '${defaultGroupId}' with ${allUserIds.length} members`);
-    } else {
-      // Ensure all current users have access to nkoor-it
-      let updatedMembers = false;
-      allUserIds.forEach(id => {
-        if (!defaultGroup.members.some(m => m.toString() === id.toString())) {
-          defaultGroup.members.push(id);
-          updatedMembers = true;
-        }
-      });
-      if (updatedMembers) {
-        await defaultGroup.save();
-        console.log(`Updated '${defaultGroupId}' group memberships`);
-      }
     }
 
     // Migrate any existing documents without groupId

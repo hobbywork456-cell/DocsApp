@@ -22,7 +22,17 @@ const GroupSchema = new mongoose.Schema({
   members: [{ 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User' 
-  }]
+  }],
+  joinRequests: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  }],
+  inviteToken: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Group', GroupSchema);

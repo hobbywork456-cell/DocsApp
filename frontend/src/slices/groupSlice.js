@@ -52,12 +52,92 @@ export const joinGroup = createAsyncThunk(
         { groupId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      return response.data.group;
+      return response.data;
     } catch (error) {
       if (error.response && error.response.status === 401) {
         dispatch(logout());
       }
       return rejectWithValue(error.response?.data?.message || 'Failed to join group');
+    }
+  }
+);
+
+export const joinWithInviteToken = createAsyncThunk(
+  'groups/joinWithInviteToken',
+  async ({ token }, { getState, dispatch, rejectWithValue }) => {
+    try {
+      const authToken = getState().auth.token;
+      const response = await axios.post(
+        `${API_URL}/invite/${encodeURIComponent(token)}/join`,
+        {},
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        dispatch(logout());
+      }
+      return rejectWithValue(error.response?.data?.message || 'Failed to join with invite link');
+    }
+  }
+);
+
+export const fetchInviteToken = createAsyncThunk(
+  'groups/fetchInviteToken',
+  async ({ groupId }, { getState, dispatch, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await axios.post(
+        `${API_URL}/${encodeURIComponent(groupId)}/invite-token`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        dispatch(logout());
+      }
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch invite link');
+    }
+  }
+);
+
+export const acceptJoinRequest = createAsyncThunk(
+  'groups/acceptJoinRequest',
+  async ({ groupId, userId }, { getState, dispatch, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await axios.post(
+        `${API_URL}/${encodeURIComponent(groupId)}/requests/${userId}/accept`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        dispatch(logout());
+      }
+      return rejectWithValue(error.response?.data?.message || 'Failed to accept request');
+    }
+  }
+);
+
+export const rejectJoinRequest = createAsyncThunk(
+  'groups/rejectJoinRequest',
+  async ({ groupId, userId }, { getState, dispatch, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await axios.post(
+        `${API_URL}/${encodeURIComponent(groupId)}/requests/${userId}/reject`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        dispatch(logout());
+      }
+      return rejectWithValue(error.response?.data?.message || 'Failed to reject request');
     }
   }
 );
@@ -124,6 +204,7 @@ const groupSlice = createSlice({
     groups: [],
     activeGroupId: localStorage.getItem('activeGroupId') || null,
     currentGroupMembers: [],
+    currentJoinRequests: [],
     isCurrentUserAdmin: false,
     membersLoading: false,
     status: 'idle',
@@ -194,17 +275,45 @@ const groupSlice = createSlice({
       })
       .addCase(joinGroup.fulfilled, (state, action) => {
         state.actionLoading = false;
-        const index = state.groups.findIndex((g) => g.groupId === action.payload.groupId);
-        if (index !== -1) {
-          state.groups[index] = action.payload;
+        if (action.payload.requestSent) {
+          state.successMessage = action.payload.message;
         } else {
-          state.groups.unshift(action.payload);
+          const group = action.payload.group;
+          const index = state.groups.findIndex((g) => g.groupId === group.groupId);
+          if (index !== -1) {
+            state.groups[index] = group;
+          } else {
+            state.groups.unshift(group);
+          }
+          state.activeGroupId = group.groupId;
+          localStorage.setItem('activeGroupId', group.groupId);
+          state.successMessage = `Successfully joined "${group.name}"!`;
         }
-        state.activeGroupId = action.payload.groupId;
-        localStorage.setItem('activeGroupId', action.payload.groupId);
-        state.successMessage = `Successfully joined "${action.payload.name}"!`;
       })
       .addCase(joinGroup.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
+      })
+
+      // joinWithInviteToken
+      .addCase(joinWithInviteToken.pending, (state) => {
+        state.actionLoading = true;
+        state.error = null;
+      })
+      .addCase(joinWithInviteToken.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        const group = action.payload.group;
+        const index = state.groups.findIndex((g) => g.groupId === group.groupId);
+        if (index !== -1) {
+          state.groups[index] = group;
+        } else {
+          state.groups.unshift(group);
+        }
+        state.activeGroupId = group.groupId;
+        localStorage.setItem('activeGroupId', group.groupId);
+        state.successMessage = `Successfully joined "${group.name}"!`;
+      })
+      .addCase(joinWithInviteToken.rejected, (state, action) => {
         state.actionLoading = false;
         state.error = action.payload;
       })
@@ -216,6 +325,7 @@ const groupSlice = createSlice({
       .addCase(fetchGroupMembers.fulfilled, (state, action) => {
         state.membersLoading = false;
         state.currentGroupMembers = action.payload.members || [];
+        state.currentJoinRequests = action.payload.joinRequests || [];
         state.isCurrentUserAdmin = !!action.payload.isCurrentUserAdmin;
       })
       .addCase(fetchGroupMembers.rejected, (state, action) => {
@@ -233,6 +343,35 @@ const groupSlice = createSlice({
         state.successMessage = action.payload.message;
       })
       .addCase(removeGroupMember.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
+      })
+
+      // acceptJoinRequest
+      .addCase(acceptJoinRequest.pending, (state) => {
+        state.actionLoading = true;
+      })
+      .addCase(acceptJoinRequest.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        state.currentGroupMembers = action.payload.members || [];
+        state.currentJoinRequests = action.payload.joinRequests || [];
+        state.successMessage = action.payload.message;
+      })
+      .addCase(acceptJoinRequest.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload;
+      })
+
+      // rejectJoinRequest
+      .addCase(rejectJoinRequest.pending, (state) => {
+        state.actionLoading = true;
+      })
+      .addCase(rejectJoinRequest.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        state.currentJoinRequests = action.payload.joinRequests || [];
+        state.successMessage = action.payload.message;
+      })
+      .addCase(rejectJoinRequest.rejected, (state, action) => {
         state.actionLoading = false;
         state.error = action.payload;
       })

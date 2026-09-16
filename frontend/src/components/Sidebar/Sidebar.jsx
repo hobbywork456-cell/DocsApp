@@ -79,11 +79,12 @@ const Sidebar = ({ onSelectDocument }) => {
   };
 
   const handleDeleteConfirm = () => {
-    if (confirmText === 'confirm' && docToDelete) {
+    if (docToDelete && confirmText.trim().toLowerCase() === 'confirm') {
       dispatch(deleteDocument(docToDelete._id));
       closeDeleteDialog();
     }
   };
+
 
   return (
     <Box component="aside" id="sidebar-panel" aria-label="Document Library" className="p-3.5 sm:p-5 h-full relative flex flex-col bg-white/30 backdrop-blur-sm">
@@ -97,7 +98,7 @@ const Sidebar = ({ onSelectDocument }) => {
         </Box>
         {activeGroup && (
           <Tooltip title="Group ID">
-            <Typography variant="caption" className="text-[10px] font-bold text-[#e06b9e] bg-pink-100/80 px-2 py-0.5 rounded-full shrink-0">
+            <Typography variant="caption" className="text-[10px] font-bold text-[#e06b9e] bg-pink-100/80 px-2 py-0.5 rounded-md shrink-0">
               #{activeGroup.groupId}
             </Typography>
           </Tooltip>
@@ -106,7 +107,7 @@ const Sidebar = ({ onSelectDocument }) => {
 
       {/* Group Quick Switcher Chips: visible to easily toggle groups */}
       {groups.length > 1 && (
-        <Box className="flex items-center gap-1.5 overflow-x-auto pb-1.5 mb-2 px-0.5 custom-scrollbar" aria-label="Quick Group Switcher">
+        <Box className="flex flex-wrap items-center gap-1.5 mb-3 px-0.5" aria-label="Quick Group Switcher">
           {groups.map((group) => {
             const isSelected = group.groupId === activeGroupId;
             return (
@@ -116,7 +117,7 @@ const Sidebar = ({ onSelectDocument }) => {
                 size="small"
                 onClick={() => dispatch(setActiveGroupId(group.groupId))}
                 sx={{
-                  borderRadius: '9999px',
+                  borderRadius: '6px',
                   textTransform: 'none',
                   fontSize: '0.68rem',
                   fontWeight: isSelected ? 800 : 600,

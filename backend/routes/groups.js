@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const Group = require('../models/Group');
 const Document = require('../models/Document');
@@ -70,13 +71,20 @@ router.post('/join', auth, async (req, res) => {
     }
 
     const isMember = group.members.some(m => m.toString() === req.user.userId.toString());
-    if (!isMember) {
-      group.members.push(req.user.userId);
-      await group.save();
+    if (isMember) {
+      return res.status(400).json({ message: 'You are already a member of this group.' });
     }
 
-    await group.populate('createdBy', 'email');
-    res.json({ message: 'Successfully joined group', group });
+    const hasRequested = group.joinRequests && group.joinRequests.some(r => r.toString() === req.user.userId.toString());
+    if (hasRequested) {
+      return res.status(400).json({ message: 'You have already sent a join request to this group.' });
+    }
+
+    if (!group.joinRequests) group.joinRequests = [];
+    group.joinRequests.push(req.user.userId);
+    await group.save();
+
+    res.json({ message: 'Join request sent. Awaiting admin approval.', requestSent: true });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -88,7 +96,8 @@ router.get('/:groupId/members', auth, async (req, res) => {
     const normalizedGroupId = req.params.groupId.trim().toLowerCase();
     const group = await Group.findOne({ groupId: normalizedGroupId })
       .populate('members', 'email')
-      .populate('createdBy', 'email');
+      .populate('createdBy', 'email')
+      .populate('joinRequests', 'email');
 
     if (!group) {
       return res.status(404).json({ message: 'Group not found' });
@@ -112,7 +121,8 @@ router.get('/:groupId/members', auth, async (req, res) => {
       groupId: group.groupId,
       isCurrentUserAdmin,
       createdBy: group.createdBy,
-      members: membersWithRole
+      members: membersWithRole,
+      joinRequests: isCurrentUserAdmin ? group.joinRequests : undefined
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -209,6 +219,118 @@ router.get('/:groupId', auth, async (req, res) => {
     }
 
     res.json(group);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Admin: Generate or retrieve invite token
+router.post('/:groupId/invite-token', auth, async (req, res) => {
+  try {
+    const normalizedGroupId = req.params.groupId.trim().toLowerCase();
+    const group = await Group.findOne({ groupId: normalizedGroupId });
+
+    if (!group) return res.status(404).json({ message: 'Group not found' });
+
+    const isCallerAdmin = group.createdBy && group.createdBy.toString() === req.user.userId.toString();
+    if (!isCallerAdmin) return res.status(403).json({ message: 'Only the group admin can generate invite links.' });
+
+    if (!group.inviteToken) {
+      group.inviteToken = crypto.randomBytes(16).toString('hex');
+      await group.save();
+    }
+
+    res.json({ inviteToken: group.inviteToken });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// User: Join immediately via invite token
+router.post('/invite/:token/join', auth, async (req, res) => {
+  try {
+    const token = req.params.token.trim();
+    const group = await Group.findOne({ inviteToken: token });
+
+    if (!group) return res.status(404).json({ message: 'Invalid or expired invite link' });
+
+    const isMember = group.members.some(m => m.toString() === req.user.userId.toString());
+    if (!isMember) {
+      group.members.push(req.user.userId);
+      // Remove from join requests if they had one
+      if (group.joinRequests) {
+        group.joinRequests = group.joinRequests.filter(r => r.toString() !== req.user.userId.toString());
+      }
+      await group.save();
+    }
+
+    await group.populate('createdBy', 'email');
+    res.json({ message: 'Successfully joined group', group });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Admin: Accept a join request
+router.post('/:groupId/requests/:userId/accept', auth, async (req, res) => {
+  try {
+    const normalizedGroupId = req.params.groupId.trim().toLowerCase();
+    const targetUserId = req.params.userId;
+
+    const group = await Group.findOne({ groupId: normalizedGroupId });
+    if (!group) return res.status(404).json({ message: 'Group not found' });
+
+    const isCallerAdmin = group.createdBy && group.createdBy.toString() === req.user.userId.toString();
+    if (!isCallerAdmin) return res.status(403).json({ message: 'Only admin can accept requests.' });
+
+    // Check if in requests
+    const inRequests = group.joinRequests && group.joinRequests.some(r => r.toString() === targetUserId.toString());
+    if (!inRequests) return res.status(400).json({ message: 'Request not found' });
+
+    // Move to members
+    group.joinRequests = group.joinRequests.filter(r => r.toString() !== targetUserId.toString());
+    
+    if (!group.members.some(m => m.toString() === targetUserId.toString())) {
+      group.members.push(targetUserId);
+    }
+    
+    await group.save();
+    
+    await group.populate('members', 'email');
+    await group.populate('joinRequests', 'email');
+    
+    // Map members for frontend
+    const membersWithRole = group.members.map(member => ({
+      _id: member._id,
+      email: member.email,
+      isAdmin: group.createdBy && member._id.toString() === group.createdBy.toString()
+    }));
+    
+    res.json({ message: 'Request accepted', joinRequests: group.joinRequests, members: membersWithRole });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Admin: Reject a join request
+router.post('/:groupId/requests/:userId/reject', auth, async (req, res) => {
+  try {
+    const normalizedGroupId = req.params.groupId.trim().toLowerCase();
+    const targetUserId = req.params.userId;
+
+    const group = await Group.findOne({ groupId: normalizedGroupId });
+    if (!group) return res.status(404).json({ message: 'Group not found' });
+
+    const isCallerAdmin = group.createdBy && group.createdBy.toString() === req.user.userId.toString();
+    if (!isCallerAdmin) return res.status(403).json({ message: 'Only admin can reject requests.' });
+
+    if (group.joinRequests) {
+      group.joinRequests = group.joinRequests.filter(r => r.toString() !== targetUserId.toString());
+      await group.save();
+    }
+    
+    await group.populate('joinRequests', 'email');
+    res.json({ message: 'Request rejected', joinRequests: group.joinRequests });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../slices/authSlice';
 import { Box, Button, TextField, Typography, Container, Paper, Tabs, Tab } from '@mui/material';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
@@ -15,6 +16,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,13 +25,19 @@ const Login = () => {
       const endpoint = tab === 0 ? '/login' : '/register';
       const response = await axios.post(`${API_URL}${endpoint}`, { email, password });
       dispatch(loginSuccess(response.data));
+
+      const pendingToken = sessionStorage.getItem('pendingInviteToken');
+      if (pendingToken) {
+        sessionStorage.removeItem('pendingInviteToken');
+        navigate(`/invite/${pendingToken}`);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong');
     }
   };
 
   return (
-    <Box component="main" id="login-main-section" className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-[#fff0f6]">
+    <Box component="main" id="login-main-section" className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-[#fffafc]">
       <SEO 
         title={tab === 0 ? 'Sign In' : 'Create Free Account'} 
         description={tab === 0 
@@ -39,34 +47,34 @@ const Login = () => {
       {/* Abstract Background Curves */}
       <Box 
         aria-hidden="true"
-        className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob" 
+        className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob" 
         style={{ background: 'linear-gradient(135deg, #ff9ecc 0%, #ff84ba 100%)' }} 
       />
       <Box 
         aria-hidden="true"
-        className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000" 
+        className="absolute bottom-[-15%] right-[-10%] w-[700px] h-[700px] rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000" 
         style={{ background: 'linear-gradient(135deg, #ffb6d8 0%, #ff84ba 100%)' }} 
       />
 
       <Container maxWidth="sm" className="relative z-10">
         <Paper 
           elevation={0} 
-          className="p-5 sm:p-10 shadow-2xl glass-effect border-2 sm:border-[4px] border-white/80 rounded-[2rem] sm:rounded-[3rem]"
-          style={{ boxShadow: '0 25px 50px -12px rgba(255, 132, 186, 0.25), inset 0 2px 6px rgba(255, 255, 255, 0.8)' }}
+          className="p-6 sm:p-12 shadow-xl border border-pink-100 rounded-3xl bg-white/90 backdrop-blur-md"
+          style={{ boxShadow: '0 25px 50px -12px rgba(255, 132, 186, 0.15)' }}
         >
-          <Box className="flex flex-col items-center mb-6">
-            <Box className="w-14 sm:w-16 h-14 sm:h-16 rounded-full gradient-bg flex items-center justify-center shadow-lg mb-3 sm:mb-4" style={{ boxShadow: '0 8px 20px 0 rgba(255, 132, 186, 0.5)' }}>
-              <MenuBookIcon sx={{ color: 'white', fontSize: { xs: 28, sm: 32 } }} />
+          <Box className="flex flex-col items-center mb-8">
+            <Box className="w-16 sm:w-20 h-16 sm:h-20 rounded-2xl bg-gradient-to-br from-pink-50 to-pink-100 flex items-center justify-center mb-4 shadow-sm border border-pink-50" style={{ boxShadow: '0 8px 20px 0 rgba(255, 132, 186, 0.2)' }}>
+              <MenuBookIcon sx={{ color: '#ff84ba', fontSize: { xs: 32, sm: 40 } }} />
             </Box>
-            <Typography variant="h4" component="h1" align="center" className="font-black gradient-text tracking-wide text-2xl sm:text-4xl">
+            <Typography variant="h4" component="h1" align="center" className="font-extrabold text-gray-800 tracking-tight text-3xl sm:text-4xl mb-1">
               DocsApp
             </Typography>
-            <Typography variant="body2" align="center" color="textSecondary" className="mt-1 sm:mt-2 font-medium text-xs sm:text-base">
+            <Typography variant="body1" align="center" color="textSecondary" className="text-gray-500 font-medium">
               Step into your creative space.
             </Typography>
           </Box>
           
-          <Box className="border-2 sm:border-3 border-white/80 rounded-[1.5rem] sm:rounded-[2.5rem] p-4 sm:p-8 bg-white/40 backdrop-blur-md shadow-inner mt-2">
+          <Box className="mt-4">
             <Tabs 
             id="auth-tabs"
             value={tab} 
@@ -74,17 +82,16 @@ const Login = () => {
             variant="fullWidth" 
             className="mb-8"
             aria-label="Sign in or registration switch"
-            TabIndicatorProps={{ style: { backgroundColor: '#ff84ba', height: 4, borderRadius: '4px 4px 0 0' } }}
+            TabIndicatorProps={{ style: { backgroundColor: '#ff84ba', height: 3, borderRadius: '3px 3px 0 0' } }}
             sx={{
               '& .MuiTab-root': {
                 textTransform: 'none',
-                fontSize: '1.1rem',
-                borderRadius: '1rem 1rem 0 0',
+                fontSize: '1.05rem',
                 transition: 'all 0.3s ease',
               },
               '& .MuiTab-root.Mui-selected': {
                 color: '#ff84ba',
-                fontWeight: '900',
+                fontWeight: '800',
               }
             }}
           >
@@ -92,7 +99,7 @@ const Login = () => {
             <Tab id="tab-register" label="Register" aria-controls="auth-panel" />
           </Tabs>
 
-          <form id="auth-form" onSubmit={handleSubmit} className="space-y-8 mt-8">
+          <form id="auth-form" onSubmit={handleSubmit} className="space-y-6 mt-8">
             <TextField
               id="auth-email-input"
               fullWidth
@@ -104,7 +111,7 @@ const Login = () => {
               required
               inputProps={{ 'aria-label': 'Email Address', id: 'auth-email-input' }}
               InputProps={{
-                sx: { borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.7)', paddingLeft: '8px' }
+                sx: { borderRadius: '12px', backgroundColor: '#fafafa' }
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
@@ -113,7 +120,7 @@ const Login = () => {
                 }
               }}
             />
-            <br /><br />
+            
             <TextField
               id="auth-password-input"
               fullWidth
@@ -125,7 +132,7 @@ const Login = () => {
               required
               inputProps={{ 'aria-label': 'Password', id: 'auth-password-input' }}
               InputProps={{
-                sx: { borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.7)', paddingLeft: '8px' }
+                sx: { borderRadius: '12px', backgroundColor: '#fafafa' }
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
@@ -134,9 +141,9 @@ const Login = () => {
                 }
               }}
             />
-            <br /> <br />
+            
             {error && (
-              <Box id="auth-error-message" role="alert" className="bg-red-50 p-3 rounded-2xl border border-red-100 text-center">
+              <Box id="auth-error-message" role="alert" className="bg-red-50 p-3 rounded-xl border border-red-100 text-center mt-4">
                 <Typography color="error" variant="body2" className="font-bold">{error}</Typography>
               </Box>
             )}
@@ -147,11 +154,11 @@ const Login = () => {
               variant="contained"
               size="large"
               type="submit"
-              className="mt-8 py-4 gradient-bg text-white font-black tracking-widest hover:opacity-90 transition-all hover:scale-[1.02]"
-              style={{ borderRadius: '9999px' }}
-              sx={{ textTransform: 'uppercase', boxShadow: '0 8px 25px -5px rgba(255, 132, 186, 0.6)' }}
+              className="mt-8 py-3.5 bg-gradient-to-r from-[#ff9ecc] to-[#ff84ba] text-white font-bold tracking-wide hover:opacity-90 transition-all shadow-md hover:shadow-lg"
+              style={{ borderRadius: '12px' }}
+              sx={{ textTransform: 'none', fontSize: '1.1rem' }}
             >
-              {tab === 0 ? 'Sign In To DocsApp' : 'Join DocsApp'}
+              {tab === 0 ? 'Sign In' : 'Create Account'}
             </Button>
           </form>
           </Box>

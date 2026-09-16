@@ -43,6 +43,46 @@ export const createDocument = createAsyncThunk(
   }
 );
 
+export const importDocumentContent = createAsyncThunk(
+  'documents/importDocumentContent',
+  async (file, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await axios.post(
+        `${API_URL}/import`, 
+        formData, 
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data; // { html: '...' }
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to import document');
+    }
+  }
+);
+
+export const uploadImageFile = createAsyncThunk(
+  'documents/uploadImageFile',
+  async (file, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await axios.post(
+        `${API_URL}/upload-image`, 
+        formData, 
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data; // { url: '...' }
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to upload image');
+    }
+  }
+);
+
 export const updateDocument = createAsyncThunk(
   'documents/updateDocument',
   async ({ id, title, content }, { getState, dispatch, rejectWithValue }) => {
@@ -77,6 +117,41 @@ export const deleteDocument = createAsyncThunk(
         dispatch(logout());
       }
       return rejectWithValue(error.response?.data?.message || 'Failed to delete document');
+    }
+  }
+);
+
+export const uploadAttachment = createAsyncThunk(
+  'documents/uploadAttachment',
+  async ({ id, file }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await axios.post(
+        `${API_URL}/${id}/attachments`,
+        formData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to upload attachment');
+    }
+  }
+);
+
+export const deleteAttachment = createAsyncThunk(
+  'documents/deleteAttachment',
+  async ({ id, attachmentId }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await axios.delete(
+        `${API_URL}/${id}/attachments/${attachmentId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete attachment');
     }
   }
 );
@@ -133,6 +208,7 @@ const documentSlice = createSlice({
         state.documents.unshift(action.payload);
         state.openDocuments = [action.payload._id];
       })
+
       .addCase(updateDocument.fulfilled, (state, action) => {
         const index = state.documents.findIndex(doc => doc._id === action.payload._id);
         if (index !== -1) {
@@ -142,6 +218,18 @@ const documentSlice = createSlice({
       .addCase(deleteDocument.fulfilled, (state, action) => {
         state.documents = state.documents.filter(doc => doc._id !== action.payload);
         state.openDocuments = state.openDocuments.filter(id => id !== action.payload);
+      })
+      .addCase(uploadAttachment.fulfilled, (state, action) => {
+        const index = state.documents.findIndex(doc => doc._id === action.payload._id);
+        if (index !== -1) {
+          state.documents[index] = action.payload;
+        }
+      })
+      .addCase(deleteAttachment.fulfilled, (state, action) => {
+        const index = state.documents.findIndex(doc => doc._id === action.payload._id);
+        if (index !== -1) {
+          state.documents[index] = action.payload;
+        }
       });
   },
 });
