@@ -99,7 +99,7 @@ const Login = () => {
             <Tab id="tab-register" label="Register" aria-controls="auth-panel" />
           </Tabs>
 
-          <form id="auth-form" onSubmit={handleSubmit} className="space-y-6 mt-8">
+          <form id="auth-form" onSubmit={handleSubmit} className="mt-8 flex flex-col gap-6">
             <TextField
               id="auth-email-input"
               fullWidth
