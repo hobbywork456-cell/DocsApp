@@ -16,6 +16,8 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import DescriptionIcon from '@mui/icons-material/Description';
+import MicIcon from '@mui/icons-material/Mic';
+import MicOffIcon from '@mui/icons-material/MicOff';
 import ReactQuill, { Quill } from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -33,6 +35,8 @@ class CustomImage extends BaseImageFormat {
     const formats = {};
     if (domNode.hasAttribute('width')) formats.width = domNode.getAttribute('width');
     if (domNode.style.width) formats.width = domNode.style.width;
+    if (domNode.hasAttribute('height')) formats.height = domNode.getAttribute('height');
+    if (domNode.style.height) formats.height = domNode.style.height;
     if (domNode.style.float) formats.float = domNode.style.float;
     if (domNode.style.margin) formats.margin = domNode.style.margin;
     if (domNode.style.display) formats.display = domNode.style.display;
@@ -42,6 +46,9 @@ class CustomImage extends BaseImageFormat {
     if (name === 'width') {
       if (value) this.domNode.style.width = value;
       else this.domNode.style.width = '';
+    } else if (name === 'height') {
+      if (value) this.domNode.style.height = value;
+      else this.domNode.style.height = '';
     } else if (name === 'float') {
       if (value) this.domNode.style.float = value;
       else this.domNode.style.float = '';
@@ -84,11 +91,78 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [mediaEditNode, setMediaEditNode] = useState(null);
   const [overlayStyle, setOverlayStyle] = useState(null);
+  const [isListening, setIsListening] = useState(false);
   const fileInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
   const quillRef = useRef(null);
   const editorContainerRef = useRef(null);
   const overlayRef = useRef(null);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onresult = (event) => {
+        const current = event.resultIndex;
+        const transcript = event.results[current][0].transcript;
+        
+        if (quillRef.current) {
+          const quill = quillRef.current.getEditor();
+          const selection = quill.getSelection(true) || { index: quill.getLength() };
+          const index = selection.index || 0;
+          
+          // Insert the transcript text
+          const textToInsert = transcript + ' ';
+          quill.insertText(index, textToInsert);
+          quill.setSelection(index + textToInsert.length);
+          setContent(quill.root.innerHTML);
+        }
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        // Automatically restart if we were intentionally listening (continuous mode often stops after silence)
+        // For simplicity, we just set it to false and let user click again, 
+        // or we can auto-restart if isListening is still true in state.
+        setIsListening(false);
+      };
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const toggleListen = () => {
+    if (!recognitionRef.current) {
+      alert("Your browser does not support Speech Recognition. Try Google Chrome.");
+      return;
+    }
+    
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error("Could not start speech recognition:", err);
+        // It might be already started
+      }
+    }
+  };
 
   useEffect(() => {
     if (selectedDocument) {
@@ -317,6 +391,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         if (blot) {
           const widthStr = mediaEditNode.style.width;
           blot.format('width', widthStr);
+          blot.format('height', 'auto');
         }
         setContent(quill.root.innerHTML);
       }
@@ -613,6 +688,30 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           onClick={handleEditorClick}
           className={`flex-1 rounded-2xl overflow-hidden bg-white/80 shadow-sm flex flex-col relative ${isEditing ? 'border-2 border-[#ff84ba]' : 'border border-pink-100'} ${!isEditing ? 'editor-readonly' : ''}`}
         >
+        {isEditing && (
+          <Tooltip title={isListening ? "Stop Dictation" : "Dictate"}>
+            <IconButton
+              onClick={toggleListen}
+              sx={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                zIndex: 10,
+                color: isListening ? 'white' : '#10b981',
+                bgcolor: isListening ? '#ef4444' : 'rgba(255, 255, 255, 0.9)',
+                border: isListening ? 'none' : '1px solid #10b981',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                '&:hover': {
+                  bgcolor: isListening ? '#dc2626' : '#ecfdf5',
+                },
+                width: 30,
+                height: 30,
+              }}
+            >
+              {isListening ? <MicOffIcon /> : <MicIcon />}
+            </IconButton>
+          </Tooltip>
+        )}
         <ReactQuill
           ref={quillRef}
           theme="snow"

@@ -77,7 +77,8 @@ const Dashboard = () => {
     : 'DocsApp group workspace. Only group members can view and collaborate on documentation.';
 
   return (
-    <Box component="main" id="dashboard-workspace" className="min-h-[100dvh] h-[100dvh] flex flex-col overflow-hidden">
+    <>
+    <Box component="main" id="dashboard-workspace" className="min-h-[100dvh] h-[100dvh] flex flex-col overflow-hidden pb-[60px] md:pb-0">
       <SEO title={pageTitle} description={pageDesc} />
 
       {/* Accessible single h1 heading for screen readers & search engines */}
@@ -190,8 +191,8 @@ const Dashboard = () => {
           )}
         </Box>
       </Box>
-    </Box>
+    </Box></>
   );
-};
+}
 
-export default Dashboard;
+export default Dashboard

@@ -282,6 +282,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
   };
 
   return (
+    <>
     <AppBar 
       component="header" 
       id="app-header" 
@@ -447,61 +448,10 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             </Box>
           </Menu>
 
-          {/* Mobile View Switcher when documents are open */}
-          {hasOpenDocuments && (
-            <Box className="flex md:hidden bg-white rounded-md p-0.5 border border-gray-200 shadow-sm shrink-0" role="group" aria-label="View Mode Switcher">
-              <Button
-                id="mobile-view-sidebar-btn"
-                size="small"
-                onClick={() => onToggleMobileView && onToggleMobileView('sidebar')}
-                startIcon={<LibraryBooksIcon sx={{ fontSize: 13 }} />}
-                sx={{
-                  borderRadius: '4px',
-                  textTransform: 'none',
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  px: 1,
-                  py: 0.2,
-                  minWidth: 'auto',
-                  bgcolor: mobileView === 'sidebar' ? '#000' : 'transparent',
-                  color: mobileView === 'sidebar' ? 'white' : '#6b7280',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    bgcolor: mobileView === 'sidebar' ? '#333' : '#f3f4f6'
-                  }
-                }}
-              >
-                Docs
-              </Button>
-              <Button
-                id="mobile-view-editor-btn"
-                size="small"
-                onClick={() => onToggleMobileView && onToggleMobileView('editor')}
-                startIcon={<DescriptionIcon sx={{ fontSize: 13 }} />}
-                sx={{
-                  borderRadius: '4px',
-                  textTransform: 'none',
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  px: 1,
-                  py: 0.2,
-                  minWidth: 'auto',
-                  bgcolor: mobileView === 'editor' ? '#ff84ba' : 'transparent',
-                  color: mobileView === 'editor' ? 'white' : '#6b7280',
-                  boxShadow: mobileView === 'editor' ? '0 2px 6px rgba(255,132,186,0.3)' : 'none',
-                  '&:hover': {
-                    bgcolor: mobileView === 'editor' ? '#e06b9e' : 'rgba(255,132,186,0.1)'
-                  }
-                }}
-              >
-                Edit
-              </Button>
-            </Box>
-          )}
         </Box>
 
         {/* Right Side Actions: Add Group, Join Group, User Avatar & Logout */}
-        <Box className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <Box className="hidden md:flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Add Group Button */}
           <Button
             id="navbar-add-group-btn"
@@ -875,9 +825,10 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               {currentGroupMembers.map((member) => (
                 <ListItem 
                   key={member._id}
+                  disablePadding
                   className="p-2.5 rounded-xl bg-white border border-pink-50 flex items-center justify-between shadow-sm"
                 >
-                  <Box className="flex items-center gap-3 overflow-hidden">
+                  <Box className="flex items-center gap-3 overflow-hidden flex-1">
                     <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#ff84ba' : '#e0e7ff', color: member.isAdmin ? 'white' : '#4338ca', fontSize: 13, fontWeight: 'bold' }}>
                       {member.email?.[0]?.toUpperCase() || 'U'}
                     </Avatar>
@@ -891,7 +842,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     </Box>
                   </Box>
 
-                  <Box className="flex items-center gap-2 shrink-0">
+                  <Box className="flex items-center justify-end gap-2 shrink-0 ml-auto pl-2">
                     {member.isAdmin ? (
                       <Chip 
                         label="Admin" 
@@ -935,8 +886,8 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               </Typography>
               <List className="p-0 space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar">
                 {currentJoinRequests.map((req) => (
-                  <ListItem key={req._id} className="p-2.5 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-between shadow-sm">
-                    <Box className="flex items-center gap-2 overflow-hidden">
+                  <ListItem key={req._id} disablePadding className="p-2.5 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-between shadow-sm">
+                    <Box className="flex items-center gap-2 overflow-hidden flex-1">
                       <Avatar sx={{ width: 28, height: 28, bgcolor: '#f97316', fontSize: 12, fontWeight: 'bold' }}>
                         {req.email?.[0]?.toUpperCase()}
                       </Avatar>
@@ -944,7 +895,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                         {req.email}
                       </Typography>
                     </Box>
-                    <Box className="flex items-center gap-1 shrink-0">
+                    <Box className="flex items-center justify-end gap-1 shrink-0 ml-auto pl-2">
                       <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: '#10b981', bgcolor: '#ecfdf5', '&:hover': { bgcolor: '#d1fae5' } }}>
                         <CheckCircleIcon fontSize="small" />
                       </IconButton>
@@ -1111,6 +1062,60 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         </Alert>
       </Snackbar>
     </AppBar>
+
+    {/* TELEGRAM-STYLE BOTTOM NAVBAR FOR MOBILE */}
+    <Box className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-white border-t border-gray-100 flex items-center justify-around z-[100] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-safe transition-all">
+      <Button 
+        onClick={() => onToggleMobileView && onToggleMobileView('sidebar')}
+        sx={{ 
+          display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
+          color: mobileView === 'sidebar' ? '#ff84ba' : '#9ca3af',
+          '&:hover': { bgcolor: 'transparent' }
+        }}
+      >
+        <LibraryBooksIcon sx={{ fontSize: 24, mb: 0.3 }} />
+        <Typography sx={{ fontSize: '0.65rem', fontWeight: mobileView === 'sidebar' ? 800 : 500, textTransform: 'none', letterSpacing: '0.02em' }}>Library</Typography>
+      </Button>
+      
+      <Button 
+        onClick={() => {
+          if (hasOpenDocuments) onToggleMobileView && onToggleMobileView('editor');
+        }}
+        sx={{ 
+          display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
+          color: hasOpenDocuments ? (mobileView === 'editor' ? '#ff84ba' : '#9ca3af') : '#e5e7eb',
+          '&:hover': { bgcolor: 'transparent' }
+        }}
+      >
+        <DescriptionIcon sx={{ fontSize: 24, mb: 0.3 }} />
+        <Typography sx={{ fontSize: '0.65rem', fontWeight: mobileView === 'editor' ? 800 : 500, textTransform: 'none', letterSpacing: '0.02em' }}>Editor</Typography>
+      </Button>
+
+      <Button 
+        onClick={handleOpenJoinDialog}
+        sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#ff84ba' } }}
+      >
+        <GroupIcon sx={{ fontSize: 24, mb: 0.3 }} />
+        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, textTransform: 'none', letterSpacing: '0.02em' }}>Join</Typography>
+      </Button>
+
+      <Button 
+        onClick={handleOpenAddDialog}
+        sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#ff84ba' } }}
+      >
+        <GroupAddIcon sx={{ fontSize: 24, mb: 0.3 }} />
+        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, textTransform: 'none', letterSpacing: '0.02em' }}>Create</Typography>
+      </Button>
+
+      <Button 
+        onClick={handleLogout}
+        sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#f87171', '&:hover': { bgcolor: 'transparent', color: '#ef4444' } }}
+      >
+        <LogoutIcon sx={{ fontSize: 24, mb: 0.3 }} />
+        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, textTransform: 'none', letterSpacing: '0.02em' }}>Logout</Typography>
+      </Button>
+    </Box>
+    </>
   );
 };
 
