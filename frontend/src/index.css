@@ -1,9 +1,9 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-theme-main: #ff84ba;
+  --color-theme-main: #427c36;
   --color-theme-secondary: #ffffff;
-  --color-theme-main-dark: #e06b9e;
+  --color-theme-main-dark: #326127;
   --color-theme-secondary-dark: #f0f0f0;
 }
 
@@ -14,7 +14,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #fff0f6 0%, #ffe4ee 100%);
+  background: linear-gradient(105deg, #f0f9ff 0%, #ffffff 100%);
 }
 
 code {
@@ -30,11 +30,11 @@ code {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #ffb6d8;
+  background: #a7f3d0; /* Soft green */
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #ff84ba;
+  background: #427c36;
 }
 
 /* Glassmorphism utility */
@@ -46,11 +46,11 @@ code {
 }
 
 .gradient-bg {
-  background: linear-gradient(135deg, #ff9ecc 0%, #ff84ba 100%);
+  background: linear-gradient(135deg, #60a5fa 0%, #427c36 100%);
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #ff84ba 0%, #e06b9e 100%);
+  background: linear-gradient(135deg, #427c36 0%, #326127 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

@@ -69,9 +69,11 @@ const icons = Quill.import('ui/icons');
 icons['undo'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>`;
 icons['redo'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>`;
 
-import { updateDocument, removeOpenDocument, importDocumentContent, uploadImageFile, uploadAttachment, deleteAttachment } from '../../slices/documentSlice';
+import { updateDocument, removeOpenDocument, importDocumentContent, uploadImageFile, uploadAttachment, deleteAttachment, setGlobalReadMode } from '../../slices/documentSlice';
 import html2pdf from 'html2pdf.js';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import LockIcon from '@mui/icons-material/Lock';
+import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import './DocumentEditor.css';
 
@@ -219,7 +221,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
 
   const getAttachmentIcon = (type, filename) => {
     if (type === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) return <PictureAsPdfIcon sx={{ color: '#ef4444' }} />;
-    if (type.includes('spreadsheet') || type.includes('excel') || filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls')) return <TableChartIcon sx={{ color: '#10b981' }} />;
+    if (type.includes('spreadsheet') || type.includes('excel') || filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls')) return <TableChartIcon sx={{ color: '#326127' }} />;
     return <DescriptionIcon sx={{ color: '#3b82f6' }} />;
   };
 
@@ -271,7 +273,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         }
       </style>
       <div class="pdf-container">
-        <h1 style="font-size: 2.2rem; font-weight: 900; color: #4a4a4a; margin-bottom: 20px; border-bottom: 2px solid #ff84ba; padding-bottom: 10px;">${title || 'Untitled Document'}</h1>
+        <h1 style="font-size: 2.2rem; font-weight: 900; color: #4a4a4a; margin-bottom: 20px; border-bottom: 2px solid #427c36; padding-bottom: 10px;">${title || 'Untitled Document'}</h1>
         <div style="font-size: 1.05rem; color: #374151; line-height: 1.6;">
           ${content}
         </div>
@@ -331,10 +333,45 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     }
   }, [mediaEditNode, updateOverlayPosition]);
 
+
+
+
+  // Use a ref to track isEditing so the native event listener always reads the latest value
+  const isEditingRef = useRef(isEditing);
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+  }, [isEditing]);
+
+  // Native click listener on the Quill ql-editor root — this is where images actually live.
+  // Attached after the document changes so quillRef is populated.
+  useEffect(() => {
+    if (!quillRef.current) return;
+    const editor = quillRef.current.getEditor?.();
+    if (!editor) return;
+    const editorRoot = editor.root; // this is the .ql-editor <div>
+
+    const nativeHandler = (e) => {
+      const target = e.target;
+      if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
+        if (!isEditingRef.current) {
+          e.preventDefault();
+          e.stopPropagation();
+          const src = target.src || target.currentSrc || target.getAttribute('src') || '';
+          setSelectedMedia({ type: target.tagName.toLowerCase(), src });
+        }
+      }
+    };
+
+    editorRoot.addEventListener('click', nativeHandler, true);
+    return () => editorRoot.removeEventListener('click', nativeHandler, true);
+  }, [selectedDocument]); // re-attach when document changes (new editor content)
+
   const handleEditorClick = (e) => {
     if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
       if (!isEditing) {
-        setSelectedMedia({ type: e.target.tagName.toLowerCase(), src: e.target.src });
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedMedia({ type: e.target.tagName.toLowerCase(), src: e.target.src || e.target.currentSrc });
       } else {
         setMediaEditNode(e.target);
       }
@@ -483,18 +520,22 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     }
   }), [imageHandler]);
 
-  if (!selectedDocument) return null;
+    if (!selectedDocument) return null;
+
+
 
   return (
     <Box 
       component="article" 
       id={`document-editor-article-${documentId}`} 
       aria-label={`Document Editor for ${title || 'Untitled Document'}`}
-      className="h-full flex flex-col p-3 sm:p-6 bg-white/40 backdrop-blur-sm relative"
+      className="h-full flex flex-col p-2 sm:p-3 bg-white/40 backdrop-blur-sm relative"
     >
-      <Box className="flex items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-6">
-        {/* Title area with optional mobile back-to-library button */}
-        <Box className="flex items-center flex-1 min-w-0 mr-1 sm:mr-4">
+      {/* ── 2-Row Header ──────────────────────────────────── */}
+      <Box className="flex flex-col gap-0. mb-1.5 sm:mb-2">
+
+        {/* Row 1: Back button (mobile) + full-width title */}
+        <Box className="flex items-center gap-1 min-w-0">
           {onBackToLibrary && (
             <Tooltip title="Back to Library">
               <IconButton 
@@ -502,15 +543,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                 aria-label="Back to Library"
                 onClick={onBackToLibrary} 
                 size="small"
-                className="md:hidden mr-1.5 shrink-0" 
-                sx={{ 
-                  color: '#ff84ba', 
-                  bgcolor: 'rgba(255, 255, 255, 0.85)', 
-                  border: '1px solid rgba(255, 132, 186, 0.3)',
-                  p: '6px',
-                  borderRadius: '10px',
-                  '&:hover': { bgcolor: '#fff0f6' }
-                }}
+                className="md:hidden shrink-0" 
+                sx={{ color: '#427c36', bgcolor: 'rgba(255,255,255,0.85)', p: '6px', borderRadius: '10px', '&:hover': { bgcolor: '#f0fdf4' } }}
               >
                 <ArrowBackIcon fontSize="small" />
               </IconButton>
@@ -518,164 +552,111 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           )}
           <InputBase
             id={`doc-title-input-${documentId}`}
-            inputProps={{
-              'aria-label': 'Document Title',
-              id: `doc-title-field-${documentId}`
-            }}
+            slotProps={{ input: { 'aria-label': 'Document Title', id: `doc-title-field-${documentId}` } }}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Document Title"
             readOnly={!isEditing}
             sx={{ 
-              fontSize: { xs: '1.35rem', sm: '2rem', md: '2.5rem' }, 
+              fontSize: { xs: '1.15rem', sm: '1.5rem', md: '1.75rem' }, 
               fontWeight: '900', 
-              color: '#4a4a4a', 
+              color: '#1f2937', 
               letterSpacing: '-0.02em',
-              opacity: isEditing ? 1 : 0.85,
-              lineHeight: 1.2
+              opacity: isEditing ? 1 : 0.9,
+              lineHeight: 1.1,
+              flex: 1,
             }}
             fullWidth
           />
         </Box>
 
-        {/* Action Buttons */}
-        <Box className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <Tooltip title="Document History">
-            <Button
-              id={`doc-history-btn-${documentId}`}
-              variant="contained"
-              aria-label="View Document History"
-              onClick={() => setHistoryOpen(true)}
-              className="shrink-0 px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-bold transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
-              sx={{ 
-                textTransform: 'none', 
-                bgcolor: 'rgba(255, 255, 255, 0.7)', 
-                color: '#9c27b0',
-                backdropFilter: 'blur(10px)',
-                boxShadow: '0 4px 15px rgba(156, 39, 176, 0.1)',
-                border: '1px solid rgba(156, 39, 176, 0.2)',
-                minWidth: { xs: '36px', sm: 'auto' },
-                '&:hover': { bgcolor: '#fff0ff', boxShadow: '0 6px 20px rgba(156, 39, 176, 0.2)', borderColor: 'rgba(156, 39, 176, 0.4)' }
-              }}
-            >
-              <HistoryIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: { xs: 0, sm: 0.8 } }} />
-              <span className="hidden sm:inline">History</span>
-            </Button>
+        {/* Row 2: Action icon buttons (no borders, larger) + close */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end', mt: -0.5 }}>
+
+          {/* History */}
+          <Tooltip title="History">
+            <IconButton onClick={() => setHistoryOpen(true)}
+              sx={{ color: '#9c27b0', bgcolor: 'rgba(156,39,176,0.06)', '&:hover': { bgcolor: 'rgba(156,39,176,0.13)', transform: 'translateY(-1px)' }, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              <HistoryIcon sx={{ fontSize: 22 }} />
+            </IconButton>
           </Tooltip>
 
-          <Tooltip title="Download PDF">
-            <Button
-              id={`doc-pdf-download-btn-${documentId}`}
-              variant="contained"
-              aria-label="Download Document as PDF"
-              onClick={handleDownloadPdf}
-              disabled={isDownloading}
-              className="shrink-0 px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-bold transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
-              sx={{ 
-                textTransform: 'none', 
-                bgcolor: 'rgba(255, 255, 255, 0.7)', 
-                color: '#3b82f6',
-                backdropFilter: 'blur(10px)',
-                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.1)',
-                border: '1px solid rgba(59, 130, 246, 0.2)',
-                minWidth: { xs: '36px', sm: 'auto' },
-                '&:hover': { bgcolor: '#eff6ff', boxShadow: '0 6px 20px rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 0.4)' },
-                '&.Mui-disabled': { bgcolor: 'rgba(255, 255, 255, 0.4)', color: '#9ca3af', borderColor: 'transparent' }
-              }}
-            >
-              <FileDownloadOutlinedIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: { xs: 0, sm: 0.8 } }} />
-              <span className="hidden sm:inline">{isDownloading ? '...' : 'PDF'}</span>
-            </Button>
+          {/* Read Mode */}
+          <Tooltip title="Read Mode">
+            <IconButton onClick={() => dispatch(setGlobalReadMode(true))}
+              sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.06)', '&:hover': { bgcolor: 'rgba(66,124,54,0.13)', transform: 'translateY(-1px)' }, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              <AutoStoriesIcon sx={{ fontSize: 22 }} />
+            </IconButton>
           </Tooltip>
 
+          {/* Download PDF */}
+          <Tooltip title={isDownloading ? 'Downloading...' : 'Download PDF'}>
+            <span>
+              <IconButton onClick={handleDownloadPdf} disabled={isDownloading}
+                sx={{ color: '#3b82f6', bgcolor: 'rgba(59,130,246,0.06)', '&:hover': { bgcolor: 'rgba(59,130,246,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
+                <FileDownloadOutlinedIcon sx={{ fontSize: 22 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+
+          {/* Divider */}
+          <Box sx={{ width: '1px', height: 24, bgcolor: '#e5e7eb', mx: 0.5 }} />
+
+          {/* Edit / Import + Save */}
           {!isEditing ? (
-            <Button
-              id={`doc-edit-btn-${documentId}`}
-              variant="contained"
-              aria-label="Edit Document"
-              onClick={() => setIsEditing(true)}
-              className="shrink-0 px-3 sm:px-6 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-black transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
-              sx={{ 
-                textTransform: 'none', 
-                background: 'linear-gradient(135deg, #ff9ecc 0%, #ff84ba 100%)',
-                color: 'white',
-                boxShadow: '0 6px 16px rgba(255, 132, 186, 0.4)',
-                minWidth: { xs: '36px', sm: 'auto' },
-                '&:hover': { background: 'linear-gradient(135deg, #ff84ba 0%, #ff6da7 100%)', boxShadow: '0 10px 25px rgba(255, 132, 186, 0.6)' }
-              }}
-            >
-              <EditIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: { xs: 0, sm: 0.8 } }} />
-              <span className="hidden sm:inline">Edit</span>
-            </Button>
+            <Tooltip title="Edit Document">
+              <IconButton onClick={() => setIsEditing(true)}
+                sx={{ 
+                  color: 'white',
+                  background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
+                  '&:hover': { background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)', transform: 'translateY(-1px)', boxShadow: '0 6px 16px rgba(66,124,54,0.4)' },
+                  p: '9px', borderRadius: '10px', boxShadow: '0 3px 10px rgba(66,124,54,0.3)', transition: 'all 0.2s'
+                }}>
+                <EditIcon sx={{ fontSize: 22 }} />
+              </IconButton>
+            </Tooltip>
           ) : (
-            <Box className="flex items-center gap-1.5">
-              <Button
-                id={`doc-import-btn-${documentId}`}
-                variant="outlined"
-                aria-label="Import File"
-                onClick={handleImportClick}
-                disabled={isImporting}
-                className="shrink-0 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-bold transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
-                sx={{ 
-                  textTransform: 'none', 
-                  color: '#6366f1',
-                  borderColor: '#6366f1',
-                  bgcolor: 'rgba(255, 255, 255, 0.7)',
-                  minWidth: { xs: '36px', sm: 'auto' },
-                  '&:hover': { bgcolor: '#eef2ff', borderColor: '#4f46e5' },
-                  '&.Mui-disabled': { borderColor: '#e5e7eb', color: '#9ca3af' }
-                }}
-              >
-                <UploadFileIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: { xs: 0, sm: 0.8 } }} />
-                <span className="hidden sm:inline">{isImporting ? '...' : 'Import'}</span>
-              </Button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                hidden 
-                onChange={handleFileImport}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              />
-              <Button
-                id={`doc-save-btn-${documentId}`}
-                variant="contained"
-                aria-label="Save Document"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="shrink-0 px-3 sm:px-6 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl font-black transition-all duration-300 hover:-translate-y-0.5 sm:hover:-translate-y-1"
-                sx={{ 
-                  textTransform: 'none', 
-                  bgcolor: 'white',
-                  color: '#ff84ba',
-                  border: '2px solid #ff84ba',
-                  boxShadow: '0 6px 16px rgba(255, 132, 186, 0.2)',
-                  minWidth: { xs: '36px', sm: 'auto' },
-                  '&:hover': { bgcolor: '#fff0f6', boxShadow: '0 10px 25px rgba(255, 132, 186, 0.3)' },
-                  '&.Mui-disabled': { borderColor: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' }
-                }}
-              >
-                <CloudDoneOutlinedIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: { xs: 0, sm: 0.8 } }} />
-                <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save'}</span>
-              </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Tooltip title={isImporting ? 'Importing...' : 'Import File'}>
+                <span>
+                  <IconButton onClick={handleImportClick} disabled={isImporting}
+                    sx={{ color: '#6366f1', bgcolor: 'rgba(99,102,241,0.06)', '&:hover': { bgcolor: 'rgba(99,102,241,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
+                    <UploadFileIcon sx={{ fontSize: 22 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <input type="file" ref={fileInputRef} hidden onChange={handleFileImport}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+              {/* Save — highlighted prominently */}
+              <Tooltip title={isSaving ? 'Saving...' : 'Save Document'}>
+                <span>
+                  <IconButton onClick={handleSave} disabled={isSaving}
+                    sx={{ 
+                      color: 'white',
+                      background: isSaving
+                        ? 'linear-gradient(135deg, #86efac 0%, #4ade80 100%)'
+                        : 'linear-gradient(135deg, #427c36 0%, #326127 100%)',
+                      boxShadow: '0 3px 12px rgba(66,124,54,0.45)',
+                      '&:hover': { 
+                        background: 'linear-gradient(135deg, #326127 0%, #1f4d1d 100%)',
+                        boxShadow: '0 6px 18px rgba(66,124,54,0.55)',
+                        transform: 'translateY(-2px)'
+                      },
+                      '&.Mui-disabled': { background: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' },
+                      p: '9px', borderRadius: '10px', transition: 'all 0.2s'
+                    }}>
+                    <CloudDoneOutlinedIcon sx={{ fontSize: 22 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
             </Box>
           )}
-          
+
+          {/* Close */}
           <Tooltip title="Close Document">
-            <IconButton 
-              id={`doc-close-btn-${documentId}`}
-              aria-label="Close Document"
-              onClick={() => dispatch(removeOpenDocument(documentId))} 
-              size="small"
-              sx={{ 
-                color: '#ef4444', 
-                bgcolor: '#fee2e2', 
-                '&:hover': { bgcolor: '#fecaca' }, 
-                ml: { xs: 0.5, sm: 1 }, 
-                borderRadius: { xs: '10px', sm: '12px' },
-                p: { xs: '6px', sm: '8px' }
-              }}
-            >
-              <CloseIcon sx={{ fontSize: { xs: 18, sm: 22 } }} />
+            <IconButton onClick={() => dispatch(removeOpenDocument(documentId))}
+              sx={{ color: '#ef4444', bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca', transform: 'translateY(-1px)' }, ml: 0.5, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              <CloseIcon sx={{ fontSize: 22 }} />
             </IconButton>
           </Tooltip>
         </Box>
@@ -685,8 +666,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         <Paper 
           ref={editorContainerRef}
           elevation={0} 
-          onClick={handleEditorClick}
-          className={`flex-1 rounded-2xl overflow-hidden bg-white/80 shadow-sm flex flex-col relative ${isEditing ? 'border-2 border-[#ff84ba]' : 'border border-pink-100'} ${!isEditing ? 'editor-readonly' : ''}`}
+          onClickCapture={handleEditorClick}
+          className={`flex-1 rounded-2xl overflow-hidden bg-white/80 shadow-sm flex flex-col relative ${isEditing ? 'border-2 border-[#427c36]' : 'border border-green-100'} ${!isEditing ? 'editor-readonly' : ''}`}
         >
         {isEditing && (
           <Tooltip title={isListening ? "Stop Dictation" : "Dictate"}>
@@ -697,12 +678,12 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                 top: 8,
                 right: 8,
                 zIndex: 10,
-                color: isListening ? 'white' : '#10b981',
+                color: isListening ? 'white' : '#326127',
                 bgcolor: isListening ? '#ef4444' : 'rgba(255, 255, 255, 0.9)',
-                border: isListening ? 'none' : '1px solid #10b981',
+                border: isListening ? 'none' : '1px solid #326127',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                 '&:hover': {
-                  bgcolor: isListening ? '#dc2626' : '#ecfdf5',
+                  bgcolor: isListening ? '#dc2626' : '#f0fdf4',
                 },
                 width: 30,
                 height: 30,
@@ -807,14 +788,14 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
 
         {/* Attachments Bar (Below Editor) */}
         {(isEditing || (selectedDocument.attachments && selectedDocument.attachments.length > 0)) && (
-          <Box className="w-full flex items-center gap-3 p-3 bg-white/60 rounded-xl overflow-x-auto shrink-0 border border-pink-100">
+          <Box className="w-full flex items-center gap-2 p-1.5 sm:p-2 bg-white/60 rounded-lg overflow-x-auto shrink-0 border border-green-100">
             {selectedDocument.attachments && selectedDocument.attachments.length > 0 && (
-              <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 'bold', mr: 1, textTransform: 'uppercase' }}>Attachments:</Typography>
+              <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 'bold', fontSize: '10px', mr: 0.5, textTransform: 'uppercase' }}>Attachments:</Typography>
             )}
             
             {selectedDocument.attachments && selectedDocument.attachments.map(att => (
               <Tooltip title={att.name} key={att._id} arrow>
-                <Box className="relative group flex items-center justify-center p-2 rounded-lg bg-white border border-gray-100 shadow-sm hover:shadow hover:bg-gray-50 transition-all">
+                <Box className="relative group flex items-center justify-center p-1.5 rounded-md bg-white border border-gray-100 shadow-sm hover:shadow hover:bg-gray-50 transition-all">
                   <a href={import.meta.env.VITE_API_URL.replace('/api', '') + att.url} target="_blank" rel="noreferrer" className="flex items-center justify-center">
                     {getAttachmentIcon(att.type, att.name)}
                   </a>
@@ -843,8 +824,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                     onClick={handleAttachmentClick} 
                     disabled={isUploadingAttachment} 
                     sx={{ 
-                      border: '1px dashed #ff84ba', color: '#ff84ba', borderRadius: '8px',
-                      p: '6px', '&:hover': { bgcolor: '#fff0f6' }
+                      border: '1px dashed #427c36', color: '#427c36', borderRadius: '8px',
+                      p: '6px', '&:hover': { bgcolor: '#f0fdf4' }
                     }}
                   >
                     <AttachFileIcon />
@@ -866,11 +847,13 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         open={!!selectedMedia} 
         onClose={() => setSelectedMedia(null)} 
         maxWidth="lg"
-        PaperProps={{
-          sx: {
-            backgroundColor: 'transparent',
-            boxShadow: 'none',
-            overflow: 'hidden'
+        slotProps={{
+          paper: {
+            sx: {
+              backgroundColor: 'transparent',
+              boxShadow: 'none',
+              overflow: 'hidden'
+            }
           }
         }}
       >
@@ -896,7 +879,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         onClose={() => setHistoryOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: '16px', p: 2 } }}
+        slotProps={{ paper: { sx: { borderRadius: '16px', p: 2 } } }}
       >
         <Box className="flex justify-between items-center mb-4 px-2">
           <Typography variant="h6" fontWeight="bold">Document History</Typography>
@@ -926,7 +909,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                           {new Date(entry.editedAt).toLocaleString()}
                         </Typography>
                         {entry.changesSummary && (
-                          <Typography variant="body2" sx={{ mt: 1, p: 1, bgcolor: '#f3f4f6', borderRadius: 1, borderLeft: '3px solid #ff84ba' }}>
+                          <Typography variant="body2" sx={{ mt: 1, p: 1, bgcolor: '#f3f4f6', borderRadius: 1, borderLeft: '3px solid #427c36' }}>
                             {entry.changesSummary}
                           </Typography>
                         )}

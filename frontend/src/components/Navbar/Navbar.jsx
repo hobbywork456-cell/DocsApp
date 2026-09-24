@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   AppBar, 
   Toolbar, 
@@ -15,7 +15,6 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
-  ListItemText,
   Alert,
   Snackbar,
   CircularProgress,
@@ -24,7 +23,6 @@ import {
   List,
   ListItem,
   Avatar,
-  Divider
 } from '@mui/material';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -288,83 +286,26 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
       id="app-header" 
       position="static" 
       color="transparent" 
-      elevation={0} 
-      className="bg-white border-b border-gray-200 pt-0.5 sm:pt-1 pb-0.5 sm:pb-1"
+      elevation={0}
+      className="bg-white border-b border-gray-100 pt-0.5 sm:pt-1 pb-0.5 sm:pb-1"
     >
       <Toolbar component="nav" id="app-navigation" aria-label="Main Navigation" className="px-2 sm:px-6 min-h-[56px] sm:min-h-[64px] flex items-center justify-between gap-1 sm:gap-4">
-        {/* Left Side: Brand Logo, Group Switcher & Members Button */}
-        <Box className="flex items-center gap-1.5 sm:gap-3 overflow-hidden">
-          <Box className="flex items-center shrink-0 mr-1 sm:mr-2">
-            <MenuBookIcon sx={{ color: '#ff84ba', mr: 0.75, fontSize: { xs: 24, sm: 30 } }} />
+        {/* Left Side: Brand Logo, Group Switcher */}
+        <Box className="flex items-center overflow-hidden">
+          <Box className="flex items-center shrink-0">
+            <MenuBookIcon sx={{ color: '#427c36', mr: 0.75, fontSize: { xs: 26, sm: 32 } }} />
             <Typography 
               variant="h6" 
               noWrap 
               component="span" 
-              className="font-black gradient-text tracking-wide text-lg sm:text-2xl select-none"
+              className="font-black gradient-text tracking-wide text-xl sm:text-2xl select-none"
               sx={{ display: 'inline-block', fontWeight: 900 }}
             >
               DocsApp
             </Typography>
           </Box>
 
-          {/* Group Switcher Button */}
-          <Tooltip title="Switch Active Group">
-            <Button
-              id="navbar-group-selector-btn"
-              aria-label="Active Group Selector"
-              aria-controls={isMenuOpen ? 'group-switcher-menu' : undefined}
-              aria-haspopup="true"
-              aria-expanded={isMenuOpen ? 'true' : undefined}
-              onClick={handleOpenGroupMenu}
-              endIcon={<KeyboardArrowDownIcon sx={{ fontSize: 18 }} />}
-              sx={{
-                bgcolor: 'white',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                px: { xs: 1.2, sm: 2 },
-                py: { xs: 0.4, sm: 0.6 },
-                textTransform: 'none',
-                maxWidth: { xs: '140px', sm: '220px' },
-                boxShadow: 'none',
-                '&:hover': {
-                  bgcolor: '#f9fafb',
-                  borderColor: '#d1d5db'
-                }
-              }}
-            >
-              <Box className="flex items-center gap-1 sm:gap-1.5 truncate text-left">
-                <GroupIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#ff84ba', shrink: 0 }} />
-                <Typography 
-                  variant="body2" 
-                  className="font-bold text-gray-800 truncate text-xs sm:text-sm"
-                >
-                  {currentGroup ? currentGroup.name : 'Select Group'}
-                </Typography>
-              </Box>
-            </Button>
-          </Tooltip>
 
-          {/* Quick Group Members & Admin Settings Button */}
-          {currentGroup && (
-            <Tooltip title="Group Members & Admin Settings">
-              <IconButton
-                id="navbar-group-members-btn"
-                aria-label="View Group Members and Settings"
-                size="small"
-                onClick={handleOpenMembersDialog}
-                sx={{
-                  color: '#4b5563',
-                  bgcolor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '6px',
-                  p: { xs: '5px', sm: '7px' },
-                  '&:hover': { bgcolor: '#fff0f6', borderColor: '#ff84ba' }
-                }}
-              >
-                <PeopleIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
-              </IconButton>
-            </Tooltip>
-          )}
 
           {/* Group Selector Dropdown Menu */}
           <Menu
@@ -394,7 +335,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 <MenuItem 
                   key={group._id || group.groupId}
                   onClick={() => handleSelectGroup(group.groupId)}
-                  className={`rounded-xl my-0.5 transition-all ${isSelected ? 'bg-pink-50 font-bold' : ''}`}
+                  className={`rounded-xl my-0.5 transition-all ${isSelected ? 'bg-green-50 font-bold' : ''}`}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
                     {isSelected ? <CheckIcon sx={{ color: '#000', fontSize: 18 }} /> : <GroupIcon sx={{ color: '#9ca3af', fontSize: 18 }} />}
@@ -405,7 +346,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                       sx={{ 
                         fontSize: '0.85rem', 
                         fontWeight: isSelected ? 700 : 500,
-                        color: isSelected ? '#e06b9e' : '#374151'
+                        color: isSelected ? '#326127' : '#374151'
                       }}
                     >
                       {group.name}
@@ -428,20 +369,20 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               {currentGroup && (
                 <MenuItem onClick={handleOpenMembersDialog} className="rounded-md text-xs font-bold text-gray-700 hover:bg-gray-50">
                   <ListItemIcon sx={{ minWidth: 28 }}>
-                    <PeopleIcon sx={{ color: '#4b5563', fontSize: 18 }} />
+                    <PeopleIcon sx={{ color: '#4b5563', fontSize: 15 }} />
                   </ListItemIcon>
                   Manage Group Members
                 </MenuItem>
               )}
               <MenuItem onClick={handleOpenAddDialog} className="rounded-md text-xs font-bold text-gray-900 hover:bg-gray-50">
                 <ListItemIcon sx={{ minWidth: 28 }}>
-                  <GroupAddIcon sx={{ color: '#4b5563', fontSize: 18 }} />
+                  <GroupAddIcon sx={{ color: '#4b5563', fontSize: 15 }} />
                 </ListItemIcon>
                 Create New Group
               </MenuItem>
               <MenuItem onClick={handleOpenJoinDialog} className="rounded-md text-xs font-bold text-gray-700 hover:bg-gray-50">
                 <ListItemIcon sx={{ minWidth: 28 }}>
-                  <GroupIcon sx={{ color: '#6b7280', fontSize: 18 }} />
+                  <GroupIcon sx={{ color: '#6b7280', fontSize: 15 }} />
                 </ListItemIcon>
                 Join Existing Group
               </MenuItem>
@@ -450,94 +391,94 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         </Box>
 
-        {/* Right Side Actions: Add Group, Join Group, User Avatar & Logout */}
-        <Box className="hidden md:flex items-center gap-1.5 sm:gap-3 shrink-0">
-          {/* Add Group Button */}
-          <Button
-            id="navbar-add-group-btn"
-            variant="contained"
-            size="small"
-            startIcon={<GroupAddIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />}
-            onClick={handleOpenAddDialog}
-            aria-label="Create a new group"
-            sx={{
-              background: 'linear-gradient(135deg, #ff9ecc 0%, #ff84ba 100%)',
-              color: 'white',
-              borderRadius: '6px',
-              textTransform: 'none',
-              fontWeight: 600,
-              fontSize: { xs: '0.75rem', sm: '0.85rem' },
-              px: { xs: 1.2, sm: 2 },
-              py: { xs: 0.4, sm: 0.6 },
-              boxShadow: 'none',
-              '&:hover': {
-                background: '#333',
-                boxShadow: 'none',
-              }
-            }}
-          >
-            <span className="hidden sm:inline">Add Group</span>
-            <span className="sm:hidden">Add</span>
-          </Button>
-
-          {/* Join Group Button */}
-          <Button
-            id="navbar-join-group-btn"
-            variant="outlined"
-            size="small"
-            startIcon={<GroupIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />}
-            onClick={handleOpenJoinDialog}
-            aria-label="Join an existing group"
-            sx={{
-              borderColor: '#ff84ba',
-              color: '#ff84ba',
-              bgcolor: 'rgba(255, 255, 255, 0.8)',
-              borderRadius: '8px',
-              textTransform: 'none',
-              fontWeight: 800,
-              fontSize: { xs: '0.75rem', sm: '0.85rem' },
-              px: { xs: 1.2, sm: 2 },
-              py: { xs: 0.4, sm: 0.6 },
-              '&:hover': {
-                borderColor: '#e06b9e',
-                bgcolor: '#fff0f6',
-                color: '#e06b9e'
-              }
-            }}
-          >
-            <span className="hidden sm:inline">Join Group</span>
-            <span className="sm:hidden">Join</span>
-          </Button>
-
-          {/* User Email Pill (Desktop) / Initial Circle (Mobile) */}
-          <Box className="hidden lg:block px-3 py-1 rounded-xl bg-white/90 border border-pink-100 shadow-sm">
-            <Typography variant="caption" className="font-semibold text-gray-700">
-              {user?.email}
-            </Typography>
-          </Box>
-          <Tooltip title={user?.email || 'User'}>
-            <Box aria-label="User Avatar" className="lg:hidden w-7 h-7 rounded-full bg-gradient-to-tr from-[#ff84ba] to-[#ff9ecc] text-white flex items-center justify-center font-bold text-xs shadow-sm cursor-pointer">
-              {user?.email?.[0]?.toUpperCase() || 'U'}
+        {/* Right Side Actions */}
+        <Box className="flex items-center gap-1 sm:gap-2 shrink-0">
+          
+          {/* Group Switcher (Visible on Mobile & Desktop) */}
+          <Tooltip title="Switch Active Group">
+            <Box 
+              onClick={handleOpenGroupMenu}
+              className="group flex items-center cursor-pointer transition-all duration-200"
+              sx={{
+                background: 'linear-gradient(135deg, rgba(96,165,250,0.06) 0%, rgba(66,124,54,0.06) 100%)',
+                border: '1px solid rgba(66,124,54,0.1)',
+                borderRadius: '10px',
+                padding: { xs: '4px 6px', sm: '6px 12px' },
+                '&:hover': { 
+                  background: 'linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(66,124,54,0.12) 100%)',
+                  borderColor: 'rgba(66,124,54,0.3)',
+                  boxShadow: '0 2px 8px rgba(66,124,54,0.1)'
+                }
+              }}
+            >
+              <Typography 
+                variant="caption" 
+                className="font-bold text-[#326127] uppercase tracking-wide truncate max-w-[100px] sm:max-w-[140px] mr-0.5 sm:mr-1 transition-colors"
+                sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+              >
+                {currentGroup ? currentGroup.name : 'NO GROUP'}
+              </Typography>
+              <KeyboardArrowDownIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#427c36', transition: 'transform 0.2s', ...{ '.group:hover &': { transform: 'translateY(1px)' } } }} />
             </Box>
           </Tooltip>
 
-          {/* Logout Button */}
-          <IconButton 
-            id="navbar-logout-btn"
-            aria-label="Log out"
-            size="small"
-            onClick={handleLogout}
-            sx={{ 
-              color: '#e06b9e', 
-              bgcolor: 'rgba(255, 255, 255, 0.7)',
-              border: '1px solid rgba(255, 132, 186, 0.3)',
-              borderRadius: '8px',
-              p: { xs: '5px', sm: '7px' },
-              '&:hover': { backgroundColor: '#fff0f6', borderColor: '#ff84ba' }, 
-            }}
-          >
-            <LogoutIcon sx={{ fontSize: { xs: 17, sm: 19 } }} />
-          </IconButton>
+          <Box className="w-[1px] h-6 bg-green-100 mx-0.5 sm:mx-1 hidden md:block" />
+          
+          {/* Desktop-only extra buttons */}
+          <Box className="hidden md:flex items-center gap-1.5">
+            {currentGroup && (
+              <Tooltip title="Manage Group Members">
+                <IconButton
+                  onClick={handleOpenMembersDialog}
+                  size="small"
+                  sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                >
+                  <AdminPanelSettingsIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            <Tooltip title="Create New Group">
+              <IconButton
+                onClick={handleOpenAddDialog}
+                size="small"
+                sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+              >
+                <GroupAddIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Join Existing Group">
+              <IconButton
+                onClick={handleOpenJoinDialog}
+                size="small"
+                sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+              >
+                <GroupIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+          <Box className="w-[1px] h-6 bg-blue-100 mx-1 hidden md:block" />
+
+          {/* User Avatar (Desktop only) */}
+          <Tooltip title={user?.email || 'User'}>
+            <Box className="hidden md:flex w-8 h-8 rounded-full items-center justify-center font-bold text-xs cursor-default shadow-sm border border-white"
+                 sx={{ background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)', color: 'white' }}>
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            </Box>
+          </Tooltip>
+          
+          {/* Logout (Desktop & Mobile) */}
+          <Tooltip title="Logout">
+            <IconButton 
+              onClick={handleLogout}
+              size="small"
+              sx={{ color: '#ef4444', bgcolor: '#fef2f2', p: { xs: '6px', sm: '8px' }, borderRadius: '10px', ml: { xs: 0, sm: 0.5 }, '&:hover': { bgcolor: '#fee2e2', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+            >
+              <LogoutIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+            </IconButton>
+          </Tooltip>
         </Box>
       </Toolbar>
 
@@ -547,19 +488,21 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         onClose={handleCloseAddDialog}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '20px',
-            p: 1,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-            border: '1px solid #ffe4ef'
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: '20px',
+              p: 1,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+              border: '1px solid #dcfce3'
+            }
           }
         }}
       >
         <Box component="form" onSubmit={handleCreateGroupSubmit}>
           <DialogTitle className="flex justify-between items-center pb-2">
             <Box className="flex items-center gap-2">
-              <Box className="p-2 rounded-xl bg-pink-50 text-[#ff84ba] border border-pink-100">
+              <Box className="p-2 rounded-xl bg-green-50 text-[#427c36] border border-green-100">
                 <GroupAddIcon fontSize="small" />
               </Box>
               <Typography variant="h6" className="font-extrabold text-gray-800">
@@ -595,8 +538,8 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                   setNewGroupName(e.target.value);
                   setAddDialogError('');
                 }}
-                InputProps={{
-                  className: 'rounded-xl bg-white/70'
+                slotProps={{
+                  input: { className: 'rounded-xl bg-white/70' }
                 }}
               />
 
@@ -613,32 +556,34 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     setAddDialogError('');
                   }}
                   helperText="Use your own ID or click 'Generate ID'"
-                  InputProps={{
-                    className: 'rounded-xl bg-white/70',
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <Button
-                          id="create-group-generate-btn"
-                          size="small"
-                          type="button"
-                          onClick={handleGenerateId}
-                          startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
-                          sx={{
-                            textTransform: 'none',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            color: '#ff84ba',
-                            bgcolor: 'rgba(255, 132, 186, 0.1)',
-                            borderRadius: '8px',
-                            px: 1,
-                            py: 0.25,
-                            '&:hover': { bgcolor: 'rgba(255, 132, 186, 0.2)' }
-                          }}
-                        >
-                          Generate
-                        </Button>
-                      </InputAdornment>
-                    )
+                  slotProps={{
+                    input: {
+                      className: 'rounded-xl bg-white/70',
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Button
+                            id="create-group-generate-btn"
+                            size="small"
+                            type="button"
+                            onClick={handleGenerateId}
+                            startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
+                            sx={{
+                              textTransform: 'none',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              color: '#53e626',
+                              bgcolor: 'rgba(134, 239, 172, 0.1)',
+                              borderRadius: '8px',
+                              px: 1,
+                              py: 0.25,
+                              '&:hover': { bgcolor: 'rgba(134, 239, 172, 0.2)' }
+                            }}
+                          >
+                            Generate
+                          </Button>
+                        </InputAdornment>
+                      )
+                    }
                   }}
                 />
               </Box>
@@ -660,7 +605,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               type="submit"
               variant="contained"
               disabled={actionLoading || !newGroupName.trim()}
-              className="rounded-xl font-bold capitalize bg-gradient-to-r from-[#ff9ecc] to-[#ff84ba] text-white shadow-md hover:shadow-lg"
+              className="rounded-xl font-bold capitalize bg-gradient-to-r from-[#60a5fa] to-[#427c36] text-white shadow-md hover:shadow-lg"
               sx={{ px: 3, textTransform: 'none' }}
             >
               {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Create Group'}
@@ -676,19 +621,21 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         onClose={handleCloseJoinDialog}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '20px',
-            p: 1,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-            border: '1px solid #ffe4ef'
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: '20px',
+              p: 1,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+              border: '1px solid #dcfce3'
+            }
           }
         }}
       >
         <Box component="form" onSubmit={handleJoinGroupSubmit}>
           <DialogTitle className="flex justify-between items-center pb-2">
             <Box className="flex items-center gap-2">
-              <Box className="p-2 rounded-xl bg-pink-50 text-[#ff84ba] border border-pink-100">
+              <Box className="p-2 rounded-xl bg-green-50 text-[#427c36] border border-green-100">
                 <GroupIcon fontSize="small" />
               </Box>
               <Typography variant="h6" className="font-extrabold text-gray-800">
@@ -702,7 +649,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           <DialogContent className="pt-2 pb-2">
             <Typography variant="body2" className="text-gray-500 mb-4 text-xs sm:text-sm">
-              Enter the unique Group ID (for example: <strong className="text-pink-600">nkoor-it</strong>). This will send a request to the admin. Once approved, you can read and write documents inside this group.
+              Enter the unique Group ID (for example: <strong className="text-green-600">nkoor-it</strong>). This will send a request to the admin. Once approved, you can read and write documents inside this group.
             </Typography>
 
             {joinDialogError && (
@@ -725,9 +672,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 setJoinDialogError('');
               }}
               helperText="Joining is a one-time process."
-              InputProps={{
-                className: 'rounded-xl bg-white/70'
-              }}
+              slotProps={{ input: { className: 'rounded-xl bg-white/70' } }}
             />
           </DialogContent>
 
@@ -746,7 +691,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               type="submit"
               variant="contained"
               disabled={actionLoading || !joinInputId.trim()}
-              className="rounded-xl font-bold capitalize bg-gradient-to-r from-[#ff9ecc] to-[#ff84ba] text-white shadow-md hover:shadow-lg"
+              className="rounded-xl font-bold capitalize bg-gradient-to-r from-[#60a5fa] to-[#427c36] text-white shadow-md hover:shadow-lg"
               sx={{ px: 3, textTransform: 'none' }}
             >
               {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Join Group'}
@@ -762,18 +707,20 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         onClose={handleCloseMembersDialog}
         maxWidth="sm"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '20px',
-            p: 1,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-            border: '1px solid #ffe4ef'
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: '20px',
+              p: 1,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+              border: '1px solid #dcfce3'
+            }
           }
         }}
       >
         <DialogTitle className="flex justify-between items-center pb-2">
           <Box className="flex items-center gap-2">
-            <Box className="p-2 rounded-xl bg-pink-50 text-[#ff84ba] border border-pink-100">
+            <Box className="p-2 rounded-xl bg-green-50 text-[#427c36] border border-green-100">
               <PeopleIcon fontSize="small" />
             </Box>
             <Box>
@@ -792,10 +739,10 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         <DialogContent className="pt-2 pb-2">
           {/* Group Info Banner */}
-          <Box className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-pink-50 to-white border border-pink-100 mb-4 shadow-sm">
+          <Box className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 mb-4 shadow-sm">
             <Box>
               <Typography variant="body2" className="font-bold text-gray-700">
-                Total Members: <span className="text-[#e06b9e]">{currentGroupMembers.length}</span>
+                Total Members: <span className="text-[#326127]">{currentGroupMembers.length}</span>
               </Typography>
               <Typography variant="caption" className="text-gray-500">
                 {isCurrentUserAdmin ? 'You are the Group Admin.' : 'You are a Member of this group.'}
@@ -806,7 +753,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 icon={<AdminPanelSettingsIcon sx={{ fontSize: 16 }} />} 
                 label="Group Admin" 
                 size="small"
-                className="bg-gradient-to-r from-pink-400 to-[#ff84ba] text-white font-bold text-xs shadow-sm" 
+                className="bg-gradient-to-r from-green-400 to-[#427c36] text-white font-bold text-xs shadow-sm" 
               />
             )}
           </Box>
@@ -818,7 +765,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           {membersLoading ? (
             <Box className="flex justify-center py-6">
-              <CircularProgress size={32} sx={{ color: '#ff84ba' }} />
+              <CircularProgress size={32} sx={{ color: '#427c36' }} />
             </Box>
           ) : (
             <List className="p-0 space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
@@ -826,10 +773,10 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 <ListItem 
                   key={member._id}
                   disablePadding
-                  className="p-2.5 rounded-xl bg-white border border-pink-50 flex items-center justify-between shadow-sm"
+                  className="p-2.5 rounded-xl bg-white border border-green-50 flex items-center justify-between shadow-sm"
                 >
                   <Box className="flex items-center gap-3 overflow-hidden flex-1">
-                    <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#ff84ba' : '#e0e7ff', color: member.isAdmin ? 'white' : '#4338ca', fontSize: 13, fontWeight: 'bold' }}>
+                    <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#427c36' : '#e0e7ff', color: member.isAdmin ? 'white' : '#4338ca', fontSize: 13, fontWeight: 'bold' }}>
                       {member.email?.[0]?.toUpperCase() || 'U'}
                     </Avatar>
                     <Box className="overflow-hidden">
@@ -847,7 +794,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                       <Chip 
                         label="Admin" 
                         size="small" 
-                        className="bg-pink-100 text-[#e06b9e] font-bold text-[10px] h-5" 
+                        className="bg-green-100 text-[#326127] font-bold text-[10px] h-5" 
                       />
                     ) : (
                       isCurrentUserAdmin && (
@@ -880,7 +827,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           {/* JOIN REQUESTS (ADMIN ONLY) */}
           {isCurrentUserAdmin && currentJoinRequests && currentJoinRequests.length > 0 && (
-            <Box className="mt-4 pt-4 border-t border-pink-100">
+            <Box className="mt-4 pt-4 border-t border-green-100">
               <Typography variant="subtitle2" className="font-bold text-gray-700 mb-2 uppercase text-[11px] tracking-wider">
                 Pending Join Requests ({currentJoinRequests.length})
               </Typography>
@@ -896,7 +843,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                       </Typography>
                     </Box>
                     <Box className="flex items-center justify-end gap-1 shrink-0 ml-auto pl-2">
-                      <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: '#10b981', bgcolor: '#ecfdf5', '&:hover': { bgcolor: '#d1fae5' } }}>
+                      <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: '#326127', bgcolor: '#f0fdf4', '&:hover': { bgcolor: '#dcfce3' } }}>
                         <CheckCircleIcon fontSize="small" />
                       </IconButton>
                       <IconButton size="small" onClick={() => handleRejectRequest(req._id)} sx={{ color: '#ef4444', bgcolor: '#fef2f2', '&:hover': { bgcolor: '#fee2e2' } }}>
@@ -911,9 +858,9 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           {/* INVITE LINK (ADMIN ONLY) */}
           {isCurrentUserAdmin && (
-            <Box className="mt-4 pt-4 border-t border-pink-100">
-              <Box className="p-3.5 rounded-xl bg-gradient-to-r from-pink-50 to-white border border-pink-100 flex flex-col items-start gap-2 shadow-sm">
-                <Typography variant="subtitle2" className="font-extrabold text-[#e06b9e] flex items-center gap-1">
+            <Box className="mt-4 pt-4 border-t border-green-100">
+              <Box className="p-3.5 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 flex flex-col items-start gap-2 shadow-sm">
+                <Typography variant="subtitle2" className="font-extrabold text-[#326127] flex items-center gap-1">
                   <LinkIcon fontSize="small" /> Share Invite Link
                 </Typography>
                 <Typography variant="caption" className="text-gray-600 leading-relaxed">
@@ -924,7 +871,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                   size="small"
                   startIcon={<ContentCopyIcon />}
                   onClick={handleCopyInviteLink}
-                  sx={{ mt: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', borderColor: '#ffb6d8', color: '#e06b9e', '&:hover': { borderColor: '#ff84ba', bgcolor: '#fff0f6' } }}
+                  sx={{ mt: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', borderColor: '#ffb6d8', color: '#326127', '&:hover': { borderColor: '#427c36', bgcolor: '#f0fdf4' } }}
                 >
                   Copy Link
                 </Button>
@@ -982,12 +929,14 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         onClose={handleCloseDeleteGroupDialog}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '20px',
-            p: 1,
-            boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
-            border: '2px solid #fca5a5'
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: '20px',
+              p: 1,
+              boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
+              border: '2px solid #fca5a5'
+            }
           }
         }}
       >
@@ -998,7 +947,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         <DialogContent className="pt-2 pb-2">
           <Typography variant="body2" className="text-gray-700 mb-3">
-            You are about to permanently delete <strong>{currentGroup?.name}</strong> (ID: <code className="text-pink-600">{currentGroup?.groupId}</code>).
+            You are about to permanently delete <strong>{currentGroup?.name}</strong> (ID: <code className="text-green-600">{currentGroup?.groupId}</code>).
           </Typography>
           
           <Alert severity="error" className="mb-4 text-xs rounded-xl font-medium">
@@ -1017,8 +966,8 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             placeholder="delete group"
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
-            InputProps={{
-              className: 'rounded-xl bg-white/70 font-mono'
+            slotProps={{
+              input: { className: 'rounded-xl bg-white/70 font-mono' }
             }}
           />
         </DialogContent>
@@ -1064,57 +1013,49 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
     </AppBar>
 
     {/* TELEGRAM-STYLE BOTTOM NAVBAR FOR MOBILE */}
-    <Box className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-white border-t border-gray-100 flex items-center justify-around z-[100] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-safe transition-all">
-      <Button 
-        onClick={() => onToggleMobileView && onToggleMobileView('sidebar')}
-        sx={{ 
-          display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
-          color: mobileView === 'sidebar' ? '#ff84ba' : '#9ca3af',
-          '&:hover': { bgcolor: 'transparent' }
-        }}
-      >
-        <LibraryBooksIcon sx={{ fontSize: 24, mb: 0.3 }} />
-        <Typography sx={{ fontSize: '0.65rem', fontWeight: mobileView === 'sidebar' ? 800 : 500, textTransform: 'none', letterSpacing: '0.02em' }}>Library</Typography>
-      </Button>
-      
-      <Button 
-        onClick={() => {
-          if (hasOpenDocuments) onToggleMobileView && onToggleMobileView('editor');
-        }}
-        sx={{ 
-          display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
-          color: hasOpenDocuments ? (mobileView === 'editor' ? '#ff84ba' : '#9ca3af') : '#e5e7eb',
-          '&:hover': { bgcolor: 'transparent' }
-        }}
-      >
-        <DescriptionIcon sx={{ fontSize: 24, mb: 0.3 }} />
-        <Typography sx={{ fontSize: '0.65rem', fontWeight: mobileView === 'editor' ? 800 : 500, textTransform: 'none', letterSpacing: '0.02em' }}>Editor</Typography>
-      </Button>
+      <Box className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-white border-t border-gray-200 flex items-center justify-around z-[100] pb-safe transition-all" sx={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
+        <Button 
+          onClick={() => onToggleMobileView && onToggleMobileView('sidebar')}
+          sx={{ 
+            display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
+            color: mobileView === 'sidebar' ? '#427c36' : '#9ca3af',
+            '&:hover': { bgcolor: 'transparent' }
+          }}
+        >
+          <LibraryBooksIcon sx={{ fontSize: 22, mb: 0.2 }} />
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: mobileView === 'sidebar' ? 700 : 500, textTransform: 'none' }}>Library</Typography>
+        </Button>
+        
+        <Button 
+          onClick={() => {
+            if (hasOpenDocuments) onToggleMobileView && onToggleMobileView('editor');
+          }}
+          sx={{ 
+            display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
+            color: hasOpenDocuments ? (mobileView === 'editor' ? '#427c36' : '#9ca3af') : '#d1d5db',
+            '&:hover': { bgcolor: 'transparent' }
+          }}
+        >
+          <DescriptionIcon sx={{ fontSize: 22, mb: 0.2 }} />
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: mobileView === 'editor' ? 700 : 500, textTransform: 'none' }}>Editor</Typography>
+        </Button>
 
-      <Button 
-        onClick={handleOpenJoinDialog}
-        sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#ff84ba' } }}
-      >
-        <GroupIcon sx={{ fontSize: 24, mb: 0.3 }} />
-        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, textTransform: 'none', letterSpacing: '0.02em' }}>Join</Typography>
-      </Button>
+        <Button 
+          onClick={handleOpenJoinDialog}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
+        >
+          <GroupIcon sx={{ fontSize: 22, mb: 0.2 }} />
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Join</Typography>
+        </Button>
 
-      <Button 
-        onClick={handleOpenAddDialog}
-        sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#ff84ba' } }}
-      >
-        <GroupAddIcon sx={{ fontSize: 24, mb: 0.3 }} />
-        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, textTransform: 'none', letterSpacing: '0.02em' }}>Create</Typography>
-      </Button>
-
-      <Button 
-        onClick={handleLogout}
-        sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#f87171', '&:hover': { bgcolor: 'transparent', color: '#ef4444' } }}
-      >
-        <LogoutIcon sx={{ fontSize: 24, mb: 0.3 }} />
-        <Typography sx={{ fontSize: '0.65rem', fontWeight: 500, textTransform: 'none', letterSpacing: '0.02em' }}>Logout</Typography>
-      </Button>
-    </Box>
+        <Button 
+          onClick={handleOpenAddDialog}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
+        >
+          <GroupAddIcon sx={{ fontSize: 22, mb: 0.2 }} />
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Create</Typography>
+        </Button>
+      </Box>
     </>
   );
 };

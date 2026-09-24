@@ -163,6 +163,7 @@ const documentSlice = createSlice({
     openDocuments: [], // Array of document IDs up to 2
     status: 'idle',
     searchQuery: '',
+    globalReadMode: false,
     error: null,
   },
   reducers: {
@@ -183,6 +184,9 @@ const documentSlice = createSlice({
     },
     clearOpenDocuments: (state) => {
       state.openDocuments = [];
+    },
+    setGlobalReadMode: (state, action) => {
+      state.globalReadMode = action.payload;
     },
     setSearchQuery: (state, action) => {
       state.searchQuery = action.payload;
@@ -239,7 +243,8 @@ export const {
   addOpenDocument, 
   removeOpenDocument, 
   clearOpenDocuments,
-  setSearchQuery 
+  setSearchQuery,
+  setGlobalReadMode 
 } = documentSlice.actions;
 
 export default documentSlice.reducer;

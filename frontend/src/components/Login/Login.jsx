@@ -48,23 +48,23 @@ const Login = () => {
       <Box 
         aria-hidden="true"
         className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob" 
-        style={{ background: 'linear-gradient(135deg, #ff9ecc 0%, #ff84ba 100%)' }} 
+        style={{ background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)' }} 
       />
       <Box 
         aria-hidden="true"
         className="absolute bottom-[-15%] right-[-10%] w-[700px] h-[700px] rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000" 
-        style={{ background: 'linear-gradient(135deg, #ffb6d8 0%, #ff84ba 100%)' }} 
+        style={{ background: 'linear-gradient(135deg, #ffb6d8 0%, #427c36 100%)' }} 
       />
 
       <Container maxWidth="sm" className="relative z-10">
         <Paper 
           elevation={0} 
-          className="p-6 sm:p-12 shadow-xl border border-pink-100 rounded-3xl bg-white/90 backdrop-blur-md"
-          style={{ boxShadow: '0 25px 50px -12px rgba(255, 132, 186, 0.15)' }}
+          className="p-6 sm:p-12 shadow-xl border border-green-100 rounded-3xl bg-white/90 backdrop-blur-md"
+          style={{ boxShadow: '0 25px 50px -12px rgba(134, 239, 172, 0.15)' }}
         >
           <Box className="flex flex-col items-center mb-8">
-            <Box className="w-16 sm:w-20 h-16 sm:h-20 rounded-2xl bg-gradient-to-br from-pink-50 to-pink-100 flex items-center justify-center mb-4 shadow-sm border border-pink-50" style={{ boxShadow: '0 8px 20px 0 rgba(255, 132, 186, 0.2)' }}>
-              <MenuBookIcon sx={{ color: '#ff84ba', fontSize: { xs: 32, sm: 40 } }} />
+            <Box className="w-16 sm:w-20 h-16 sm:h-20 rounded-2xl bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center mb-4 shadow-sm border border-green-50" style={{ boxShadow: '0 8px 20px 0 rgba(134, 239, 172, 0.2)' }}>
+              <MenuBookIcon sx={{ color: '#427c36', fontSize: { xs: 32, sm: 40 } }} />
             </Box>
             <Typography variant="h4" component="h1" align="center" className="font-extrabold text-gray-800 tracking-tight text-3xl sm:text-4xl mb-1">
               DocsApp
@@ -82,7 +82,7 @@ const Login = () => {
             variant="fullWidth" 
             className="mb-8"
             aria-label="Sign in or registration switch"
-            TabIndicatorProps={{ style: { backgroundColor: '#ff84ba', height: 3, borderRadius: '3px 3px 0 0' } }}
+            slotProps={{ indicator: { style: { backgroundColor: '#427c36', height: 3, borderRadius: '3px 3px 0 0' } } }}
             sx={{
               '& .MuiTab-root': {
                 textTransform: 'none',
@@ -90,7 +90,7 @@ const Login = () => {
                 transition: 'all 0.3s ease',
               },
               '& .MuiTab-root.Mui-selected': {
-                color: '#ff84ba',
+                color: '#427c36',
                 fontWeight: '800',
               }
             }}
@@ -109,14 +109,13 @@ const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              inputProps={{ 'aria-label': 'Email Address', id: 'auth-email-input' }}
-              InputProps={{
-                sx: { borderRadius: '12px', backgroundColor: '#fafafa' }
+              slotProps={{ htmlInput: { 'aria-label': 'Email Address', id: 'auth-email-input' },
+              input: { sx: { borderRadius: '12px', backgroundColor: '#fafafa' } }
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': { borderColor: '#ff84ba' },
-                  '&.Mui-focused fieldset': { borderColor: '#ff84ba', borderWidth: '2px' }
+                  '&:hover fieldset': { borderColor: '#427c36' },
+                  '&.Mui-focused fieldset': { borderColor: '#427c36', borderWidth: '2px' }
                 }
               }}
             />
@@ -130,14 +129,13 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              inputProps={{ 'aria-label': 'Password', id: 'auth-password-input' }}
-              InputProps={{
-                sx: { borderRadius: '12px', backgroundColor: '#fafafa' }
+              slotProps={{ htmlInput: { 'aria-label': 'Password', id: 'auth-password-input' },
+              input: { sx: { borderRadius: '12px', backgroundColor: '#fafafa' } }
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': { borderColor: '#ff84ba' },
-                  '&.Mui-focused fieldset': { borderColor: '#ff84ba', borderWidth: '2px' }
+                  '&:hover fieldset': { borderColor: '#427c36' },
+                  '&.Mui-focused fieldset': { borderColor: '#427c36', borderWidth: '2px' }
                 }
               }}
             />
@@ -154,7 +152,7 @@ const Login = () => {
               variant="contained"
               size="large"
               type="submit"
-              className="mt-8 py-3.5 bg-gradient-to-r from-[#ff9ecc] to-[#ff84ba] text-white font-bold tracking-wide hover:opacity-90 transition-all shadow-md hover:shadow-lg"
+              className="mt-8 py-3.5 bg-gradient-to-r from-[#60a5fa] to-[#427c36] text-white font-bold tracking-wide hover:opacity-90 transition-all shadow-md hover:shadow-lg"
               style={{ borderRadius: '12px' }}
               sx={{ textTransform: 'none', fontSize: '1.1rem' }}
             >

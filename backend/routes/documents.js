@@ -10,18 +10,20 @@ const pdfParse = require('pdf-parse');
 
 const path = require('path');
 
+const mongoose = require('mongoose');
+let gfsBucket;
+mongoose.connection.once('open', () => {
+  gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+    bucketName: 'uploads'
+  });
+});
+
+
+
 const upload = multer({ storage: multer.memoryStorage() });
 
-const diskStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'img-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-const uploadDisk = multer({ storage: diskStorage });
+// Instead of local disk, use memory storage to pipe to GridFS
+const uploadDisk = multer({ storage: multer.memoryStorage() });
 
 // Import content from a document file
 router.post('/import', auth, upload.single('file'), async (req, res) => {
@@ -61,13 +63,29 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
   }
 });
 
-// Upload an image specifically for embedding in documents
+// Upload an image specifically for embedding in documents (GridFS)
 router.post('/upload-image', auth, uploadDisk.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No image uploaded' });
     }
-    res.json({ url: `/uploads/${req.file.filename}` });
+    
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const filename = 'img-' + uniqueSuffix + path.extname(req.file.originalname);
+
+    const uploadStream = gfsBucket.openUploadStream(filename, {
+      contentType: req.file.mimetype
+    });
+
+    uploadStream.end(req.file.buffer);
+
+    uploadStream.on('finish', () => {
+      res.json({ url: `/api/documents/files/${uploadStream.id}` });
+    });
+    
+    uploadStream.on('error', (error) => {
+      res.status(500).json({ message: 'Error uploading image to DB', error: error.message });
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error uploading image', error: error.message });
   }
@@ -223,7 +241,7 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// Upload an attachment to a document
+// Upload an attachment to a document (GridFS)
 router.post('/:id/attachments', auth, uploadDisk.single('file'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -235,20 +253,36 @@ router.post('/:id/attachments', auth, uploadDisk.single('file'), async (req, res
     const isMember = await verifyGroupMembership(req.user.userId, document.groupId);
     if (!isMember) return res.status(403).json({ message: 'Access denied' });
 
-    const attachment = {
-      name: req.file.originalname,
-      url: `/uploads/${req.file.filename}`,
-      type: req.file.mimetype,
-      size: req.file.size
-    };
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const filename = 'file-' + uniqueSuffix + path.extname(req.file.originalname);
 
-    const updatedDocument = await Document.findByIdAndUpdate(
-      id,
-      { $push: { attachments: attachment } },
-      { returnDocument: 'after' }
-    ).populate('history.editedBy', 'email').populate('owner', 'email');
+    const uploadStream = gfsBucket.openUploadStream(filename, {
+      contentType: req.file.mimetype
+    });
 
-    res.json(updatedDocument);
+    uploadStream.end(req.file.buffer);
+
+    uploadStream.on('finish', async () => {
+      const attachment = {
+        name: req.file.originalname,
+        url: `/api/documents/files/${uploadStream.id}`,
+        type: req.file.mimetype,
+        size: req.file.size
+      };
+
+      const updatedDocument = await Document.findByIdAndUpdate(
+        id,
+        { $push: { attachments: attachment } },
+        { new: true }
+      ).populate('history.editedBy', 'email').populate('owner', 'email');
+
+      res.json(updatedDocument);
+    });
+
+    uploadStream.on('error', (error) => {
+      res.status(500).json({ message: 'Error uploading attachment to DB', error: error.message });
+    });
+
   } catch (error) {
     console.error("Upload Attachment Backend Error:", error);
     res.status(500).json({ message: `Error uploading attachment: ${error.message}` });
@@ -266,11 +300,26 @@ router.delete('/:id/attachments/:attachmentId', auth, async (req, res) => {
     const isMember = await verifyGroupMembership(req.user.userId, document.groupId);
     if (!isMember) return res.status(403).json({ message: 'Access denied' });
 
+    // Find the attachment to delete from DB
+    const attachment = document.attachments.find(a => a._id.toString() === attachmentId);
+
     const updatedDocument = await Document.findByIdAndUpdate(
       id,
       { $pull: { attachments: { _id: attachmentId } } },
-      { returnDocument: 'after' }
+      { new: true }
     ).populate('history.editedBy', 'email').populate('owner', 'email');
+
+    // Remove from GridFS if it's stored there
+    if (attachment && attachment.url.includes('/api/documents/files/')) {
+      try {
+        const fileId = attachment.url.split('/').pop();
+        if (gfsBucket && fileId) {
+          await gfsBucket.delete(new mongoose.Types.ObjectId(fileId));
+        }
+      } catch (err) {
+        console.error("Error deleting file from GridFS:", err);
+      }
+    }
 
     res.json(updatedDocument);
   } catch (error) {
@@ -279,3 +328,29 @@ router.delete('/:id/attachments/:attachmentId', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// Get file from GridFS
+router.get('/files/:id', async (req, res) => {
+  try {
+    if (!gfsBucket) {
+      return res.status(500).json({ message: 'Database not fully initialized' });
+    }
+    
+    const fileId = new mongoose.Types.ObjectId(req.params.id);
+    const cursor = gfsBucket.find({ _id: fileId });
+    const files = await cursor.toArray();
+    
+    if (!files || files.length === 0) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+    
+    const file = files[0];
+    res.set('Content-Type', file.contentType);
+    res.set('Content-Disposition', `inline; filename="${file.filename}"`);
+    
+    const downloadStream = gfsBucket.openDownloadStream(fileId);
+    downloadStream.pipe(res);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving file', error: error.message });
+  }
+});
