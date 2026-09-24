@@ -529,7 +529,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       component="article" 
       id={`document-editor-article-${documentId}`} 
       aria-label={`Document Editor for ${title || 'Untitled Document'}`}
-      className="h-full flex flex-col p-2 sm:p-3 bg-white/40 backdrop-blur-sm relative"
+      className="h-full flex flex-col p-2 sm:p-3 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm relative"
     >
       {/* ── 2-Row Header ──────────────────────────────────── */}
       <Box className="flex flex-col gap-0. mb-1.5 sm:mb-2">
@@ -666,8 +666,9 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         <Paper 
           ref={editorContainerRef}
           elevation={0} 
+          sx={{ backgroundColor: 'transparent' }}
           onClickCapture={handleEditorClick}
-          className={`flex-1 rounded-2xl overflow-hidden bg-white/80 shadow-sm flex flex-col relative ${isEditing ? 'border-2 border-[#427c36]' : 'border border-green-100'} ${!isEditing ? 'editor-readonly' : ''}`}
+          className={`flex-1 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-900/80 shadow-sm dark:shadow-none flex flex-col relative ${isEditing ? 'border-2 border-[#427c36]' : 'border border-green-100 dark:border-green-900'} ${!isEditing ? 'editor-readonly' : ''}`}
         >
         {isEditing && (
           <Tooltip title={isListening ? "Stop Dictation" : "Dictate"}>
@@ -788,14 +789,14 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
 
         {/* Attachments Bar (Below Editor) */}
         {(isEditing || (selectedDocument.attachments && selectedDocument.attachments.length > 0)) && (
-          <Box className="w-full flex items-center gap-2 p-1.5 sm:p-2 bg-white/60 rounded-lg overflow-x-auto shrink-0 border border-green-100">
+          <Box className="w-full flex items-center gap-2 p-1.5 sm:p-2 bg-white/60 rounded-lg overflow-x-auto shrink-0 border border-green-100 dark:border-green-900">
             {selectedDocument.attachments && selectedDocument.attachments.length > 0 && (
               <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 'bold', fontSize: '10px', mr: 0.5, textTransform: 'uppercase' }}>Attachments:</Typography>
             )}
             
             {selectedDocument.attachments && selectedDocument.attachments.map(att => (
               <Tooltip title={att.name} key={att._id} arrow>
-                <Box className="relative group flex items-center justify-center p-1.5 rounded-md bg-white border border-gray-100 shadow-sm hover:shadow hover:bg-gray-50 transition-all">
+                <Box className="relative group flex items-center justify-center p-1.5 rounded-md bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 shadow-sm dark:shadow-none hover:shadow hover:bg-gray-50 dark:bg-gray-800 transition-all">
                   <a href={import.meta.env.VITE_API_URL.replace('/api', '') + att.url} target="_blank" rel="noreferrer" className="flex items-center justify-center">
                     {getAttachmentIcon(att.type, att.name)}
                   </a>
@@ -864,7 +865,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           >
             <CloseIcon />
           </IconButton>
-          {selectedMedia?.type === 'image' && (
+          {selectedMedia?.type === 'img' && (
             <img src={selectedMedia.src} alt="Detail view" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '12px' }} />
           )}
           {selectedMedia?.type === 'video' && (

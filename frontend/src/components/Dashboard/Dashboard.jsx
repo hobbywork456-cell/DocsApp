@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Box, Typography, Button, Dialog, IconButton } from '@mui/material';
+import { Box, Typography, Button, Dialog, IconButton, CircularProgress } from '@mui/material';
 import Navbar from '../Navbar/Navbar';
 import Sidebar from '../Sidebar/Sidebar';
 import DocumentEditor from '../DocumentEditor/DocumentEditor';
@@ -22,8 +22,9 @@ import { Tooltip } from '@mui/material';
 
 const Dashboard = () => {
   const dispatch = useDispatch();
-  const { documents, openDocuments, globalReadMode } = useSelector((state) => state.documents);
-  const { groups, activeGroupId } = useSelector((state) => state.groups);
+  const { documents, openDocuments, globalReadMode, status: docStatus } = useSelector((state) => state.documents);
+  const isDarkMode = useSelector((state) => state.theme?.isDarkMode);
+  const { groups, activeGroupId, status: groupStatus } = useSelector((state) => state.groups);
 
   // Mobile navigation state
   const [mobileView, setMobileView] = useState('sidebar');
@@ -143,8 +144,9 @@ const Dashboard = () => {
         sx={{
           width: { xs: '100%', md: `${A4_WIDTH}px` },
           minHeight: { xs: 'calc(100vh - 60px)', md: '1122px' },
-          bgcolor: 'white',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+          bgcolor: isDarkMode ? '#1e293b' : 'white',
+          boxShadow: isDarkMode ? 'none' : '0 4px 24px rgba(0,0,0,0.18)',
+          color: isDarkMode ? '#f8fafc' : 'inherit',
           borderRadius: { xs: 0, md: '2px' },
           p: { xs: '60px 20px 40px 20px', md: '72px 80px 72px 80px' },
           mb: { xs: 0, md: 4 },
@@ -156,10 +158,10 @@ const Dashboard = () => {
           fontFamily: '"Times New Roman", Times, serif',
           fontSize: '22pt',
           fontWeight: 'bold',
-          color: '#111827',
+          color: isDarkMode ? '#f1f5f9' : '#111827',
           mb: '0.6em',
           lineHeight: 1.3,
-          borderBottom: '2px solid #e5e7eb',
+          borderBottom: isDarkMode ? '2px solid #334155' : '2px solid #e5e7eb',
           pb: '0.4em',
         }}>
           {doc.title || 'Untitled Document'}
@@ -189,7 +191,7 @@ const Dashboard = () => {
           fontFamily: '"Times New Roman", Times, serif',
           fontSize: { xs: '1.6rem', md: '2.2rem' },
           fontWeight: 'bold',
-          color: '#111827',
+          color: isDarkMode ? '#f1f5f9' : '#111827',
           mb: 3,
           mt: { xs: 5, md: 0 },
           lineHeight: 1.3,
@@ -208,7 +210,7 @@ const Dashboard = () => {
     return createPortal(
       <Box sx={{
         position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 999999,
-        backgroundColor: isFullscreen ? 'white' : '#d1d5db',
+        backgroundColor: isFullscreen ? (isDarkMode ? '#0f172a' : 'white') : (isDarkMode ? '#1e293b' : '#d1d5db'),
         display: 'flex',
         flexDirection: isFullscreen ? { xs: 'column', md: 'row' } : 'column',
         overflowY: 'auto',
@@ -264,7 +266,20 @@ const Dashboard = () => {
             {openDocuments.map(docId => {
               const doc = documents.find(d => d._id === docId);
               if (!doc) return null;
-              return (
+              
+  const renderModernLoader = () => (
+    <Box className="flex-1 rounded-2xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
+      <CircularProgress size={48} thickness={4} sx={{ color: '#427c36', mb: 3 }} />
+      <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 mb-1">
+        Syncing Workspace
+      </Typography>
+      <Typography variant="body2" className="text-gray-500 dark:text-gray-400">
+        Loading documents and fetching the latest updates...
+      </Typography>
+    </Box>
+  );
+
+  return (
                 <Box key={docId} sx={{
                   overflowY: 'auto',
                   width: { xs: '100%', md: 'auto' },
@@ -280,6 +295,18 @@ const Dashboard = () => {
       document.body
     );
   }
+
+  const renderModernLoader = () => (
+    <Box className="flex-1 rounded-2xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
+      <CircularProgress size={48} thickness={4} sx={{ color: '#427c36', mb: 3 }} />
+      <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 mb-1">
+        Syncing Workspace
+      </Typography>
+      <Typography variant="body2" className="text-gray-500 dark:text-gray-400">
+        Loading documents and fetching the latest updates...
+      </Typography>
+    </Box>
+  );
 
   return (
     <>
@@ -324,7 +351,7 @@ const Dashboard = () => {
         <Box 
           id="dashboard-sidebar-container"
           className={`
-            rounded-2xl overflow-hidden bg-white/90 backdrop-blur-md shadow-sm flex flex-col border border-green-100/50
+            rounded-2xl overflow-hidden bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm dark:shadow-none flex flex-col border border-green-100 dark:border-green-900/50
             transition-all duration-300 ease-in-out
             ${mobileView === 'sidebar' || openDocuments.length === 0 ? 'flex w-full' : 'hidden'}
             md:flex ${isSidebarOpen ? 'md:w-1/3 md:shrink-0 md:max-w-[400px] flex-shrink-0' : 'md:w-0 md:max-w-0 md:min-w-0 flex-shrink-0 md:border-none md:opacity-0 pointer-events-none'}
@@ -373,23 +400,25 @@ const Dashboard = () => {
               </Box>
             </Box>
           )}
-          {openDocuments.length === 0 ? (
+          {docStatus === 'loading' || groupStatus === 'loading' ? (
+            renderModernLoader()
+          ) : openDocuments.length === 0 ? (
             /* Desktop Empty State */
-            <Box id="empty-state-welcome" className="hidden md:flex flex-1 rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm shadow-sm border border-green-100/50 flex-col items-center justify-center p-6 text-center">
+            <Box id="empty-state-welcome" className="hidden md:flex flex-1 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-sm dark:shadow-none border border-green-100 dark:border-green-900/50 flex-col items-center justify-center p-6 text-center">
               <EditNoteIcon sx={{ fontSize: 80, color: '#86efac', mb: 2, opacity: 0.8 }} />
-              <Typography variant="h5" component="h2" className="font-extrabold text-gray-800 mb-2">
+              <Typography variant="h5" component="h2" className="font-extrabold text-gray-800 dark:text-gray-200 mb-2">
                 {activeGroup ? `Welcome to ${activeGroup.name}` : 'Ready to Collaborate?'}
               </Typography>
-              <Typography variant="body1" className="text-gray-500 max-w-md mx-auto mb-4">
+              <Typography variant="body1" className="text-gray-500 dark:text-gray-400 dark:text-gray-500 max-w-md mx-auto mb-4">
                 {activeGroup 
                   ? `Select a document from the library or click 'New' to start writing documentation for ${activeGroup.name}.`
                   : 'Join or create a group in the navigation bar above to view and collaborate on documentation.'}
               </Typography>
 
               {activeGroup && (
-                <Box className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border border-green-100">
+                <Box className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 dark:bg-green-900/40 border border-green-100 dark:border-green-900">
                   <GroupIcon sx={{ color: '#427c36', fontSize: 18 }} />
-                  <Typography variant="caption" className="font-bold text-gray-700">
+                  <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300">
                     Group ID: <span className="text-[#326127] font-mono">{activeGroup.groupId}</span>
                   </Typography>
                 </Box>
@@ -399,7 +428,7 @@ const Dashboard = () => {
             <>
               {/* Mobile View: Document Tabs when multiple docs are open */}
               {openDocuments.length > 1 && (
-                <Box id="mobile-doc-tabs" role="tablist" aria-label="Open documents" className="flex md:hidden items-center gap-1.5 p-1 mb-2 bg-white/80 backdrop-blur-md rounded-xl border border-green-100 overflow-x-auto shrink-0">
+                <Box id="mobile-doc-tabs" role="tablist" aria-label="Open documents" className="flex md:hidden items-center gap-1.5 p-1 mb-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-xl border border-green-100 dark:border-green-900 overflow-x-auto shrink-0">
                   {openDocuments.map((id) => {
                     const doc = documents.find((d) => d._id === id);
                     const isActive = currentMobileDocId === id;
@@ -413,8 +442,8 @@ const Dashboard = () => {
                         onClick={() => setActiveMobileDocId(id)}
                         className={`text-xs font-bold rounded-lg px-3 py-1 truncate max-w-[140px] transition-all ${
                           isActive
-                            ? 'bg-[#427c36] text-white shadow-sm'
-                            : 'text-gray-600 bg-transparent hover:bg-green-50 hover:text-[#326127]'
+                            ? 'bg-[#427c36] text-white shadow-sm dark:shadow-none'
+                            : 'text-gray-600 dark:text-gray-400 dark:text-gray-500 bg-transparent hover:bg-green-50 dark:bg-green-900/40 hover:text-[#326127]'
                         }`}
                         sx={{ textTransform: 'none' }}
                       >
@@ -426,7 +455,7 @@ const Dashboard = () => {
               )}
 
               {/* Mobile: Render single active document in full view */}
-              <Box className="flex md:hidden flex-1 rounded-2xl overflow-hidden bg-white shadow-sm border border-green-100 flex-col min-h-0">
+              <Box className="flex md:hidden flex-1 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0">
                 {currentMobileDocId && (
                   <DocumentEditor 
                     documentId={currentMobileDocId} 
@@ -437,7 +466,7 @@ const Dashboard = () => {
 
               {/* Desktop: Render all open documents side-by-side */}
               {openDocuments.map((docId) => (
-                <Box key={docId} className="hidden md:flex flex-1 rounded-2xl overflow-hidden bg-white shadow-sm border border-green-100 flex-col min-h-0">
+                <Box key={docId} className="hidden md:flex flex-1 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0">
                   <DocumentEditor documentId={docId} />
                 </Box>
               ))}
@@ -445,7 +474,39 @@ const Dashboard = () => {
           )}
         </Box>
       </Box>
-    </Box></>
+
+      {/* Lightbox for Global Read Mode media clicks */}
+      <Dialog 
+        open={!!selectedMedia} 
+        onClose={() => setSelectedMedia(null)} 
+        maxWidth="lg"
+        slotProps={{
+          paper: {
+            sx: {
+              backgroundColor: 'transparent',
+              boxShadow: 'none',
+              overflow: 'hidden'
+            }
+          }
+        }}
+      >
+        <Box className="relative flex flex-col items-center justify-center">
+          <IconButton 
+            onClick={() => setSelectedMedia(null)} 
+            sx={{ position: 'absolute', top: 12, right: 12, bgcolor: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'white' }, zIndex: 10 }}
+          >
+            <CloseIcon />
+          </IconButton>
+          {selectedMedia?.type === 'img' && (
+            <img src={selectedMedia.src} alt="Detail view" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '12px' }} />
+          )}
+          {selectedMedia?.type === 'video' && (
+            <video src={selectedMedia.src} controls style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: '12px' }} />
+          )}
+        </Box>
+      </Dialog>
+    </Box>
+    </>
   );
 }
 

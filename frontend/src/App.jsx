@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { initTheme } from './slices/themeSlice';
 import Login from './components/Login/Login';
 import Dashboard from './components/Dashboard/Dashboard';
 import InviteHandler from './components/Invite/InviteHandler';
@@ -16,6 +17,12 @@ function PublicRoute({ children }) {
 }
 
 function App() {
+  const dispatch = useDispatch();
+  
+  useEffect(() => {
+    dispatch(initTheme());
+  }, [dispatch]);
+
   return (
     <Router>
       <Routes>

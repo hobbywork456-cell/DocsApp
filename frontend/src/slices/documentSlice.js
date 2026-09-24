@@ -196,6 +196,8 @@ const documentSlice = createSlice({
     builder
       .addCase(fetchDocuments.pending, (state) => {
         state.status = 'loading';
+        state.documents = [];
+        state.openDocuments = [];
       })
       .addCase(fetchDocuments.fulfilled, (state, action) => {
         state.documents = action.payload;

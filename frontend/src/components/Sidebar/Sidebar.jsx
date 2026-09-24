@@ -13,7 +13,8 @@ import {
   DialogContent, 
   DialogContentText, 
   DialogActions,
-  Tooltip
+  Tooltip,
+  Skeleton
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -37,7 +38,7 @@ import './Sidebar.css';
 
 const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
   const dispatch = useDispatch();
-  const { documents, openDocuments, searchQuery } = useSelector((state) => state.documents);
+  const { documents, openDocuments, searchQuery, status: docStatus } = useSelector((state) => state.documents);
   const { groups, activeGroupId } = useSelector((state) => state.groups);
 
   const activeGroup = groups.find((g) => g.groupId === activeGroupId);
@@ -317,14 +318,26 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
       {/* Document List */}
       <List id="sidebar-doc-list" aria-label="List of documents" className="flex-1 overflow-y-auto px-0 space-y-2 pb-16 sm:pb-20 custom-scrollbar">
         {!activeGroupId ? (
-          <Box className="flex flex-col items-center justify-center p-6 text-center bg-white/40 rounded-2xl border border-green-100 mt-4">
+          <Box className="flex flex-col items-center justify-center p-6 text-center bg-white/40 dark:bg-gray-800/40 rounded-2xl border border-green-100 dark:border-green-900 mt-4">
             <GroupIcon sx={{ fontSize: 42, color: '#427c36', mb: 1.5, opacity: 0.8 }} />
-            <Typography variant="body2" className="font-bold text-gray-700 mb-1">
+            <Typography variant="body2" className="font-bold text-gray-700 dark:text-gray-300 mb-1">
               No Group Selected
             </Typography>
-            <Typography variant="caption" className="text-gray-500">
+            <Typography variant="caption" className="text-gray-500 dark:text-gray-400 dark:text-gray-500">
               Join or create a group in the navigation bar to start viewing and writing documents.
             </Typography>
+          </Box>
+        ) : docStatus === 'loading' ? (
+          <Box className="flex flex-col gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Box key={i} className="rounded-xl border p-2.5 sm:p-3 bg-white/50 dark:bg-gray-800/50 shadow-sm border-transparent flex gap-3">
+                <Skeleton variant="rounded" width={24} height={24} sx={{ borderRadius: 1 }} />
+                <Box className="flex-1">
+                  <Skeleton variant="text" sx={{ fontSize: '1rem', width: '80%' }} />
+                  <Skeleton variant="text" sx={{ fontSize: '0.75rem', width: '40%' }} />
+                </Box>
+              </Box>
+            ))}
           </Box>
         ) : filteredDocuments.length === 0 ? (
           <Box className="flex flex-col items-center justify-center h-40 opacity-75">
@@ -354,7 +367,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                     onSelectDocument(doc._id);
                   }
                 }}
-                className={`group cursor-pointer transition-all duration-300 rounded-xl border p-2.5 sm:p-3 ${isSelected ? 'bg-white shadow-md border-l-4 border-l-[#427c36] border-white' : 'bg-white/70 border-transparent shadow-sm hover:bg-white hover:shadow'}`}
+                className={`group cursor-pointer transition-all duration-300 rounded-xl border p-2.5 sm:p-3 ${isSelected ? 'bg-white dark:bg-gray-900 shadow-md border-l-4 border-l-[#427c36] border-white' : 'bg-white/70 dark:bg-gray-800/70 border-transparent shadow-sm dark:shadow-none hover:bg-white dark:bg-gray-900 hover:shadow'}`}
                 sx={{
                   opacity: draggingId === doc._id ? 0.4 : 1,
                   outline: dragOverId === doc._id ? '2px dashed #427c36' : 'none',
@@ -372,7 +385,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                   )}
 
                   <Box className="flex items-center overflow-hidden flex-1 mr-1">
-                    <Box className={`p-2 rounded-lg mr-2.5 sm:mr-3 shrink-0 relative ${isSelected ? 'bg-green-100 text-[#427c36]' : 'bg-gray-100 text-gray-400'}`}>
+                    <Box className={`p-2 rounded-lg mr-2.5 sm:mr-3 shrink-0 relative ${isSelected ? 'bg-green-100 dark:bg-green-900/60 text-[#427c36]' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
                       <DescriptionIcon fontSize="small" />
                       {/* Pin dot indicator */}
                       {pinnedDocs.includes(doc._id) && (
@@ -380,13 +393,13 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                       )}
                     </Box>
                     <Box className="overflow-hidden min-w-0">
-                      <Typography variant="body2" className={`font-bold truncate ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                      <Typography variant="body2" className={`font-bold truncate ${isSelected ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300'}`}>
                         {pinnedDocs.includes(doc._id) && (
                           <PushPinIcon sx={{ fontSize: 11, color: '#427c36', mr: 0.4, verticalAlign: 'middle', transform: 'rotate(45deg)' }} />
                         )}
                         {doc.title || 'Untitled'}
                       </Typography>
-                      <Typography variant="caption" className={`block mt-0.5 ${isSelected ? 'text-[#326127] font-medium' : 'text-gray-500'}`}>
+                      <Typography variant="caption" className={`block mt-0.5 ${isSelected ? 'text-[#326127] font-medium' : 'text-gray-500 dark:text-gray-400 dark:text-gray-500'}`}>
                         {new Date(doc.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </Typography>
                     </Box>
@@ -434,7 +447,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
         maxWidth="xs"
         slotProps={{ paper: { sx: { borderRadius: '16px', m: 2 } } }}
       >
-        <DialogTitle className="font-bold text-gray-800">Delete Document?</DialogTitle>
+        <DialogTitle className="font-bold text-gray-800 dark:text-gray-200">Delete Document?</DialogTitle>
         <DialogContent>
           <DialogContentText className="mb-4">
             Are you sure you want to delete "{docToDelete?.title}" from group <strong>{activeGroup?.name}</strong>? This action cannot be undone.
