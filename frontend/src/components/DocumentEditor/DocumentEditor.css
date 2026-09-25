@@ -244,3 +244,88 @@
 .dark .custom-quill .ql-editor table th {
   border: 1px solid #475569;
 }
+
+
+
+
+/* A4 Mode Styling (Toggled by user) */
+/* Base (Mobile-First) */
+.a4-mode {
+  background-color: rgba(243, 244, 246, 0.6) !important;
+  padding: 1rem !important;
+  overflow-y: auto !important;
+}
+
+.dark .a4-mode {
+  background-color: #0f172a !important;
+}
+
+.a4-mode .ql-editor {
+  width: 100% !important;
+  max-width: 210mm !important;
+  min-height: calc(100vw * 1.414) !important;
+  padding: 1.5rem !important;
+  margin: 0 auto !important;
+  background-color: #ffffff;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0,0,0,0.05) !important;
+  border-radius: 4px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .a4-mode .ql-editor {
+  background-color: #1e293b;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.05) !important;
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+  .a4-mode {
+    padding: 2rem !important;
+  }
+  
+  .a4-mode .ql-editor {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    padding: 25.4mm !important; /* True 1-inch A4 margins */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.05) !important;
+    transform: translateY(-4px); /* Pop out effect */
+  }
+
+  .dark .a4-mode .ql-editor {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.05) !important;
+  }
+}
+
+
+/* COMPRESS UI TO MAXIMIZE EDITING SPACE */
+.custom-quill .ql-toolbar {
+  padding: 4px !important;
+}
+
+.custom-quill .ql-toolbar button {
+  width: 22px !important;
+  height: 22px !important;
+  padding: 2px !important;
+}
+
+.custom-quill .ql-toolbar .ql-picker-label {
+  padding: 0 4px !important;
+  height: 22px !important;
+  line-height: 22px !important;
+}
+
+.custom-quill .ql-toolbar .ql-formats {
+  margin-right: 8px !important;
+}
+
+.custom-quill .ql-editor {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+@media (min-width: 768px) {
+  .custom-quill .ql-editor {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+}

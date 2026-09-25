@@ -277,7 +277,7 @@ const Dashboard = () => {
               if (!doc) return null;
               
   const renderModernLoader = () => (
-    <Box className="flex-1 rounded-2xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
+    <Box className="flex-1 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
       <CircularProgress size={48} thickness={4} sx={{ color: '#427c36', mb: 3 }} />
       <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 mb-1">
         Syncing Workspace
@@ -306,7 +306,7 @@ const Dashboard = () => {
   }
 
   const renderModernLoader = () => (
-    <Box className="flex-1 rounded-2xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
+    <Box className="flex-1 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
       <CircularProgress size={48} thickness={4} sx={{ color: '#427c36', mb: 3 }} />
       <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 mb-1">
         Syncing Workspace
@@ -334,7 +334,7 @@ const Dashboard = () => {
       />
       
       {/* Main Container: responsive padding and gap */}
-      <Box className={`flex flex-1 overflow-hidden p-2 sm:p-4 relative animate-fade-in transition-all duration-300 ease-in-out ${isSidebarOpen ? 'gap-2 sm:gap-4' : 'gap-0'}`}>
+      <Box className={`flex flex-1 overflow-hidden p-1 sm:p-2 relative animate-fade-in transition-all duration-300 ease-in-out ${isSidebarOpen ? 'gap-1 sm:gap-2' : 'gap-0'}`}>
         {/* Edge Tab Toggle (Visible when closed) */}
         {!isSidebarOpen && (
           <Box 
@@ -360,7 +360,7 @@ const Dashboard = () => {
         <Box 
           id="dashboard-sidebar-container"
           className={`
-            rounded-2xl overflow-hidden bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm dark:shadow-none flex flex-col border border-green-100 dark:border-green-900/50
+            rounded-xl overflow-hidden bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm dark:shadow-none flex flex-col border border-green-100 dark:border-green-900/50
             transition-all duration-300 ease-in-out
             ${mobileView === 'sidebar' || openDocuments.length === 0 ? 'flex w-full' : 'hidden'}
             md:flex ${isSidebarOpen ? 'md:w-1/3 md:shrink-0 md:max-w-[400px] flex-shrink-0' : 'md:w-0 md:max-w-0 md:min-w-0 flex-shrink-0 md:border-none md:opacity-0 pointer-events-none'}
@@ -413,7 +413,7 @@ const Dashboard = () => {
             renderModernLoader()
           ) : openDocuments.length === 0 ? (
             /* Desktop Empty State */
-            <Box id="empty-state-welcome" className="hidden md:flex flex-1 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-sm dark:shadow-none border border-green-100 dark:border-green-900/50 flex-col items-center justify-center p-6 text-center">
+            <Box id="empty-state-welcome" className="hidden md:flex flex-1 rounded-xl overflow-hidden bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-sm dark:shadow-none border border-green-100 dark:border-green-900/50 flex-col items-center justify-center p-6 text-center">
               <EditNoteIcon sx={{ fontSize: 80, color: '#86efac', mb: 2, opacity: 0.8 }} />
               <Typography variant="h5" component="h2" className="font-extrabold text-gray-800 dark:text-gray-200 mb-2">
                 {activeGroup ? `Welcome to ${activeGroup.name}` : 'Ready to Collaborate?'}
@@ -464,7 +464,7 @@ const Dashboard = () => {
               )}
 
               {/* Mobile: Render single active document in full view */}
-              <Box className="flex md:hidden flex-1 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0">
+              <Box className="flex md:hidden flex-1 rounded-xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0">
                 {currentMobileDocId && (
                   <DocumentEditor 
                     documentId={currentMobileDocId} 
@@ -485,7 +485,7 @@ const Dashboard = () => {
               ) : (
                 <>
                   {openDocuments.map((docId) => (
-                    <Box key={docId} className="hidden md:flex flex-1 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0 relative">
+                    <Box key={docId} className="hidden md:flex flex-1 rounded-xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0 relative">
                       <DocumentEditor documentId={docId} />
                     </Box>
                   ))}

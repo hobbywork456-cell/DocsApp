@@ -81,6 +81,8 @@ import GridOnIcon from '@mui/icons-material/GridOn';
 import LockIcon from '@mui/icons-material/Lock';
 import RemoveRedEyeOutlinedIcon from '@mui/icons-material/RemoveRedEyeOutlined';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import ArticleIcon from '@mui/icons-material/Article';
+import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
 import './DocumentEditor.css';
 
 export const getTagColor = (tag) => {
@@ -106,6 +108,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isA4Mode, setIsA4Mode] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [tags, setTags] = useState([]);
   const [tagAnchorEl, setTagAnchorEl] = useState(null);
@@ -638,17 +641,21 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
 
   const modules = useMemo(() => ({
     history: { delay: 500, maxStack: 100, userOnly: true },
+    clipboard: { matchVisual: false }, // Prevent Quill from stripping HTML styling
     table: true,
     toolbar: {
       container: [
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-        ['bold', 'italic', 'underline', 'strike'],
-        [{ 'color': [] }, { 'background': [] }],
-        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-        [{ 'align': [] }],
-        ['link', 'image', 'table', 'undo', 'redo'],
-        ['clean']
-      ],
+          [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
+          [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ 'script': 'sub'}, { 'script': 'super' }],
+          [{ 'color': [] }, { 'background': [] }],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
+          [{ 'direction': 'rtl' }, { 'align': [] }],
+          ['blockquote', 'code-block'],
+          ['link', 'image', 'video', 'table'],
+          ['undo', 'redo', 'clean']
+        ],
       handlers: {
         image: imageHandler,
         table: function() { if (openTableDialogRef.current) openTableDialogRef.current(); },
@@ -696,7 +703,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
             placeholder="Document Title"
             readOnly={!isEditing}
             sx={{ 
-              fontSize: { xs: '1.15rem', sm: '1.5rem', md: '1.75rem' }, 
+              fontSize: { xs: '1rem', sm: '1.15rem', md: '1.25rem' }, 
               fontWeight: '900', 
               color: '#1f2937', 
               letterSpacing: '-0.02em',
@@ -766,21 +773,29 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           </Box>
 
           {/* Row 2: Action icon buttons (no borders, larger) + close */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end', mt: -0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end', mt: -.99}}>
 
           {/* History */}
-          <Tooltip title="History">
+          {/* A4 Print Layout Toggle */}
+            <Tooltip title={isA4Mode ? 'Exit A4 Layout' : 'A4 Print Layout'}>
+              <IconButton onClick={() => setIsA4Mode(!isA4Mode)}
+                sx={{ color: isA4Mode ? '#f59e0b' : '#8b5cf6', bgcolor: isA4Mode ? 'rgba(245,158,11,0.1)' : 'rgba(139,92,246,0.06)', '&:hover': { bgcolor: isA4Mode ? 'rgba(245,158,11,0.15)' : 'rgba(139,92,246,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s', mr: 0.75 }}>
+                {isA4Mode ? <CloseFullscreenIcon sx={{ fontSize: 18 }} /> : <ArticleIcon sx={{ fontSize: 18 }} />}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="History">
             <IconButton onClick={() => setHistoryOpen(true)}
-              sx={{ color: '#9c27b0', bgcolor: 'rgba(156,39,176,0.06)', '&:hover': { bgcolor: 'rgba(156,39,176,0.13)', transform: 'translateY(-1px)' }, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
-              <HistoryIcon sx={{ fontSize: 22 }} />
+              sx={{ color: '#9c27b0', bgcolor: 'rgba(156,39,176,0.06)', '&:hover': { bgcolor: 'rgba(156,39,176,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              <HistoryIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
 
           {/* Read Mode */}
           <Tooltip title="Read Mode">
             <IconButton onClick={() => dispatch(setGlobalReadMode(true))}
-              sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.06)', '&:hover': { bgcolor: 'rgba(66,124,54,0.13)', transform: 'translateY(-1px)' }, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
-              <RemoveRedEyeOutlinedIcon sx={{ fontSize: 22 }} />
+              sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.06)', '&:hover': { bgcolor: 'rgba(66,124,54,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              <RemoveRedEyeOutlinedIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
 
@@ -788,8 +803,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           <Tooltip title={isDownloading ? 'Downloading...' : 'Download PDF'}>
             <span>
               <IconButton onClick={handleDownloadPdf} disabled={isDownloading}
-                sx={{ color: '#3b82f6', bgcolor: 'rgba(59,130,246,0.06)', '&:hover': { bgcolor: 'rgba(59,130,246,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
-                <FileDownloadOutlinedIcon sx={{ fontSize: 22 }} />
+                sx={{ color: '#3b82f6', bgcolor: 'rgba(59,130,246,0.06)', '&:hover': { bgcolor: 'rgba(59,130,246,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+                <FileDownloadOutlinedIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </span>
           </Tooltip>
@@ -805,9 +820,9 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                   color: 'white',
                   background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
                   '&:hover': { background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)', transform: 'translateY(-1px)', boxShadow: '0 6px 16px rgba(66,124,54,0.4)' },
-                  p: '9px', borderRadius: '10px', boxShadow: '0 3px 10px rgba(66,124,54,0.3)', transition: 'all 0.2s'
+                  p: '5px', borderRadius: '10px', boxShadow: '0 3px 10px rgba(66,124,54,0.3)', transition: 'all 0.2s'
                 }}>
-                <EditIcon sx={{ fontSize: 22 }} />
+                <EditIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
           ) : (
@@ -815,8 +830,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
               <Tooltip title={isImporting ? 'Importing...' : 'Import File'}>
                 <span>
                   <IconButton onClick={handleImportClick} disabled={isImporting}
-                    sx={{ color: '#6366f1', bgcolor: 'rgba(99,102,241,0.06)', '&:hover': { bgcolor: 'rgba(99,102,241,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
-                    <UploadFileIcon sx={{ fontSize: 22 }} />
+                    sx={{ color: '#6366f1', bgcolor: 'rgba(99,102,241,0.06)', '&:hover': { bgcolor: 'rgba(99,102,241,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+                    <UploadFileIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </span>
               </Tooltip>
@@ -838,9 +853,9 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                         transform: 'translateY(-2px)'
                       },
                       '&.Mui-disabled': { background: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' },
-                      p: '9px', borderRadius: '10px', transition: 'all 0.2s'
+                      p: '5px', borderRadius: '10px', transition: 'all 0.2s'
                     }}>
-                    <CloudDoneOutlinedIcon sx={{ fontSize: 22 }} />
+                    <CloudDoneOutlinedIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </span>
               </Tooltip>
@@ -850,14 +865,14 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           {/* Close */}
           <Tooltip title="Close Document">
             <IconButton onClick={() => dispatch(removeOpenDocument(documentId))}
-              sx={{ color: '#ef4444', bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca', transform: 'translateY(-1px)' }, ml: 0.5, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
-              <CloseIcon sx={{ fontSize: 22 }} />
+              sx={{ color: '#ef4444', bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca', transform: 'translateY(-1px)' }, ml: 0.5, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              <CloseIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
         </Box>
       </Box>
       
-      <Box className="flex-1 flex flex-col gap-3 sm:gap-4 min-h-0 relative">
+      <Box className="flex-1 flex flex-col gap-3 sm:gap-1 min-h-1 relative">
         <Paper 
           ref={editorContainerRef}
           elevation={0} 
@@ -871,8 +886,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
               onClick={toggleListen}
               sx={{
                 position: 'absolute',
-                top: 8,
-                right: 8,
+                top: 3,
+                right: 10,
                 zIndex: 10,
                 color: isListening ? 'white' : '#326127',
                 bgcolor: isListening ? '#ef4444' : 'rgba(255, 255, 255, 0.9)',
@@ -899,7 +914,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           }}
           readOnly={!isEditing}
           modules={modules}
-          className="flex-1 flex flex-col min-h-0 custom-quill"
+          className={`flex-1 flex flex-col min-h-0 custom-quill ${isA4Mode ? 'a4-mode' : ''}`}
         />
           {/* Interactive Table Edit Overlay */}
           {isEditing && tableOverlayStyle && tableEditNode && (
@@ -1001,7 +1016,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
 
         {/* Attachments Bar (Below Editor) */}
         {(isEditing || (selectedDocument.attachments && selectedDocument.attachments.length > 0) || pendingAttachments.length > 0) && (
-          <Box className="w-full flex items-center gap-2 p-1.5 sm:p-2 bg-white/60 rounded-lg overflow-x-auto shrink-0 border border-green-100 dark:border-green-900">
+          <Box className="w-full flex items-center gap-2 p-1 bg-white/60 rounded-lg overflow-x-auto shrink-0 border border-green-100 dark:border-green-900">
             {selectedDocument.attachments && selectedDocument.attachments.length > 0 && (
               <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 'bold', fontSize: '10px', mr: 0.5, textTransform: 'uppercase' }}>Attachments:</Typography>
             )}

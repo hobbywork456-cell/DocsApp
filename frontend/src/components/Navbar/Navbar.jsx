@@ -294,13 +294,13 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
       position="static" 
       color="transparent" 
       elevation={0}
-      className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 pt-0.5 sm:pt-1 pb-0.5 sm:pb-1"
+      className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 pt-0 pb-0"
     >
-      <Toolbar component="nav" id="app-navigation" aria-label="Main Navigation" className="px-2 sm:px-6 min-h-[56px] sm:min-h-[64px] flex items-center justify-between gap-1 sm:gap-4">
+      <Toolbar component="nav" id="app-navigation" aria-label="Main Navigation" className="px-2 sm:px-6 min-h-[40px] sm:min-h-[48px] flex items-center justify-between gap-1 sm:gap-4">
         {/* Left Side: Brand Logo, Group Switcher */}
         <Box className="flex items-center overflow-hidden">
           <Box className="flex items-center shrink-0">
-            <MenuBookIcon sx={{ color: '#427c36', mr: 0.75, fontSize: { xs: 26, sm: 32 } }} />
+            <MenuBookIcon sx={{ color: '#427c36', mr: 0.75, fontSize: { xs: 22, sm: 26 } }} />
             <Typography 
               variant="h6" 
               noWrap 

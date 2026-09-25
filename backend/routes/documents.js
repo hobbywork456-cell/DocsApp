@@ -51,7 +51,33 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
       originalname.toLowerCase().endsWith('.docx') ||
       originalname.toLowerCase().endsWith('.doc')
     ) {
-      const result = await mammoth.convertToHtml({ buffer });
+      const options = {
+        convertImage: mammoth.images.imgElement(function(image) {
+          return image.read("base64").then(function(imageBuffer) {
+            return {
+              src: "data:" + image.contentType + ";base64," + imageBuffer
+            };
+          });
+        }),
+        styleMap: [
+          "p[style-name='Heading 1'] => h1:fresh",
+          "p[style-name='Heading 2'] => h2:fresh",
+          "p[style-name='Heading 3'] => h3:fresh",
+          "p[style-name='Heading 4'] => h4:fresh",
+          "p[style-name='Heading 5'] => h5:fresh",
+          "p[style-name='Heading 6'] => h6:fresh",
+          "p[style-name='Quote'] => blockquote:fresh",
+          "r[style-name='Strong'] => strong",
+          "b => strong",
+          "i => em",
+          "u => u",
+          "strike => s",
+          "table => table",
+          "tr => tr",
+          "td => td"
+        ]
+      };
+      const result = await mammoth.convertToHtml({ buffer }, options);
       htmlContent = result.value;
     } else if (
       mimetype === 'application/vnd.ms-excel' || 
