@@ -36,11 +36,20 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
     let htmlContent = '';
 
     if (mimetype === 'application/pdf' || originalname.toLowerCase().endsWith('.pdf')) {
-      const data = await pdfParse(buffer);
-      htmlContent = data.text.split('\n').map(line => `<p>${line}</p>`).join('');
+      let text = '';
+      if (typeof pdfParse === 'function') {
+        const data = await pdfParse(buffer);
+        text = data.text || '';
+      } else if (pdfParse && pdfParse.PDFParse) {
+        const parser = new pdfParse.PDFParse({ data: buffer });
+        const data = await parser.getText();
+        text = data.text || '';
+      }
+        htmlContent = text.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '').join('');
     } else if (
       mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-      originalname.toLowerCase().endsWith('.docx')
+      originalname.toLowerCase().endsWith('.docx') ||
+      originalname.toLowerCase().endsWith('.doc')
     ) {
       const result = await mammoth.convertToHtml({ buffer });
       htmlContent = result.value;
@@ -59,6 +68,7 @@ router.post('/import', auth, upload.single('file'), async (req, res) => {
 
     res.json({ html: htmlContent });
   } catch (error) {
+    console.error("Document Import Error:", error);
     res.status(500).json({ message: 'Error processing file', error: error.message });
   }
 });
@@ -162,7 +172,8 @@ router.post('/', auth, async (req, res) => {
       title: title || 'Untitled Document',
       content: content || '',
       groupId: normalizedGroupId,
-      owner: req.user.userId
+      owner: req.user.userId,
+      tags: req.body.tags || []
     });
 
     const savedDocument = await document.save();
@@ -190,6 +201,7 @@ router.put('/:id', auth, async (req, res) => {
     const newTitle = req.body.title || '';
     const oldContent = existingDoc.content || '';
     const newContent = req.body.content || '';
+    const newTags = req.body.tags !== undefined ? req.body.tags : existingDoc.tags;
 
     let changes = [];
     if (oldTitle !== newTitle) {
@@ -211,10 +223,10 @@ router.put('/:id', auth, async (req, res) => {
     const updatedDocument = await Document.findOneAndUpdate(
       { _id: req.params.id },
       { 
-        $set: { title: newTitle, content: newContent },
+        $set: { title: newTitle, content: newContent, tags: newTags },
         $push: { history: { editedBy: req.user.userId, editedAt: new Date(), changesSummary } }
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('history.editedBy', 'email').populate('owner', 'email');
 
     res.json(updatedDocument);
@@ -273,7 +285,7 @@ router.post('/:id/attachments', auth, uploadDisk.single('file'), async (req, res
       const updatedDocument = await Document.findByIdAndUpdate(
         id,
         { $push: { attachments: attachment } },
-        { new: true }
+        { returnDocument: 'after' }
       ).populate('history.editedBy', 'email').populate('owner', 'email');
 
       res.json(updatedDocument);
@@ -306,7 +318,7 @@ router.delete('/:id/attachments/:attachmentId', auth, async (req, res) => {
     const updatedDocument = await Document.findByIdAndUpdate(
       id,
       { $pull: { attachments: { _id: attachmentId } } },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('history.editedBy', 'email').populate('owner', 'email');
 
     // Remove from GridFS if it's stored there

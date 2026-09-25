@@ -71,7 +71,7 @@
 
 @media (min-width: 768px) {
   .custom-quill .ql-editor {
-    padding: 2rem !important;
+    padding: 3rem 4rem !important;
   }
 }
 
@@ -222,4 +222,25 @@
 
 .dark .ql-snow .ql-picker {
   color: #cbd5e1;
+}
+
+
+/* Quill Table Base Styles */
+.custom-quill .ql-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  display: table; /* override block display if necessary */
+}
+
+.custom-quill .ql-editor table td,
+.custom-quill .ql-editor table th {
+  border: 1px solid #d1d5db;
+  padding: 8px 12px;
+  min-width: 50px;
+}
+
+.dark .custom-quill .ql-editor table td,
+.dark .custom-quill .ql-editor table th {
+  border: 1px solid #475569;
 }

@@ -85,12 +85,12 @@ export const uploadImageFile = createAsyncThunk(
 
 export const updateDocument = createAsyncThunk(
   'documents/updateDocument',
-  async ({ id, title, content }, { getState, dispatch, rejectWithValue }) => {
+  async ({ id, title, content, tags }, { getState, dispatch, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
       const response = await axios.put(
         `${API_URL}/${id}`, 
-        { title, content }, 
+        { title, content, tags }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
       return response.data;

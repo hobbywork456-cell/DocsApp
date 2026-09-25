@@ -4,6 +4,8 @@ import { Box, Typography, Button, Dialog, IconButton, CircularProgress } from '@
 import Navbar from '../Navbar/Navbar';
 import Sidebar from '../Sidebar/Sidebar';
 import DocumentEditor from '../DocumentEditor/DocumentEditor';
+import DocumentComparer from '../DocumentComparer/DocumentComparer';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import SEO from '../SEO/SEO';
 import './Dashboard.css';
 import { useDispatch, useSelector } from 'react-redux';
@@ -32,6 +34,13 @@ const Dashboard = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const [selectedMedia, setSelectedMedia] = useState(null);
+  const [isCompareMode, setIsCompareMode] = useState(false);
+
+  useEffect(() => {
+    if (openDocuments.length < 2) {
+      setIsCompareMode(false);
+    }
+  }, [openDocuments.length]);
 
   const handleReadModeMediaClick = (e) => {
     if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
@@ -368,7 +377,7 @@ const Dashboard = () => {
           className={`
             flex-1 overflow-hidden
             ${mobileView === 'editor' && openDocuments.length > 0 ? 'flex flex-col w-full' : 'hidden'}
-            md:flex md:flex-row md:gap-4
+            md:flex md:flex-row md:gap-4 relative
           `}
           
           onDragEnter={handleDragEnter}
@@ -465,11 +474,43 @@ const Dashboard = () => {
               </Box>
 
               {/* Desktop: Render all open documents side-by-side */}
-              {openDocuments.map((docId) => (
-                <Box key={docId} className="hidden md:flex flex-1 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0">
-                  <DocumentEditor documentId={docId} />
+              {isCompareMode && openDocuments.length === 2 ? (
+                <Box className="hidden md:flex flex-1 min-h-0 relative">
+                  <DocumentComparer 
+                    doc1={documents.find(d => d._id === openDocuments[0])} 
+                    doc2={documents.find(d => d._id === openDocuments[1])} 
+                    onClose={() => setIsCompareMode(false)}
+                  />
                 </Box>
-              ))}
+              ) : (
+                <>
+                  {openDocuments.map((docId) => (
+                    <Box key={docId} className="hidden md:flex flex-1 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0 relative">
+                      <DocumentEditor documentId={docId} />
+                    </Box>
+                  ))}
+
+                  {openDocuments.length === 2 && !isCompareMode && (
+                    <Box className="hidden md:flex absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+                      <Tooltip title="Compare Documents">
+                        <IconButton 
+                          onClick={() => setIsCompareMode(true)}
+                          className="bg-green-600 hover:bg-green-700 text-white shadow-lg border-4 border-white dark:border-gray-900 transition-transform hover:scale-105"
+                          sx={{ 
+                            width: 56,
+                            height: 56,
+                            color: 'white',
+                            backgroundColor: '#427c36',
+                            '&:hover': { backgroundColor: '#326127' }
+                          }}
+                        >
+                          <CompareArrowsIcon fontSize="large" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  )}
+                </>
+              )}
             </>
           )}
         </Box>

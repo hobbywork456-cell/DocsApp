@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Box, Typography, InputBase, Button, Paper, IconButton, Dialog, List, ListItem, ListItemText, Divider, Tooltip } from '@mui/material';
+import { Box, Typography, InputBase, Button, Paper, IconButton, Dialog, List, ListItem, ListItemText, Divider, Tooltip, Popover, TextField, Chip, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import CloudDoneOutlinedIcon from '@mui/icons-material/CloudDoneOutlined';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
@@ -68,14 +69,34 @@ Quill.register(CustomImage, true);
 const icons = Quill.import('ui/icons');
 icons['undo'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>`;
 icons['redo'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>`;
+icons['table'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>`;
 
 import { updateDocument, removeOpenDocument, importDocumentContent, uploadImageFile, uploadAttachment, deleteAttachment, setGlobalReadMode } from '../../slices/documentSlice';
 import html2pdf from 'html2pdf.js';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import ViewColumnIcon from '@mui/icons-material/ViewColumn';
+import TableRowsIcon from '@mui/icons-material/TableRows';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
+import GridOnIcon from '@mui/icons-material/GridOn';
 import LockIcon from '@mui/icons-material/Lock';
-import AutoStoriesIcon from '@mui/icons-material/AutoStories';
+import RemoveRedEyeOutlinedIcon from '@mui/icons-material/RemoveRedEyeOutlined';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import './DocumentEditor.css';
+
+export const getTagColor = (tag) => {
+  if (!tag) return '#9ca3af';
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colors = [
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#10b981', 
+    '#14b8a6', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', 
+    '#d946ef', '#ec4899', '#f43f5e'
+  ];
+  return colors[Math.abs(hash) % colors.length];
+};
+
 
 const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const dispatch = useDispatch();
@@ -86,14 +107,39 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [tags, setTags] = useState([]);
+  const [tagAnchorEl, setTagAnchorEl] = useState(null);
+  const [newTagInput, setNewTagInput] = useState('');
+
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [mediaEditNode, setMediaEditNode] = useState(null);
+    const [tableEditNode, setTableEditNode] = useState(null);
+  const [tablePopoverAnchor, setTablePopoverAnchor] = useState(null);
+  const [hoveredGrid, setHoveredGrid] = useState({ rows: 0, cols: 0 });
+  const [tableInsertIndex, setTableInsertIndex] = useState(0);
+  const openTableDialogRef = useRef(null);
+
+  openTableDialogRef.current = () => {
+    if (quillRef.current) {
+      const quill = quillRef.current.getEditor();
+      const range = quill.getSelection();
+      setTableInsertIndex(range ? range.index : quill.getLength());
+    }
+    const btn = document.querySelector('.ql-table');
+    if (btn) {
+      setTablePopoverAnchor(btn);
+    } else {
+      setTablePopoverAnchor(document.body);
+    }
+  };
+  const [tableOverlayStyle, setTableOverlayStyle] = useState(null);
   const [overlayStyle, setOverlayStyle] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState([]);
   const fileInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
   const quillRef = useRef(null);
@@ -170,7 +216,9 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     if (selectedDocument) {
       setTitle(selectedDocument.title || '');
       setContent(selectedDocument.content || '');
+      setTags(selectedDocument.tags || []);
       setIsEditing(false);
+      setPendingAttachments([]);
     }
   }, [selectedDocument]);
 
@@ -194,19 +242,16 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     }
   };
 
-  const handleAttachmentUpload = async (e) => {
+  const handleAttachmentUpload = (e) => {
     const file = e.target.files[0];
     if (file && selectedDocument) {
-      setIsUploadingAttachment(true);
-      try {
-        await dispatch(uploadAttachment({ id: selectedDocument._id, file })).unwrap();
-      } catch (err) {
-        console.error("Attachment upload failed", err);
-        alert("Attachment upload failed: " + (err.message || err));
-      }
-      setIsUploadingAttachment(false);
+      setPendingAttachments([...pendingAttachments, file]);
     }
     e.target.value = null;
+  };
+
+  const handleRemovePendingAttachment = (index) => {
+    setPendingAttachments(pendingAttachments.filter((_, i) => i !== index));
   };
 
   const handleDeleteAttachment = async (attachmentId) => {
@@ -246,9 +291,47 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const handleSave = async () => {
     if (!selectedDocument) return;
     setIsSaving(true);
-    await dispatch(updateDocument({ id: selectedDocument._id, title, content }));
+    
+    // Upload pending attachments first
+    if (pendingAttachments.length > 0) {
+      for (const file of pendingAttachments) {
+        try {
+          await dispatch(uploadAttachment({ id: selectedDocument._id, file })).unwrap();
+        } catch (err) {
+          console.error("Failed to upload pending attachment:", file.name, err);
+        }
+      }
+      setPendingAttachments([]); // Clear after upload
+    }
+
+    await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags }));
     setIsSaving(false);
     setIsEditing(false);
+  };
+
+  
+  const handleOpenTagMenu = (event) => setTagAnchorEl(event.currentTarget);
+  const handleCloseTagMenu = () => {
+    setTagAnchorEl(null);
+    setNewTagInput('');
+  };
+  const handleAddTag = async () => {
+    const trimmed = newTagInput.trim();
+    if (trimmed && !tags.includes(trimmed)) {
+      const newTags = [...tags, trimmed];
+      setTags(newTags);
+      if (!isEditing) {
+        await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags: newTags }));
+      }
+    }
+    handleCloseTagMenu();
+  };
+  const handleRemoveTag = async (tagToRemove) => {
+    const newTags = tags.filter(t => t !== tagToRemove);
+    setTags(newTags);
+    if (!isEditing) {
+      await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags: newTags }));
+    }
   };
 
   const handleDownloadPdf = () => {
@@ -367,6 +450,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   }, [selectedDocument]); // re-attach when document changes (new editor content)
 
   const handleEditorClick = (e) => {
+    if (overlayRef.current && overlayRef.current.contains(e.target)) return;
+
     if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
       if (!isEditing) {
         e.preventDefault();
@@ -374,11 +459,32 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         setSelectedMedia({ type: e.target.tagName.toLowerCase(), src: e.target.src || e.target.currentSrc });
       } else {
         setMediaEditNode(e.target);
+        setTableEditNode(null);
+        setTableOverlayStyle(null);
       }
     } else if (isEditing) {
-      // Clicked somewhere else in the editor
-      setMediaEditNode(null);
-      setOverlayStyle(null);
+      const table = e.target.closest('table');
+      if (table) {
+        setTableEditNode(table);
+        setMediaEditNode(null);
+        setOverlayStyle(null);
+        
+        // Calculate position for table floating menu
+        if (editorContainerRef.current) {
+          const containerRect = editorContainerRef.current.getBoundingClientRect();
+          const tableRect = table.getBoundingClientRect();
+          setTableOverlayStyle({
+            top: tableRect.top - containerRect.top - 45, // 45px above table
+            left: tableRect.left - containerRect.left + (tableRect.width / 2) - 150 // centered
+          });
+        }
+      } else {
+        // Clicked somewhere else in the editor
+        setMediaEditNode(null);
+        setOverlayStyle(null);
+        setTableEditNode(null);
+        setTableOverlayStyle(null);
+      }
     }
   };
 
@@ -438,14 +544,44 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     document.addEventListener('mouseup', handleDragEnd);
   };
 
-  const deleteMedia = () => {
+  const deleteMedia = useCallback(() => {
     if (mediaEditNode && quillRef.current) {
-      mediaEditNode.remove();
-      setContent(quillRef.current.getEditor().root.innerHTML);
+      const node = mediaEditNode;
+      const quill = quillRef.current.getEditor();
+      try {
+        const blot = Quill.find(node);
+        if (blot) {
+          const index = blot.offset(quill.scroll);
+          quill.deleteText(index, 1, 'user');
+        }
+      } catch (err) {
+        console.error("Error deleting blot:", err);
+      }
+      if (node && node.parentNode) {
+        node.remove();
+      }
+      setContent(quill.root.innerHTML);
       setMediaEditNode(null);
       setOverlayStyle(null);
     }
-  };
+  }, [mediaEditNode]);
+
+  useEffect(() => {
+    if (!mediaEditNode) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        deleteMedia();
+      } else if (e.key === 'Escape') {
+        setMediaEditNode(null);
+        setOverlayStyle(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mediaEditNode, deleteMedia]);
 
   const alignMedia = (alignment) => {
     if (!mediaEditNode || !quillRef.current) return;
@@ -502,6 +638,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
 
   const modules = useMemo(() => ({
     history: { delay: 500, maxStack: 100, userOnly: true },
+    table: true,
     toolbar: {
       container: [
         [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
@@ -509,11 +646,12 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         [{ 'color': [] }, { 'background': [] }],
         [{ 'list': 'ordered' }, { 'list': 'bullet' }],
         [{ 'align': [] }],
-        ['link', 'image', 'undo', 'redo'],
+        ['link', 'image', 'table', 'undo', 'redo'],
         ['clean']
       ],
       handlers: {
         image: imageHandler,
+        table: function() { if (openTableDialogRef.current) openTableDialogRef.current(); },
         undo: function() { this.quill.history.undo(); },
         redo: function() { this.quill.history.redo(); }
       }
@@ -570,7 +708,64 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           />
         </Box>
 
-        {/* Row 2: Action icon buttons (no borders, larger) + close */}
+          <Box className="flex flex-wrap items-center gap-1.5 mt-2 px-1">
+            {tags && tags.map((tag, idx) => {
+              const tagColor = getTagColor(tag);
+              return (
+                <Chip 
+                  key={idx} 
+                  label={tag} 
+                  size="small" 
+                  onDelete={isEditing ? () => handleRemoveTag(tag) : undefined}
+                  sx={{ 
+                    height: '24px', 
+                    fontSize: '0.7rem', 
+                    bgcolor: tagColor, 
+                    color: '#ffffff',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    '& .MuiChip-deleteIcon': { color: '#ffffff', opacity: 0.7, '&:hover': { color: '#ffffff', opacity: 1 } }
+                  }} 
+                />
+              );
+            })}
+            {isEditing && (
+              <>
+                <Tooltip title="Add Tag">
+                  <IconButton size="small" onClick={handleOpenTagMenu} sx={{ p: '2px', bgcolor: 'rgba(0,0,0,0.04)', '&:hover': { bgcolor: 'rgba(0,0,0,0.08)' } }} className="dark:bg-gray-800 dark:hover:bg-gray-700">
+                    <LocalOfferIcon sx={{ fontSize: 16, color: '#9ca3af' }} />
+                  </IconButton>
+                </Tooltip>
+                <Popover
+                  open={Boolean(tagAnchorEl)}
+                  anchorEl={tagAnchorEl}
+                  onClose={handleCloseTagMenu}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                  slotProps={{ paper: { className: 'p-3 rounded-xl shadow-lg mt-1 dark:bg-gray-800 border dark:border-gray-700' } }}
+                >
+                  <Box className="flex items-center gap-2">
+                    <TextField 
+                      size="small" 
+                      placeholder="Tag name" 
+                      value={newTagInput} 
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
+                      autoFocus
+                      slotProps={{ input: { className: 'dark:text-white' } }}
+                      sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#d1d5db' }, '&:hover fieldset': { borderColor: '#427c36' }, '&.Mui-focused fieldset': { borderColor: '#427c36' } } }}
+                    />
+                    <Button variant="contained" onClick={handleAddTag} sx={{ bgcolor: '#427c36', '&:hover': { bgcolor: '#326127' }, textTransform: 'none', minWidth: '60px' }}>
+                      Add
+                    </Button>
+                  </Box>
+                </Popover>
+              </>
+            )}
+          </Box>
+
+          {/* Row 2: Action icon buttons (no borders, larger) + close */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end', mt: -0.5 }}>
 
           {/* History */}
@@ -585,7 +780,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           <Tooltip title="Read Mode">
             <IconButton onClick={() => dispatch(setGlobalReadMode(true))}
               sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.06)', '&:hover': { bgcolor: 'rgba(66,124,54,0.13)', transform: 'translateY(-1px)' }, p: '9px', borderRadius: '10px', transition: 'all 0.2s' }}>
-              <AutoStoriesIcon sx={{ fontSize: 22 }} />
+              <RemoveRedEyeOutlinedIcon sx={{ fontSize: 22 }} />
             </IconButton>
           </Tooltip>
 
@@ -706,6 +901,23 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           modules={modules}
           className="flex-1 flex flex-col min-h-0 custom-quill"
         />
+          {/* Interactive Table Edit Overlay */}
+          {isEditing && tableOverlayStyle && tableEditNode && (
+            <Box sx={{ position: 'absolute', top: tableOverlayStyle.top, left: tableOverlayStyle.left, zIndex: 60 }}>
+              <Paper elevation={4} className="flex items-center gap-1 p-1 rounded-lg bg-white/90 backdrop-blur-md border border-green-200">
+                <Tooltip title="Insert Row Above"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertRowAbove(); }}><TableRowsIcon fontSize="small" color="primary" sx={{ transform: 'rotate(180deg)' }}/></IconButton></Tooltip>
+                <Tooltip title="Insert Row Below"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertRowBelow(); }}><TableRowsIcon fontSize="small" color="primary" /></IconButton></Tooltip>
+                <Box sx={{ width: '1px', height: '24px', bgcolor: 'divider', mx: 0.5 }} />
+                <Tooltip title="Insert Column Left"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertColumnLeft(); }}><ViewColumnIcon fontSize="small" color="secondary" sx={{ transform: 'rotate(180deg)' }}/></IconButton></Tooltip>
+                <Tooltip title="Insert Column Right"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertColumnRight(); }}><ViewColumnIcon fontSize="small" color="secondary" /></IconButton></Tooltip>
+                <Box sx={{ width: '1px', height: '24px', bgcolor: 'divider', mx: 0.5 }} />
+                <Tooltip title="Delete Row"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').deleteRow(); }}><DeleteOutlineIcon fontSize="small" color="error" /></IconButton></Tooltip>
+                <Tooltip title="Delete Column"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').deleteColumn(); }}><DeleteOutlineIcon fontSize="small" color="error" /></IconButton></Tooltip>
+                <Tooltip title="Delete Table"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').deleteTable(); setTableEditNode(null); }}><GridOnIcon fontSize="small" color="error" /></IconButton></Tooltip>
+              </Paper>
+            </Box>
+          )}
+
         
         {/* Interactive Image Resizing Overlay */}
         {isEditing && overlayStyle && mediaEditNode && (
@@ -788,12 +1000,33 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         </Paper>
 
         {/* Attachments Bar (Below Editor) */}
-        {(isEditing || (selectedDocument.attachments && selectedDocument.attachments.length > 0)) && (
+        {(isEditing || (selectedDocument.attachments && selectedDocument.attachments.length > 0) || pendingAttachments.length > 0) && (
           <Box className="w-full flex items-center gap-2 p-1.5 sm:p-2 bg-white/60 rounded-lg overflow-x-auto shrink-0 border border-green-100 dark:border-green-900">
             {selectedDocument.attachments && selectedDocument.attachments.length > 0 && (
               <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 'bold', fontSize: '10px', mr: 0.5, textTransform: 'uppercase' }}>Attachments:</Typography>
             )}
             
+            {pendingAttachments.map((file, idx) => (
+              <Tooltip title={`${file.name} (Pending Save)`} key={`pending-${idx}`} arrow>
+                <Box className="relative group flex items-center justify-center p-1.5 rounded-md bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 shadow-sm opacity-80 hover:opacity-100 transition-all">
+                  {getAttachmentIcon(file.type, file.name)}
+                  {isEditing && (
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemovePendingAttachment(idx); }} 
+                      sx={{ 
+                        position: 'absolute', top: -8, right: -8, bgcolor: 'white', 
+                        border: '1px solid #fee2e2', color: '#ef4444', p: '2px', 
+                        opacity: 0, transition: 'opacity 0.2s',
+                        '.group:hover &': { opacity: 1 }
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  )}
+                </Box>
+              </Tooltip>
+            ))}
             {selectedDocument.attachments && selectedDocument.attachments.map(att => (
               <Tooltip title={att.name} key={att._id} arrow>
                 <Box className="relative group flex items-center justify-center p-1.5 rounded-md bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 shadow-sm dark:shadow-none hover:shadow hover:bg-gray-50 dark:bg-gray-800 transition-all">
@@ -875,7 +1108,50 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       </Dialog>
       
       
-      <Dialog 
+      
+        {/* Table Dimension Grid Popover */}
+        <Popover
+          open={Boolean(tablePopoverAnchor)}
+          anchorEl={tablePopoverAnchor}
+          onClose={() => setTablePopoverAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          slotProps={{ paper: { className: 'p-4 rounded-xl shadow-2xl dark:bg-gray-800 border dark:border-gray-700' } }}
+        >
+          <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 'bold', color: 'text.secondary', textAlign: 'center' }}>
+            {hoveredGrid.cols > 0 && hoveredGrid.rows > 0 ? `${hoveredGrid.cols}x${hoveredGrid.rows} Table` : 'Insert Table'}
+          </Typography>
+          <Box className="flex flex-col gap-1" onMouseLeave={() => setHoveredGrid({rows: 0, cols: 0})}>
+            {[...Array(10)].map((_, rowIndex) => (
+              <Box key={rowIndex} className="flex gap-1">
+                {[...Array(10)].map((_, colIndex) => {
+                  const isHovered = rowIndex < hoveredGrid.rows && colIndex < hoveredGrid.cols;
+                  return (
+                    <Box 
+                      key={colIndex} 
+                      onMouseEnter={() => setHoveredGrid({rows: rowIndex + 1, cols: colIndex + 1})}
+                      onClick={() => {
+                        if (quillRef.current) {
+                          const quill = quillRef.current.getEditor();
+                          quill.focus();
+                          quill.setSelection(tableInsertIndex, 0);
+                          const tableModule = quill.getModule('table');
+                          if (tableModule) {
+                            tableModule.insertTable(rowIndex + 1, colIndex + 1);
+                          }
+                        }
+                        setTablePopoverAnchor(null);
+                      }}
+                      className={`w-5 h-5 border rounded-sm cursor-pointer transition-colors ${isHovered ? 'bg-blue-100 border-blue-400 dark:bg-blue-900/60 dark:border-blue-500' : 'bg-gray-50 border-gray-200 dark:bg-gray-700 dark:border-gray-600'}`}
+                    />
+                  )
+                })}
+              </Box>
+            ))}
+          </Box>
+        </Popover>
+
+<Dialog 
         open={historyOpen} 
         onClose={() => setHistoryOpen(false)}
         maxWidth="sm"

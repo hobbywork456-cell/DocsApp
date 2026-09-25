@@ -14,8 +14,7 @@ import {
   DialogContentText, 
   DialogActions,
   Tooltip,
-  Skeleton
-} from '@mui/material';
+  Skeleton, Chip } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DescriptionIcon from '@mui/icons-material/Description';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
@@ -26,15 +25,32 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import PushPinIcon from '@mui/icons-material/PushPin';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   createDocument, 
   deleteDocument, 
-  setOpenDocument, 
+  setOpenDocument,
+  addOpenDocument, 
   setSearchQuery 
 } from '../../slices/documentSlice';
 import { setActiveGroupId } from '../../slices/groupSlice';
 import './Sidebar.css';
+
+export const getTagColor = (tag) => {
+  if (!tag) return '#9ca3af';
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colors = [
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#10b981', 
+    '#14b8a6', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', 
+    '#d946ef', '#ec4899', '#f43f5e'
+  ];
+  return colors[Math.abs(hash) % colors.length];
+};
+
 
 const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
   const dispatch = useDispatch();
@@ -42,8 +58,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
   const { groups, activeGroupId } = useSelector((state) => state.groups);
 
   const activeGroup = groups.find((g) => g.groupId === activeGroupId);
-  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-
+  
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState(null);
   const [confirmText, setConfirmText] = useState('');
@@ -84,17 +99,55 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
   const handleListDrop = (e, targetId) => {
     const sourceId = e.dataTransfer.getData('sidebarReorder');
     if (!sourceId || sourceId === targetId) { setDragOverId(null); setDraggingId(null); return; }
-    const baseOrder = docOrder.length > 0 ? docOrder : filteredDocuments.map(d => d._id);
-    const fromIdx = baseOrder.indexOf(sourceId);
-    const toIdx = baseOrder.indexOf(targetId);
-    const newOrder = [...baseOrder];
+    
+    // Rely on current visual order so cross-boundary drags work predictably
+    const currentVisualOrder = filteredDocuments.map(d => d._id);
+    const fromIdx = currentVisualOrder.indexOf(sourceId);
+    const toIdx = currentVisualOrder.indexOf(targetId);
+    
     if (fromIdx < 0 || toIdx < 0) { setDragOverId(null); setDraggingId(null); return; }
+    
+    const isTargetPinned = pinnedDocs.includes(targetId);
+    const isSourcePinned = pinnedDocs.includes(sourceId);
+    let nextPinned = [...pinnedDocs];
+    
+    // Automatically Pin or Unpin if dragged across boundaries
+    if (isTargetPinned && !isSourcePinned) {
+      nextPinned.push(sourceId);
+    } else if (!isTargetPinned && isSourcePinned) {
+      nextPinned = nextPinned.filter(id => id !== sourceId);
+    }
+    
+    setPinnedDocs(nextPinned);
+    localStorage.setItem(storageKey, JSON.stringify(nextPinned));
+    
+    const newOrder = [...currentVisualOrder];
     newOrder.splice(fromIdx, 1);
     newOrder.splice(toIdx, 0, sourceId);
+    
     setDocOrder(newOrder);
     localStorage.setItem(orderKey, JSON.stringify(newOrder));
+    
     setDragOverId(null);
     setDraggingId(null);
+  };
+
+    const handleDuplicate = async (e, doc) => {
+    e.stopPropagation();
+    const actionResult = await dispatch(createDocument({
+      title: `Copy of ${doc.title || 'Untitled'}`,
+      content: doc.content,
+      tags: doc.tags || [],
+      groupId: activeGroupId
+    }));
+    
+    if (createDocument.fulfilled.match(actionResult)) {
+      const newDocId = actionResult.payload._id;
+      // Ensure the original doc is the first one opened
+      dispatch(setOpenDocument(doc._id));
+      // Add the new duplicate as the second open document
+      dispatch(addOpenDocument(newDocId));
+    }
   };
 
   const handleListDragEnd = () => {
@@ -356,7 +409,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
               <ListItem 
                 key={doc._id} 
                 id={`sidebar-doc-${doc._id}`}
-                draggable={!isTouchDevice}
+                draggable={true}
                 onDragStart={(e) => handleListDragStart(e, doc._id)}
                 onDragOver={(e) => handleListDragOver(e, doc._id)}
                 onDrop={(e) => handleListDrop(e, doc._id)}
@@ -367,7 +420,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                     onSelectDocument(doc._id);
                   }
                 }}
-                className={`group cursor-pointer transition-all duration-300 rounded-xl border p-2.5 sm:p-3 ${isSelected ? 'bg-white dark:bg-gray-900 shadow-md border-l-4 border-l-[#427c36] border-white' : 'bg-white/70 dark:bg-gray-800/70 border-transparent shadow-sm dark:shadow-none hover:bg-white dark:bg-gray-900 hover:shadow'}`}
+                className={`group cursor-pointer relative overflow-hidden transition-all duration-300 rounded-xl border p-2.5 sm:p-3 ${isSelected ? 'bg-white dark:bg-gray-900 shadow-md border-l-4 border-l-[#427c36] border-white' : 'bg-white/70 dark:bg-gray-800/70 border-transparent shadow-sm dark:shadow-none hover:bg-white dark:bg-gray-900 hover:shadow'}`}
                 sx={{
                   opacity: draggingId === doc._id ? 0.4 : 1,
                   outline: dragOverId === doc._id ? '2px dashed #427c36' : 'none',
@@ -375,14 +428,43 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                   transition: 'opacity 0.15s, outline 0.1s',
                 }}
               >
+                {doc.tags && doc.tags.length > 0 && (
+                  <Box 
+                    className="absolute z-20 pointer-events-none"
+                    style={{ top: '2px', left: '2px', pointerEvents: 'none' }}
+                  >
+                    <Box 
+                      sx={{ 
+                        position: 'relative',
+                        display: 'inline-flex', 
+                        alignItems: 'center',
+                        height: '16px',
+                        width:'60px',
+                        padding: '0 6px 0 10px',
+                        backgroundColor: getTagColor(doc.tags[0]),
+                        color: '#fff',
+                        fontSize: '0.55rem',
+                        fontWeight: 900,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        clipPath: 'polygon(6px 0%, 100% 0%, 100% 100%, 6px 100%, 0% 50%)',
+                        transform: 'rotate(-12deg)',
+                        transformOrigin: 'left center',
+                        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.2)',
+                        filter: 'drop-shadow(1px 2px 2px rgba(0,0,0,0.3))'
+                      }}
+                    >
+                      <Box sx={{ position: 'absolute', left: '2px', top: '50%', transform: 'translateY(-50%)', width: '2.5px', height: '2.5px', backgroundColor: '#fff', borderRadius: '50%' }} />
+                      {doc.tags[0]}
+                    </Box>
+                  </Box>
+                )}
                 <Box className="flex items-center justify-between w-full">
                   {/* Drag Handle */}
-                  {!isTouchDevice && (
-                    <DragIndicatorIcon 
+                  <DragIndicatorIcon 
                       sx={{ fontSize: 16, color: '#d1d5db', mr: 0.5, cursor: 'grab', flexShrink: 0 }}
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
                     />
-                  )}
 
                   <Box className="flex items-center overflow-hidden flex-1 mr-1">
                     <Box className={`p-2 rounded-lg mr-2.5 sm:mr-3 shrink-0 relative ${isSelected ? 'bg-green-100 dark:bg-green-900/60 text-[#427c36]' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
@@ -394,20 +476,32 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                     </Box>
                     <Box className="overflow-hidden min-w-0">
                       <Typography variant="body2" className={`font-bold truncate ${isSelected ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300'}`}>
-                        {pinnedDocs.includes(doc._id) && (
-                          <PushPinIcon sx={{ fontSize: 11, color: '#427c36', mr: 0.4, verticalAlign: 'middle', transform: 'rotate(45deg)' }} />
-                        )}
-                        {doc.title || 'Untitled'}
-                      </Typography>
+                          {pinnedDocs.includes(doc._id) && (
+                            <PushPinIcon sx={{ fontSize: 11, color: '#427c36', mr: 0.4, verticalAlign: 'middle', transform: 'rotate(45deg)' }} />
+                          )}
+                          {doc.title || 'Untitled'}
+                        </Typography>
+                        
                       <Typography variant="caption" className={`block mt-0.5 ${isSelected ? 'text-[#326127] font-medium' : 'text-gray-500 dark:text-gray-400 dark:text-gray-500'}`}>
                         {new Date(doc.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </Typography>
+
                     </Box>
                   </Box>
                   
                   {/* Pin + Delete Buttons */}
                   <Box className="flex items-center gap-0.5 shrink-0">
-                    <Tooltip title={pinnedDocs.includes(doc._id) ? 'Unpin' : 'Pin to top'}>
+                    <Tooltip title="Duplicate Document">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleDuplicate(e, doc)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          sx={{ color: '#9ca3af', '&:hover': { bgcolor: '#eff6ff', color: '#3b82f6' }, p: '4px', mr: 0.5 }}
+                        >
+                          <ContentCopyOutlinedIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={pinnedDocs.includes(doc._id) ? 'Unpin' : 'Pin to top'}>
                       <IconButton
                         size="small"
                         onClick={(e) => togglePin(e, doc._id)}

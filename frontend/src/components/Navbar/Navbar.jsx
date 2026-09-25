@@ -1071,7 +1071,9 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           
           <Box className="mt-4 text-center w-full">
             <Typography variant="h5" className="font-extrabold text-gray-800 dark:text-white tracking-tight">
-              {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Workspace User'}
+              {user?.firstName 
+                ? (user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName) 
+                : (user?.email ? user.email.split('@')[0] : 'Workspace User')}
             </Typography>
             
             <Chip 
@@ -1082,7 +1084,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             />
           </Box>
 
-          <Box className="w-full mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
+          <Box className="w-full mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 flex flex-col gap-3">
             <Box className="flex items-center gap-4">
               <Box className="w-10 h-10 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center shadow-sm border border-gray-200 dark:border-gray-600 shrink-0">
                 <AlternateEmailIcon sx={{ color: '#9ca3af', fontSize: 20 }} />
@@ -1097,6 +1099,44 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               </Box>
             </Box>
           </Box>
+          
+          <Box className="w-full mt-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
+            <Box className="flex items-center justify-between mb-2">
+              <Typography variant="caption" className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
+                My Workspaces
+              </Typography>
+              {groups && groups.length > 0 && (
+                <Typography variant="caption" className="text-gray-400 dark:text-gray-500 font-bold bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-md">
+                  {groups.length}
+                </Typography>
+              )}
+            </Box>
+            
+            <Box className="max-h-[140px] overflow-y-auto custom-scrollbar pr-2 mt-2 space-y-1">
+              {groups && groups.length > 0 ? (
+                groups.map((g) => {
+                  const isActive = g.groupId === activeGroupId;
+                  return (
+                    <Box key={g.groupId} className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${isActive ? 'bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700/50 border border-transparent'}`}>
+                      <Box className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isActive ? 'bg-[#427c36] text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                        <GroupIcon sx={{ fontSize: 16 }} />
+                      </Box>
+                      <Typography variant="body2" className={`font-bold truncate flex-1 ${isActive ? 'text-[#326127] dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                        {g.name}
+                      </Typography>
+                      {isActive && (
+                        <Chip label="Active" size="small" sx={{ height: 20, fontSize: '0.65rem' }} className="bg-[#427c36] text-white font-bold" />
+                      )}
+                    </Box>
+                  );
+                })
+              ) : (
+                <Typography variant="body2" className="text-gray-500 text-center italic py-2">
+                  No workspaces found.
+                </Typography>
+              )}
+            </Box>
+          </Box>
 
           <Button 
             fullWidth
@@ -1106,7 +1146,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               setProfileDialogOpen(false);
               handleLogout();
             }}
-            className="mt-8 py-2.5 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
+            className="mt-12 py-2.5 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
             sx={{ 
               borderRadius: '12px',
               textTransform: 'none',
