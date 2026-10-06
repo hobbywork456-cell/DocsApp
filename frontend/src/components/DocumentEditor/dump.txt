@@ -1,0 +1,243 @@
+<Box 
+      component="article" 
+      id={`document-editor-article-${documentId}`} 
+      aria-label={`Document Editor for ${title || 'Untitled Document'}`}
+      className="h-full flex flex-col p-2 sm:p-3 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm relative"
+    >
+      {/* ── 2-Row Header ──────────────────────────────────── */}
+      <Box className="flex flex-col gap-0. mb-1.5 sm:mb-2">
+
+        {/* Row 1: Back button (mobile) + full-width title */}
+        <Box className="flex items-center gap-1 min-w-0">
+          {onBackToLibrary && (
+            <Tooltip title="Back to Library">
+              <IconButton 
+                id={`doc-back-library-btn-${documentId}`}
+                aria-label="Back to Library"
+                onClick={onBackToLibrary} 
+                size="small"
+                className="md:hidden shrink-0" 
+                sx={{ color: '#427c36', bgcolor: 'rgba(255,255,255,0.85)', p: '6px', borderRadius: '10px', '&:hover': { bgcolor: '#f0fdf4' } }}
+              >
+                <ArrowBackIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          <InputBase
+            id={`doc-title-input-${documentId}`}
+            slotProps={{ input: { 'aria-label': 'Document Title', id: `doc-title-field-${documentId}` } }}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Document Title"
+            readOnly={!isEditing}
+            sx={{ 
+              fontSize: { xs: '1rem', sm: '1.15rem', md: '1.25rem' }, 
+              fontWeight: '900', 
+              color: '#1f2937', 
+              letterSpacing: '-0.02em',
+              opacity: isEditing ? 1 : 0.9,
+              lineHeight: 1.1,
+              flex: 1,
+            }}
+            fullWidth
+          />
+        </Box>
+
+          <Box className="flex flex-wrap items-center gap-1.5 mt-2 px-1">
+            {tags && tags.map((tag, idx) => {
+              const tagColor = getTagColor(tag);
+              return (
+                <Chip 
+                  key={idx} 
+                  label={tag} 
+                  size="small" 
+                  onDelete={isEditing ? () => handleRemoveTag(tag) : undefined}
+                  sx={{ 
+                    height: '24px', 
+                    fontSize: '0.7rem', 
+                    bgcolor: tagColor, 
+                    color: '#ffffff',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    '& .MuiChip-deleteIcon': { color: '#ffffff', opacity: 0.7, '&:hover': { color: '#ffffff', opacity: 1 } }
+                  }} 
+                />
+              );
+            })}
+            {isEditing && (
+              <>
+                <Tooltip title="Add Tag">
+                  <IconButton size="small" onClick={handleOpenTagMenu} sx={{ p: '2px', bgcolor: 'rgba(0,0,0,0.04)', '&:hover': { bgcolor: 'rgba(0,0,0,0.08)' } }} className="dark:bg-gray-800 dark:hover:bg-gray-700">
+                    <LocalOfferIcon sx={{ fontSize: 16, color: '#9ca3af' }} />
+                  </IconButton>
+                </Tooltip>
+                <Popover
+                  open={Boolean(tagAnchorEl)}
+                  anchorEl={tagAnchorEl}
+                  onClose={handleCloseTagMenu}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                  slotProps={{ paper: { className: 'p-3 rounded-xl shadow-lg mt-1 dark:bg-gray-800 border dark:border-gray-700' } }}
+                >
+                  <Box className="flex items-center gap-2">
+                    <TextField 
+                      size="small" 
+                      placeholder="Tag name" 
+                      value={newTagInput} 
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
+                      autoFocus
+                      slotProps={{ input: { className: 'dark:text-white' } }}
+                      sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#d1d5db' }, '&:hover fieldset': { borderColor: '#427c36' }, '&.Mui-focused fieldset': { borderColor: '#427c36' } } }}
+                    />
+                    <Button variant="contained" onClick={handleAddTag} sx={{ bgcolor: '#427c36', '&:hover': { bgcolor: '#326127' }, textTransform: 'none', minWidth: '60px' }}>
+                      Add
+                    </Button>
+                  </Box>
+                </Popover>
+              </>
+            )}
+          </Box>
+
+          {/* Row 2: Action icon buttons (no borders, larger) + close */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end', mt: -.99}}>
+
+          {/* History */}
+          {/* A4 Print Layout Toggle */}
+            <Tooltip title={isA4Mode ? 'Exit A4 Layout' : 'A4 Print Layout'}>
+              <IconButton onClick={() => setIsA4Mode(!isA4Mode)}
+                sx={{ color: isA4Mode ? '#f59e0b' : '#8b5cf6', bgcolor: isA4Mode ? 'rgba(245,158,11,0.1)' : 'rgba(139,92,246,0.06)', '&:hover': { bgcolor: isA4Mode ? 'rgba(245,158,11,0.15)' : 'rgba(139,92,246,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s', mr: 0.75 }}>
+                {isA4Mode ? <CloseFullscreenIcon sx={{ fontSize: 18 }} /> : <ArticleIcon sx={{ fontSize: 18 }} />}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="History">
+            <IconButton onClick={() => setHistoryOpen(true)}
+              sx={{ color: '#9c27b0', bgcolor: 'rgba(156,39,176,0.06)', '&:hover': { bgcolor: 'rgba(156,39,176,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              <HistoryIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+
+          {/* Read Mode */}
+          <Tooltip title="Read Mode">
+            <IconButton onClick={() => dispatch(setGlobalReadMode(true))}
+              sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.06)', '&:hover': { bgcolor: 'rgba(66,124,54,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              <RemoveRedEyeOutlinedIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+
+          {/* Download PDF */}
+          <Tooltip title={isDownloading ? 'Downloading...' : 'Download PDF'}>
+            <span>
+              <IconButton onClick={handleDownloadPdf} disabled={isDownloading}
+                sx={{ color: '#3b82f6', bgcolor: 'rgba(59,130,246,0.06)', '&:hover': { bgcolor: 'rgba(59,130,246,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+                <FileDownloadOutlinedIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+
+          {/* Divider */}
+          <Box sx={{ width: '1px', height: 24, bgcolor: '#e5e7eb', mx: 0.5 }} />
+
+          {/* Edit / Import + Save */}
+          {!isEditing ? (
+            <Tooltip title="Edit Document">
+              <IconButton onClick={() => setIsEditing(true)}
+                sx={{ 
+                  color: 'white',
+                  background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
+                  '&:hover': { background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)', transform: 'translateY(-1px)', boxShadow: '0 6px 16px rgba(66,124,54,0.4)' },
+                  p: '5px', borderRadius: '10px', boxShadow: '0 3px 10px rgba(66,124,54,0.3)', transition: 'all 0.2s'
+                }}>
+                <EditIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              
+              <Tooltip title="Gemini AI Assistant">
+                  <IconButton onClick={() => setAiModalOpen(true)}
+                    sx={{ color: '#0ea5e9', bgcolor: 'rgba(14,165,233,0.06)', '&:hover': { bgcolor: 'rgba(14,165,233,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s', mr: 0.5 }}>
+                    <AutoAwesomeIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+                
+                <Tooltip title={isImporting ? 'Importing...' : 'Import File'}>
+                <span>
+                  <IconButton onClick={handleImportClick} disabled={isImporting}
+                    sx={{ color: '#6366f1', bgcolor: 'rgba(99,102,241,0.06)', '&:hover': { bgcolor: 'rgba(99,102,241,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+                    <UploadFileIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <input type="file" ref={fileInputRef} hidden onChange={handleFileImport}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+              {/* Save — highlighted prominently */}
+              <Tooltip title={isSaving ? 'Saving...' : 'Save Document'}>
+                <span>
+                  <IconButton onClick={handleSave} disabled={isSaving}
+                    sx={{ 
+                      color: 'white',
+                      background: isSaving
+                        ? 'linear-gradient(135deg, #86efac 0%, #4ade80 100%)'
+                        : 'linear-gradient(135deg, #427c36 0%, #326127 100%)',
+                      boxShadow: '0 3px 12px rgba(66,124,54,0.45)',
+                      '&:hover': { 
+                        background: 'linear-gradient(135deg, #326127 0%, #1f4d1d 100%)',
+                        boxShadow: '0 6px 18px rgba(66,124,54,0.55)',
+                        transform: 'translateY(-2px)'
+                      },
+                      '&.Mui-disabled': { background: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' },
+                      p: '5px', borderRadius: '10px', transition: 'all 0.2s'
+                    }}>
+                    <CloudDoneOutlinedIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
+          )}
+
+          {/* Close */}
+          <Tooltip title="Close Document">
+            <IconButton onClick={() => dispatch(removeOpenDocument(documentId))}
+              sx={{ color: '#ef4444', bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca', transform: 'translateY(-1px)' }, ml: 0.5, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+      
+      <Box className="flex-1 flex flex-col gap-3 sm:gap-1 min-h-1 relative">
+        <Paper 
+          ref={editorContainerRef}
+          elevation={0} 
+          sx={{ backgroundColor: 'transparent' }}
+          onClickCapture={handleEditorClick}
+          className={`flex-1 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-900/80 shadow-sm dark:shadow-none flex flex-col relative ${isEditing ? 'border-2 border-[#427c36]' : 'border border-green-100 dark:border-green-900'} ${!isEditing ? 'editor-readonly' : ''}`}
+        >
+        {isEditing && (
+          <Tooltip title={isListening ? "Stop Dictation" : "Dictate"}>
+            <IconButton
+              onClick={toggleListen}
+              sx={{
+                position: 'absolute',
+                top: 3,
+                right: 10,
+                zIndex: 10,
+                color: isListening ? 'white' : '#326127',
+                bgcolor: isListening ? '#ef4444' : 'rgba(255, 255, 255, 0.9)',
+                border: isListening ? 'none' : '1px solid #326127',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                '&:hover': {
+                  bgcolor: isListening ? '#dc2626' : '#f0fdf4',
+                },
+                width: 30,
+                height: 30,
+              }}
+            >
+              {isListening ? <MicOffIcon /> : <MicIcon />}
+            </IconButton>
+          </Tooltip>
+        )}
+        

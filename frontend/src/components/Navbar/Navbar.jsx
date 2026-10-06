@@ -507,126 +507,127 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         maxWidth="xs"
         fullWidth
         slotProps={{
+          backdrop: {
+            sx: { backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }
+          },
           paper: {
             sx: {
-              borderRadius: '20px',
-              p: 1,
-              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-              border: '1px solid #dcfce3'
-            }
+              borderRadius: '24px',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+              backgroundImage: 'none',
+              overflow: 'hidden',
+              position: 'relative'
+            },
+            className: 'bg-white dark:bg-gray-900 border border-green-100 dark:border-gray-800'
           }
         }}
       >
-        <Box component="form" onSubmit={handleCreateGroupSubmit}>
-          <DialogTitle className="flex justify-between items-center pb-2">
-            <Box className="flex items-center gap-2">
-              <Box className="p-2 rounded-xl bg-green-50 dark:bg-green-900/40 text-[#427c36] border border-green-100 dark:border-green-900">
-                <GroupAddIcon fontSize="small" />
-              </Box>
-              <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200">
-                Create New Group
-              </Typography>
+        <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#60a5fa]/20 to-[#427c36]/20 dark:from-[#60a5fa]/30 dark:to-[#427c36]/30 pointer-events-none" />
+        
+        <IconButton 
+          onClick={handleCloseAddDialog} 
+          size="small"
+          sx={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
+          className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+
+        <Box component="form" onSubmit={handleCreateGroupSubmit} className="relative z-10 flex flex-col pt-8">
+          <DialogTitle className="flex flex-col items-center pb-2 text-center">
+            <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center shadow-lg shadow-[#427c36]/30 mb-4 text-white">
+              <GroupAddIcon fontSize="large" />
             </Box>
-            <IconButton onClick={handleCloseAddDialog} size="small">
-              <CloseIcon fontSize="small" />
-            </IconButton>
+            <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
+              Create Workspace
+            </Typography>
+            <Typography variant="body2" className="text-gray-500 dark:text-gray-400 text-center px-4">
+              Set up a private collaborative space for your team's documentation.
+            </Typography>
           </DialogTitle>
 
-          <DialogContent className="pt-2 pb-2">
-            <Typography variant="body2" className="text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-4 text-xs sm:text-sm">
-              Create a group workspace. Only members of this group will be able to read and write documentation inside it.
-            </Typography>
-
+          <DialogContent className="px-6 pb-6 pt-2">
             {addDialogError && (
-              <Alert severity="error" className="mb-4 text-xs rounded-xl" onClose={() => setAddDialogError('')}>
+              <Alert severity="error" className="mb-6 rounded-xl border border-red-200 dark:border-red-900/50" onClose={() => setAddDialogError('')}>
                 {addDialogError}
               </Alert>
             )}
 
-            <Box className="space-y-4">
-              <TextField
-                id="create-group-name-input"
-                label="Group Name"
-                placeholder="e.g. IT Support, DevOps, Operations"
-                fullWidth
-                size="small"
-                required
-                value={newGroupName}
-                onChange={(e) => {
-                  setNewGroupName(e.target.value);
-                  setAddDialogError('');
-                }}
-                slotProps={{
-                  input: { className: 'rounded-xl bg-white/70 dark:bg-gray-800/70' }
-                }}
-              />
+            <Box className="space-y-5">
+              <Box>
+                <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300 ml-1 mb-1 block uppercase tracking-wider">
+                  Workspace Name
+                </Typography>
+                <TextField
+                  id="create-group-name-input"
+                  placeholder="e.g. Engineering, Marketing..."
+                  fullWidth
+                  required
+                  value={newGroupName}
+                  onChange={(e) => {
+                    setNewGroupName(e.target.value);
+                    setAddDialogError('');
+                  }}
+                  slotProps={{
+                    input: { className: 'rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors' }
+                  }}
+                  sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.05)' } }}
+                />
+              </Box>
 
               <Box>
+                <Box className="flex justify-between items-center ml-1 mb-1">
+                  <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    Unique Group ID
+                  </Typography>
+                  <Button
+                    size="small"
+                    onClick={handleGenerateId}
+                    startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
+                    sx={{ textTransform: 'none', py: 0, minHeight: 'auto', fontSize: '0.7rem', fontWeight: 'bold' }}
+                    className="text-[#427c36] dark:text-[#60a5fa] hover:bg-green-50 dark:hover:bg-blue-900/30 rounded-lg px-2 transition-colors"
+                  >
+                    Auto-generate
+                  </Button>
+                </Box>
                 <TextField
                   id="create-group-id-input"
-                  label="Group ID (Unique)"
-                  placeholder="e.g. nkoor-devops (or click Generate)"
+                  placeholder="e.g. eng-team-24"
                   fullWidth
-                  size="small"
                   value={newGroupId}
                   onChange={(e) => {
                     setNewGroupId(e.target.value.toLowerCase().replace(/\s+/g, '-'));
                     setAddDialogError('');
                   }}
-                  helperText="Use your own ID or click 'Generate ID'"
                   slotProps={{
-                    input: {
-                      className: 'rounded-xl bg-white/70 dark:bg-gray-800/70',
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <Button
-                            id="create-group-generate-btn"
-                            size="small"
-                            type="button"
-                            onClick={handleGenerateId}
-                            startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
-                            sx={{
-                              textTransform: 'none',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              color: '#53e626',
-                              bgcolor: 'rgba(134, 239, 172, 0.1)',
-                              borderRadius: '8px',
-                              px: 1,
-                              py: 0.25,
-                              '&:hover': { bgcolor: 'rgba(134, 239, 172, 0.2)' }
-                            }}
-                          >
-                            Generate
-                          </Button>
-                        </InputAdornment>
-                      )
+                    input: { 
+                      className: 'rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 font-mono text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors' 
                     }
                   }}
+                  sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.05)' } }}
                 />
               </Box>
             </Box>
           </DialogContent>
 
-          <DialogActions className="p-4 pt-2 gap-2">
+          <DialogActions className="px-6 pb-6 pt-0 flex-col gap-3">
+            <Button
+              type="submit"
+              fullWidth
+              disabled={actionLoading || !newGroupName.trim()}
+              className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#60a5fa] to-[#427c36] hover:from-blue-500 hover:to-green-700 text-white shadow-lg shadow-[#427c36]/25 transition-all transform hover:-translate-y-0.5"
+              sx={{ textTransform: 'none' }}
+            >
+              {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Create Workspace'}
+            </Button>
             <Button 
-              id="create-group-cancel-btn"
               onClick={handleCloseAddDialog} 
-              color="inherit" 
-              className="font-bold text-gray-500 dark:text-gray-400 dark:text-gray-500 rounded-xl capitalize"
+              fullWidth
+              className="rounded-2xl py-2.5 font-bold text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
               disabled={actionLoading}
+              sx={{ textTransform: 'none', margin: '0 !important' }}
             >
               Cancel
-            </Button>
-            <Button
-              id="create-group-submit-btn"
-              type="submit"
-              variant="contained"
-              disabled={actionLoading || !newGroupName.trim()}
-              className="rounded-xl font-bold capitalize bg-gradient-to-r from-[#60a5fa] to-[#427c36] text-white shadow-md hover:shadow-lg"
-              sx={{ px: 3, textTransform: 'none' }}
-            >
-              {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Create Group'}
             </Button>
           </DialogActions>
         </Box>
@@ -640,79 +641,95 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         maxWidth="xs"
         fullWidth
         slotProps={{
+          backdrop: {
+            sx: { backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }
+          },
           paper: {
             sx: {
-              borderRadius: '20px',
-              p: 1,
-              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-              border: '1px solid #dcfce3'
-            }
+              borderRadius: '24px',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+              backgroundImage: 'none',
+              overflow: 'hidden',
+              position: 'relative'
+            },
+            className: 'bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800'
           }
         }}
       >
-        <Box component="form" onSubmit={handleJoinGroupSubmit}>
-          <DialogTitle className="flex justify-between items-center pb-2">
-            <Box className="flex items-center gap-2">
-              <Box className="p-2 rounded-xl bg-green-50 dark:bg-green-900/40 text-[#427c36] border border-green-100 dark:border-green-900">
-                <GroupIcon fontSize="small" />
-              </Box>
-              <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200">
-                Join a Group
-              </Typography>
+        <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#60a5fa]/20 to-[#427c36]/20 dark:from-[#60a5fa]/30 dark:to-[#427c36]/30 pointer-events-none" />
+        
+        <IconButton 
+          onClick={handleCloseJoinDialog} 
+          size="small"
+          sx={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
+          className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+
+        <Box component="form" onSubmit={handleJoinGroupSubmit} className="relative z-10 flex flex-col pt-8">
+          <DialogTitle className="flex flex-col items-center pb-2 text-center">
+            <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center shadow-lg shadow-[#60a5fa]/30 mb-4 text-white">
+              <GroupIcon fontSize="large" />
             </Box>
-            <IconButton onClick={handleCloseJoinDialog} size="small">
-              <CloseIcon fontSize="small" />
-            </IconButton>
+            <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
+              Join Workspace
+            </Typography>
+            <Typography variant="body2" className="text-gray-500 dark:text-gray-400 text-center px-4">
+              Enter a unique Workspace ID below to request access and collaborate.
+            </Typography>
           </DialogTitle>
 
-          <DialogContent className="pt-2 pb-2">
-            <Typography variant="body2" className="text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-4 text-xs sm:text-sm">
-              Enter the unique Group ID (for example: <strong className="text-green-600">nkoor-it</strong>). This will send a request to the admin. Once approved, you can read and write documents inside this group.
-            </Typography>
-
+          <DialogContent className="px-6 pb-6 pt-4">
             {joinDialogError && (
-              <Alert severity="error" className="mb-4 text-xs rounded-xl" onClose={() => setJoinDialogError('')}>
+              <Alert severity="error" className="mb-6 rounded-xl border border-red-200 dark:border-red-900/50" onClose={() => setJoinDialogError('')}>
                 {joinDialogError}
               </Alert>
             )}
 
-            <TextField
-              id="join-group-id-input"
-              label="Group ID"
-              placeholder="e.g. nkoor-it"
-              fullWidth
-              autoFocus
-              size="small"
-              required
-              value={joinInputId}
-              onChange={(e) => {
-                setJoinInputId(e.target.value);
-                setJoinDialogError('');
-              }}
-              helperText="Joining is a one-time process."
-              slotProps={{ input: { className: 'rounded-xl bg-white/70 dark:bg-gray-800/70' } }}
-            />
+            <Box className="space-y-2">
+              <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300 ml-1 block uppercase tracking-wider">
+                Workspace ID
+              </Typography>
+              <TextField
+                id="join-group-id-input"
+                placeholder="e.g. eng-team-24"
+                fullWidth
+                autoFocus
+                required
+                value={joinInputId}
+                onChange={(e) => {
+                  setJoinInputId(e.target.value);
+                  setJoinDialogError('');
+                }}
+                slotProps={{
+                  input: { 
+                    className: 'rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 font-mono text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors' 
+                  }
+                }}
+                sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.05)' } }}
+              />
+            </Box>
           </DialogContent>
 
-          <DialogActions className="p-4 pt-2 gap-2">
+          <DialogActions className="px-6 pb-6 pt-0 flex-col gap-3">
+            <Button
+              type="submit"
+              fullWidth
+              disabled={actionLoading || !joinInputId.trim()}
+              className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#60a5fa] to-[#427c36] hover:from-blue-500 hover:to-green-700 text-white shadow-lg shadow-[#60a5fa]/25 transition-all transform hover:-translate-y-0.5"
+              sx={{ textTransform: 'none' }}
+            >
+              {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Join Workspace'}
+            </Button>
             <Button 
-              id="join-group-cancel-btn"
               onClick={handleCloseJoinDialog} 
-              color="inherit" 
-              className="font-bold text-gray-500 dark:text-gray-400 dark:text-gray-500 rounded-xl capitalize"
+              fullWidth
+              className="rounded-2xl py-2.5 font-bold text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
               disabled={actionLoading}
+              sx={{ textTransform: 'none', margin: '0 !important' }}
             >
               Cancel
-            </Button>
-            <Button
-              id="join-group-submit-btn"
-              type="submit"
-              variant="contained"
-              disabled={actionLoading || !joinInputId.trim()}
-              className="rounded-xl font-bold capitalize bg-gradient-to-r from-[#60a5fa] to-[#427c36] text-white shadow-md hover:shadow-lg"
-              sx={{ px: 3, textTransform: 'none' }}
-            >
-              {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Join Group'}
             </Button>
           </DialogActions>
         </Box>
@@ -742,7 +759,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               <PeopleIcon fontSize="small" />
             </Box>
             <Box>
-              <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 leading-tight">
+              <Typography component="div" variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 leading-tight">
                 {currentGroup?.name || 'Group Members'}
               </Typography>
               <Typography variant="caption" className="text-gray-500 dark:text-gray-400 dark:text-gray-500 font-mono">

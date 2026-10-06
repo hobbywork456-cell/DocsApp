@@ -23,10 +23,12 @@ app.use('/uploads', express.static(uploadsDir));
 const authRoutes = require('./routes/auth');
 const documentRoutes = require('./routes/documents');
 const groupRoutes = require('./routes/groups');
+const aiRoutes = require('./routes/ai');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/ai', aiRoutes);
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/docs_app';

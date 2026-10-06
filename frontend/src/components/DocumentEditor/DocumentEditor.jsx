@@ -21,6 +21,8 @@ import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import ReactQuill, { Quill } from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import AIAssistant from './AIAssistant';
 
 // Register custom image blot to support width/height resizing
 const BaseImageFormat = Quill.import('formats/image');
@@ -118,6 +120,11 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiModel, setAiModel] = useState('gemma-4-26b-a4b-it');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiResult, setAiResult] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [mediaEditNode, setMediaEditNode] = useState(null);
     const [tableEditNode, setTableEditNode] = useState(null);
@@ -239,6 +246,42 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     if (quillRef.current) quillRef.current.getEditor().history.redo();
   };
 
+  const handleGenerateAI = async () => {
+    if (!aiPrompt.trim()) return;
+    setIsAiLoading(true);
+    setAiResult('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL.replace('/api', '')}/api/ai/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ prompt: aiPrompt, model: aiModel })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'AI generation failed');
+      setAiResult(data.html || data.text);
+    } catch (error) {
+      console.error('AI error:', error);
+      alert(error.message);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleInsertAI = () => {
+    if (quillRef.current && aiResult) {
+      const quill = quillRef.current.getEditor();
+      const range = quill.getSelection(true) || { index: quill.getLength() };
+      quill.clipboard.dangerouslyPasteHTML(range.index, aiResult);
+      setAiOpen(false);
+      setAiPrompt('');
+      setAiResult('');
+    }
+  };
+
   const handleAttachmentClick = () => {
     if (attachmentInputRef.current) {
       attachmentInputRef.current.click();
@@ -267,10 +310,11 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     }
   };
 
-  const getAttachmentIcon = (type, filename) => {
-    if (type === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) return <PictureAsPdfIcon sx={{ color: '#ef4444' }} />;
-    if (type.includes('spreadsheet') || type.includes('excel') || filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls')) return <TableChartIcon sx={{ color: '#326127' }} />;
-    return <DescriptionIcon sx={{ color: '#3b82f6' }} />;
+  const getAttachmentIcon = (type, filename, size = 16) => {
+    const sx = { fontSize: size };
+    if (type === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) return <PictureAsPdfIcon sx={{ ...sx, color: '#ef4444' }} />;
+    if (type.includes('spreadsheet') || type.includes('excel') || filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls')) return <TableChartIcon sx={{ ...sx, color: '#326127' }} />;
+    return <DescriptionIcon sx={{ ...sx, color: '#3b82f6' }} />;
   };
 
   const handleFileImport = async (e) => {
@@ -676,46 +720,48 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       aria-label={`Document Editor for ${title || 'Untitled Document'}`}
       className="h-full flex flex-col p-2 sm:p-3 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm relative"
     >
-      {/* ── 2-Row Header ──────────────────────────────────── */}
-      <Box className="flex flex-col gap-0. mb-1.5 sm:mb-2">
+      {/* ── Single-Row Compact Header ──────────────────────── */}
+      <Box className="flex items-start gap-1 mb-1 sm:mb-1.5 min-w-0">
 
-        {/* Row 1: Back button (mobile) + full-width title */}
-        <Box className="flex items-center gap-1 min-w-0">
-          {onBackToLibrary && (
-            <Tooltip title="Back to Library">
-              <IconButton 
-                id={`doc-back-library-btn-${documentId}`}
-                aria-label="Back to Library"
-                onClick={onBackToLibrary} 
-                size="small"
-                className="md:hidden shrink-0" 
-                sx={{ color: '#427c36', bgcolor: 'rgba(255,255,255,0.85)', p: '6px', borderRadius: '10px', '&:hover': { bgcolor: '#f0fdf4' } }}
-              >
-                <ArrowBackIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
-          <InputBase
-            id={`doc-title-input-${documentId}`}
-            slotProps={{ input: { 'aria-label': 'Document Title', id: `doc-title-field-${documentId}` } }}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Document Title"
-            readOnly={!isEditing}
-            sx={{ 
-              fontSize: { xs: '1rem', sm: '1.15rem', md: '1.25rem' }, 
-              fontWeight: '900', 
-              color: '#1f2937', 
-              letterSpacing: '-0.02em',
-              opacity: isEditing ? 1 : 0.9,
-              lineHeight: 1.1,
-              flex: 1,
-            }}
-            fullWidth
-          />
-        </Box>
+        {/* Left: Back btn (mobile) + Title + Tags — flex-1 wraps naturally */}
+        <Box className="flex-1 flex flex-col min-w-0">
+          <Box className="flex items-center gap-1 min-w-0">
+            {onBackToLibrary && (
+              <Tooltip title="Back to Library">
+                <IconButton 
+                  id={`doc-back-library-btn-${documentId}`}
+                  aria-label="Back to Library"
+                  onClick={onBackToLibrary} 
+                  size="small"
+                  className="md:hidden shrink-0" 
+                  sx={{ color: '#427c36', bgcolor: 'rgba(255,255,255,0.85)', p: '5px', borderRadius: '8px', '&:hover': { bgcolor: '#f0fdf4' } }}
+                >
+                  <ArrowBackIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <InputBase
+              id={`doc-title-input-${documentId}`}
+              slotProps={{ input: { 'aria-label': 'Document Title', id: `doc-title-field-${documentId}` } }}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Document Title"
+              readOnly={!isEditing}
+              sx={{ 
+                fontSize: { xs: '0.95rem', sm: '1.05rem', md: '1.15rem' }, 
+                fontWeight: '900', 
+                color: '#1f2937', 
+                letterSpacing: '-0.02em',
+                opacity: isEditing ? 1 : 0.9,
+                lineHeight: 1.2,
+                flex: 1,
+                '& input': { padding: '2px 0' }
+              }}
+              fullWidth
+            />
+          </Box>
 
-          <Box className="flex flex-wrap items-center gap-1.5 mt-2 px-1">
+          <Box className="flex flex-wrap items-center gap-1 mt-0.5 px-0.5">
             {tags && tags.map((tag, idx) => {
               const tagColor = getTagColor(tag);
               return (
@@ -770,21 +816,21 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                 </Popover>
               </>
             )}
-          </Box>
+          </Box>{/* end tags row */}
+        </Box>{/* end left column (title + tags) */}
 
-          {/* Row 2: Action icon buttons (no borders, larger) + close */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'flex-end', mt: -.99}}>
+        {/* Right: All action buttons — shrink-0 so they never wrap */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, shrink: 0, flexShrink: 0, pt: '2px' }}>
 
-          {/* History */}
           {/* A4 Print Layout Toggle */}
-            <Tooltip title={isA4Mode ? 'Exit A4 Layout' : 'A4 Print Layout'}>
-              <IconButton onClick={() => setIsA4Mode(!isA4Mode)}
-                sx={{ color: isA4Mode ? '#f59e0b' : '#8b5cf6', bgcolor: isA4Mode ? 'rgba(245,158,11,0.1)' : 'rgba(139,92,246,0.06)', '&:hover': { bgcolor: isA4Mode ? 'rgba(245,158,11,0.15)' : 'rgba(139,92,246,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s', mr: 0.75 }}>
-                {isA4Mode ? <CloseFullscreenIcon sx={{ fontSize: 18 }} /> : <ArticleIcon sx={{ fontSize: 18 }} />}
-              </IconButton>
-            </Tooltip>
+          <Tooltip title={isA4Mode ? 'Exit A4 Layout' : 'A4 Print Layout'}>
+            <IconButton onClick={() => setIsA4Mode(!isA4Mode)}
+              sx={{ color: isA4Mode ? '#f59e0b' : '#8b5cf6', bgcolor: isA4Mode ? 'rgba(245,158,11,0.1)' : 'rgba(139,92,246,0.06)', '&:hover': { bgcolor: isA4Mode ? 'rgba(245,158,11,0.15)' : 'rgba(139,92,246,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              {isA4Mode ? <CloseFullscreenIcon sx={{ fontSize: 18 }} /> : <ArticleIcon sx={{ fontSize: 18 }} />}
+            </IconButton>
+          </Tooltip>
 
-            <Tooltip title="History">
+          <Tooltip title="History">
             <IconButton onClick={() => setHistoryOpen(true)}
               sx={{ color: '#9c27b0', bgcolor: 'rgba(156,39,176,0.06)', '&:hover': { bgcolor: 'rgba(156,39,176,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
               <HistoryIcon sx={{ fontSize: 18 }} />
@@ -810,7 +856,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           </Tooltip>
 
           {/* Divider */}
-          <Box sx={{ width: '1px', height: 24, bgcolor: '#e5e7eb', mx: 0.5 }} />
+          <Box sx={{ width: '1px', height: 22, bgcolor: '#e5e7eb', mx: 0.25 }} />
 
           {/* Edit / Import + Save */}
           {!isEditing ? (
@@ -826,7 +872,13 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
               </IconButton>
             </Tooltip>
           ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Tooltip title="AI Assistant (Gemini)">
+                <IconButton onClick={() => setAiOpen(true)}
+                  sx={{ color: '#0ea5e9', bgcolor: 'rgba(14,165,233,0.06)', '&:hover': { bgcolor: 'rgba(14,165,233,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+                  <AutoAwesomeIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
               <Tooltip title={isImporting ? 'Importing...' : 'Import File'}>
                 <span>
                   <IconButton onClick={handleImportClick} disabled={isImporting}
@@ -837,7 +889,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
               </Tooltip>
               <input type="file" ref={fileInputRef} hidden onChange={handleFileImport}
                 accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-              {/* Save — highlighted prominently */}
+              {/* Save */}
               <Tooltip title={isSaving ? 'Saving...' : 'Save Document'}>
                 <span>
                   <IconButton onClick={handleSave} disabled={isSaving}
@@ -865,13 +917,14 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           {/* Close */}
           <Tooltip title="Close Document">
             <IconButton onClick={() => dispatch(removeOpenDocument(documentId))}
-              sx={{ color: '#ef4444', bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca', transform: 'translateY(-1px)' }, ml: 0.5, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
+              sx={{ color: '#ef4444', bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca', transform: 'translateY(-1px)' }, ml: 0.25, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
               <CloseIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
-        </Box>
-      </Box>
+        </Box>{/* end right action buttons */}
+      </Box>{/* end outer single-row header */}
       
+
       <Box className="flex-1 flex flex-col gap-3 sm:gap-1 min-h-1 relative">
         <Paper 
           ref={editorContainerRef}
@@ -1014,80 +1067,110 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         )}
         </Paper>
 
-        {/* Attachments Bar (Below Editor) */}
+        {/* Attachments Bar (Below Editor) — Ultra-Compact & Premium */}
         {(isEditing || (selectedDocument.attachments && selectedDocument.attachments.length > 0) || pendingAttachments.length > 0) && (
-          <Box className="w-full flex items-center gap-2 p-1 bg-white/60 rounded-lg overflow-x-auto shrink-0 border border-green-100 dark:border-green-900">
-            {selectedDocument.attachments && selectedDocument.attachments.length > 0 && (
-              <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 'bold', fontSize: '10px', mr: 0.5, textTransform: 'uppercase' }}>Attachments:</Typography>
-            )}
-            
-            {pendingAttachments.map((file, idx) => (
-              <Tooltip title={`${file.name} (Pending Save)`} key={`pending-${idx}`} arrow>
-                <Box className="relative group flex items-center justify-center p-1.5 rounded-md bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 shadow-sm opacity-80 hover:opacity-100 transition-all">
-                  {getAttachmentIcon(file.type, file.name)}
-                  {isEditing && (
-                    <IconButton 
-                      size="small" 
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemovePendingAttachment(idx); }} 
-                      sx={{ 
-                        position: 'absolute', top: -8, right: -8, bgcolor: 'white', 
-                        border: '1px solid #fee2e2', color: '#ef4444', p: '2px', 
-                        opacity: 0, transition: 'opacity 0.2s',
-                        '.group:hover &': { opacity: 1 }
-                      }}
-                    >
-                      <CloseIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  )}
-                </Box>
-              </Tooltip>
-            ))}
-            {selectedDocument.attachments && selectedDocument.attachments.map(att => (
-              <Tooltip title={att.name} key={att._id} arrow>
-                <Box className="relative group flex items-center justify-center p-1.5 rounded-md bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 shadow-sm dark:shadow-none hover:shadow hover:bg-gray-50 dark:bg-gray-800 transition-all">
-                  <a href={import.meta.env.VITE_API_URL.replace('/api', '') + att.url} target="_blank" rel="noreferrer" className="flex items-center justify-center">
-                    {getAttachmentIcon(att.type, att.name)}
-                  </a>
-                  {isEditing && (
-                    <IconButton 
-                      size="small" 
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteAttachment(att._id); }} 
-                      sx={{ 
-                        position: 'absolute', top: -8, right: -8, bgcolor: 'white', 
-                        border: '1px solid #fee2e2', color: '#ef4444', p: '2px', 
-                        opacity: 0, transition: 'opacity 0.2s',
-                        '.group:hover &': { opacity: 1 }
-                      }}
-                    >
-                      <CloseIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  )}
-                </Box>
-              </Tooltip>
-            ))}
+          <Box className="w-full flex items-center gap-1.5 px-2 py-1 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md rounded-xl border border-gray-200/80 dark:border-gray-800 shadow-2xs shrink-0 overflow-x-auto min-h-[32px]">
+            <Box className="flex items-center gap-1 shrink-0 text-gray-500 dark:text-gray-400 mr-0.5">
+              <AttachFileIcon sx={{ fontSize: 12, color: '#427c36' }} />
+              <Typography variant="caption" sx={{ fontWeight: '700', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Attachments
+              </Typography>
+            </Box>
 
-            {isEditing && (
-              <>
-                <Tooltip title="Add Attachment" arrow>
-                  <IconButton 
-                    onClick={handleAttachmentClick} 
-                    disabled={isUploadingAttachment} 
-                    sx={{ 
-                      border: '1px dashed #427c36', color: '#427c36', borderRadius: '8px',
-                      p: '6px', '&:hover': { bgcolor: '#f0fdf4' }
-                    }}
-                  >
-                    <AttachFileIcon />
-                  </IconButton>
+            <Divider orientation="vertical" flexItem sx={{ my: 0.5, opacity: 0.5 }} />
+
+            <Box className="flex items-center gap-1.5 overflow-x-auto flex-1 py-0.5">
+              {/* Pending Attachments */}
+              {pendingAttachments.map((file, idx) => (
+                <Tooltip title={`${file.name} (Click save to upload)`} key={`pending-${idx}`} arrow>
+                  <Box className="group flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 shadow-2xs text-amber-900 dark:text-amber-200 text-xs shrink-0 transition-all hover:bg-amber-100 dark:hover:bg-amber-900/60">
+                    {getAttachmentIcon(file.type, file.name, 14)}
+                    <Typography variant="caption" className="font-semibold truncate max-w-[120px] text-[11px]">
+                      {file.name}
+                    </Typography>
+                    <span className="text-[9px] font-extrabold uppercase px-1 py-0.2 rounded bg-amber-200/70 dark:bg-amber-800/80 text-amber-800 dark:text-amber-100">
+                      Pending
+                    </span>
+                    {isEditing && (
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemovePendingAttachment(idx); }} 
+                        sx={{ p: '1px', ml: 0.2, color: '#ef4444', '&:hover': { bgcolor: 'rgba(239,68,68,0.15)' } }}
+                      >
+                        <CloseIcon sx={{ fontSize: 12 }} />
+                      </IconButton>
+                    )}
+                  </Box>
                 </Tooltip>
-                <input
-                  type="file"
-                  ref={attachmentInputRef}
-                  hidden
-                  onChange={handleAttachmentUpload}
-                />
-              </>
-            )}
+              ))}
+
+              {/* Saved Attachments */}
+              {selectedDocument.attachments && selectedDocument.attachments.map(att => (
+                <Tooltip title={`Download ${att.name}`} key={att._id} arrow>
+                  <Box className="group flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs hover:shadow-sm text-gray-800 dark:text-gray-200 text-xs shrink-0 transition-all hover:border-green-300 dark:hover:border-green-700">
+                    <a 
+                      href={import.meta.env.VITE_API_URL.replace('/api', '') + att.url} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="flex items-center gap-1 hover:underline text-gray-700 dark:text-gray-200"
+                    >
+                      {getAttachmentIcon(att.type, att.name, 14)}
+                      <Typography variant="caption" className="font-medium truncate max-w-[130px] text-[11px]">
+                        {att.name}
+                      </Typography>
+                    </a>
+                    {isEditing && (
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteAttachment(att._id); }} 
+                        sx={{ p: '1px', ml: 0.2, color: '#9ca3af', '&:hover': { color: '#ef4444', bgcolor: 'rgba(239,68,68,0.1)' } }}
+                      >
+                        <CloseIcon sx={{ fontSize: 12 }} />
+                      </IconButton>
+                    )}
+                  </Box>
+                </Tooltip>
+              ))}
+
+              {/* Add Attachment Button (Inline Pill Chip) */}
+              {isEditing && (
+                <>
+                  <Tooltip title="Attach a file" arrow>
+                    <Button
+                      size="small"
+                      onClick={handleAttachmentClick}
+                      disabled={isUploadingAttachment}
+                      startIcon={<AttachFileIcon sx={{ fontSize: 13 }} />}
+                      sx={{
+                        textTransform: 'none',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        py: '2px',
+                        px: '8px',
+                        minHeight: '22px',
+                        borderRadius: '8px',
+                        border: '1px dashed #427c36',
+                        color: '#427c36',
+                        bgcolor: 'rgba(66,124,54,0.04)',
+                        '&:hover': {
+                          bgcolor: 'rgba(66,124,54,0.1)',
+                          borderColor: '#326127'
+                        },
+                        shrink: 0
+                      }}
+                    >
+                      {isUploadingAttachment ? 'Uploading...' : 'Attach File'}
+                    </Button>
+                  </Tooltip>
+                  <input
+                    type="file"
+                    ref={attachmentInputRef}
+                    hidden
+                    onChange={handleAttachmentUpload}
+                  />
+                </>
+              )}
+            </Box>
           </Box>
         )}
       </Box>
@@ -1122,7 +1205,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         </Box>
       </Dialog>
       
-      
+     
       
         {/* Table Dimension Grid Popover */}
         <Popover
@@ -1215,6 +1298,18 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           )}
         </List>
       </Dialog>
+      <AIAssistant 
+        open={aiOpen} 
+        onClose={() => setAiOpen(false)} 
+        aiModel={aiModel} 
+        setAiModel={setAiModel} 
+        aiPrompt={aiPrompt} 
+        setAiPrompt={setAiPrompt} 
+        aiResult={aiResult} 
+        isAiLoading={isAiLoading} 
+        onGenerate={handleGenerateAI} 
+        onInsert={handleInsertAI} 
+      />
     </Box>
   );
 };

@@ -495,16 +495,16 @@ const Dashboard = () => {
                       <Tooltip title="Compare Documents">
                         <IconButton 
                           onClick={() => setIsCompareMode(true)}
-                          className="bg-green-600 hover:bg-green-700 text-white shadow-lg border-4 border-white dark:border-gray-900 transition-transform hover:scale-105"
+                          className="bg-green-600 hover:bg-green-700 text-white shadow-lg border-2 border-white dark:border-gray-900 transition-transform hover:scale-105"
                           sx={{ 
-                            width: 56,
-                            height: 56,
+                            width: 40,
+                            height: 40,
                             color: 'white',
                             backgroundColor: '#427c36',
                             '&:hover': { backgroundColor: '#326127' }
                           }}
                         >
-                          <CompareArrowsIcon fontSize="large" />
+                          <CompareArrowsIcon fontSize="medium" />
                         </IconButton>
                       </Tooltip>
                     </Box>
