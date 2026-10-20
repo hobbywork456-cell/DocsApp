@@ -25,13 +25,15 @@
     "jwt-decode": "^4.0.0",
     "mobile-drag-drop": "^3.0.0-rc.0",
     "postcss": "^8.5.28",
+    "pptxgenjs": "^4.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-draggable": "^4.7.2",
     "react-quill-new": "^3.8.3",
     "react-redux": "^9.3.0",
     "react-router-dom": "^7.18.3",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,0 +1,487 @@
+/* ==========================================================================
+   MICROSOFT POWERPOINT STYLE RIBBON TOOLBAR
+   Pixel-perfect replication of PowerPoint Home Ribbon with full functional suite
+   and preservation of all existing PPT settings (themes, layouts, slideshow, notes)
+   ========================================================================== */
+
+.ppt-ribbon-container {
+  display: flex;
+  align-items: stretch;
+  background: #ffffff;
+  border-bottom: 1px solid #d1d5db;
+  color: #1f2937;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  user-select: none;
+  min-height: 94px;
+  max-height: 96px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  z-index: 20;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.dark .ppt-ribbon-container {
+  background: #0f172a;
+  border-bottom-color: #1e293b;
+  color: #f1f5f9;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.ppt-ribbon-container::-webkit-scrollbar {
+  height: 4px;
+}
+.ppt-ribbon-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.dark .ppt-ribbon-container::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+/* ── Ribbon Functional Group ────────────────────────────────────────────── */
+.ppt-ribbon-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px 6px 3px;
+  border-right: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.dark .ppt-ribbon-group {
+  border-right-color: #1e293b;
+}
+
+.ppt-ribbon-group-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 3px;
+}
+
+.ppt-ribbon-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #6b7280;
+  padding-top: 2px;
+  letter-spacing: 0.01em;
+  cursor: default;
+}
+
+.dark .ppt-ribbon-group-label {
+  color: #94a3b8;
+}
+
+.ppt-launcher-icon {
+  font-size: 0.65rem;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.ppt-launcher-icon:hover {
+  opacity: 1;
+  color: #c43e1c;
+}
+
+/* ── Big Buttons (Paste, New Slide, Dictate, Designer, Present) ────────── */
+.ppt-btn-big {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 66px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  text-decoration: none;
+}
+
+.dark .ppt-btn-big {
+  color: #e2e8f0;
+}
+
+.ppt-btn-big:hover {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.dark .ppt-btn-big:hover {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.ppt-btn-big.active {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #c43e1c;
+}
+
+.dark .ppt-btn-big.active {
+  background: rgba(196, 62, 28, 0.2);
+  border-color: rgba(196, 62, 28, 0.4);
+  color: #f87171;
+}
+
+.ppt-btn-big-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.ppt-btn-big-label {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ── Stacked 2 or 3 Rows of Small Items ─────────────────────────────────── */
+.ppt-stacked-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  height: 66px;
+}
+
+.ppt-btn-stacked {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #374151;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.dark .ppt-btn-stacked {
+  color: #cbd5e1;
+}
+
+.ppt-btn-stacked:hover {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.dark .ppt-btn-stacked:hover {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.ppt-btn-stacked.active {
+  background: #fee2e2;
+  color: #c43e1c;
+}
+
+.dark .ppt-btn-stacked.active {
+  background: rgba(196, 62, 28, 0.25);
+  color: #f87171;
+}
+
+/* ── Icon-Only Small Buttons (Bold, Italic, Align, etc.) ─────────────────── */
+.ppt-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  position: relative;
+}
+
+.dark .ppt-icon-btn {
+  color: #cbd5e1;
+}
+
+.ppt-icon-btn:hover {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.dark .ppt-icon-btn:hover {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.ppt-icon-btn.active {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #c43e1c;
+}
+
+.dark .ppt-icon-btn.active {
+  background: rgba(196, 62, 28, 0.25);
+  border-color: rgba(196, 62, 28, 0.4);
+  color: #f87171;
+}
+
+/* ── Font & Select Dropdowns ────────────────────────────────────────────── */
+.ppt-combo-select {
+  height: 22px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 0.72rem;
+  padding: 0 4px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.dark .ppt-combo-select {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+.ppt-combo-select:hover, .ppt-combo-select:focus {
+  border-color: #c43e1c;
+}
+
+.ppt-font-family-select {
+  width: 105px;
+}
+
+.ppt-font-size-select {
+  width: 44px;
+}
+
+/* ── Color Indicators (Highlight & Font Color) ──────────────────────────── */
+.ppt-color-indicator-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ppt-color-bar {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  margin-top: 1px;
+}
+
+/* ── Drawing Shapes Gallery Box ──────────────────────────────────────────── */
+.ppt-shapes-box {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 2px;
+  gap: 2px;
+  height: 64px;
+}
+
+.dark .ppt-shapes-box {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.ppt-shapes-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 20px);
+  grid-auto-rows: 18px;
+  gap: 2px;
+  max-width: 110px;
+  overflow-y: auto;
+  max-height: 58px;
+  scrollbar-width: none;
+}
+
+.ppt-shapes-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.ppt-shape-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: #374151;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.dark .ppt-shape-btn {
+  color: #e2e8f0;
+}
+
+.ppt-shape-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #c43e1c;
+}
+
+.dark .ppt-shape-btn:hover {
+  background: #334155;
+  border-color: #475569;
+  color: #f87171;
+}
+
+.ppt-shapes-nav {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding-left: 2px;
+  border-left: 1px solid #e5e7eb;
+}
+
+.dark .ppt-shapes-nav {
+  border-left-color: #334155;
+}
+
+.ppt-shape-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ppt-shape-nav-btn:hover {
+  color: #c43e1c;
+  background: #f3f4f6;
+}
+
+/* ── Split Dropdown Buttons ─────────────────────────────────────────────── */
+.ppt-split-btn {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+/* ── Present Slideshow Button ───────────────────────────────────────────── */
+.ppt-present-ribbon-btn {
+  background: linear-gradient(135deg, #c43e1c 0%, #ea580c 100%) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 0.72rem !important;
+  text-transform: none !important;
+  border-radius: 4px !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 1px 3px rgba(196, 62, 28, 0.3) !important;
+  transition: all 0.2s ease !important;
+  height: 28px !important;
+}
+
+.ppt-present-ribbon-btn:hover {
+  box-shadow: 0 3px 8px rgba(196, 62, 28, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+/* ── Theme Swatch Indicator in Menu ─────────────────────────────────────── */
+.ppt-theme-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  width: 100%;
+}
+
+.ppt-theme-circle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+/* ── Color Palette Popover Grid ─────────────────────────────────────────── */
+.ppt-palette-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: #ffffff;
+}
+
+.dark .ppt-palette-grid {
+  background: #1e293b;
+}
+
+.ppt-palette-row {
+  display: flex;
+  gap: 2px;
+}
+
+.ppt-palette-swatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.ppt-palette-swatch:hover {
+  transform: scale(1.2);
+  z-index: 2;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Voice Dictate Active Pulse ─────────────────────────────────────────── */
+@keyframes ppt-mic-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
+  70% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+.ppt-dictate-recording {
+  background: #fee2e2 !important;
+  border-color: #ef4444 !important;
+  color: #dc2626 !important;
+  animation: ppt-mic-pulse 1.5s infinite;
+}

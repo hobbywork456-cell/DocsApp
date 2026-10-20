@@ -23,6 +23,17 @@ import ReactQuill, { Quill } from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AIAssistant from './AIAssistant';
+import { setSubscriptionModalOpen } from '../../slices/subscriptionSlice';
+import {
+  downloadDocAsPdf,
+  downloadDocAsWord,
+  downloadDocAsText,
+  downloadSheetAsXlsx,
+  downloadSheetAsCsv,
+  downloadSheetAsPdf,
+  downloadPptAsPptx,
+  downloadPptAsPdf
+} from '../../utils/documentExporter';
 
 // Register custom image blot to support width/height resizing
 const BaseImageFormat = Quill.import('formats/image');
@@ -68,6 +79,50 @@ class CustomImage extends BaseImageFormat {
 }
 Quill.register(CustomImage, true);
 
+// Register custom style-based Parchment attributors for full Word/Docs styling support
+try {
+  const FontStyle = Quill.import('attributors/style/font');
+  if (FontStyle) {
+    FontStyle.whitelist = [
+      'Calibri', 'Arial', 'Times New Roman', 'Roboto', 'Georgia', 'Courier New', 'Verdana', 'Comic Sans MS', 'Impact', 'Trebuchet MS', 'Segoe UI'
+    ];
+    Quill.register({ 'formats/font': FontStyle }, true);
+  }
+
+  const SizeStyle = Quill.import('attributors/style/size');
+  if (SizeStyle) {
+    SizeStyle.whitelist = [
+      '8pt', '9pt', '10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '20pt', '22pt', '24pt', '26pt', '28pt', '36pt', '48pt', '72pt'
+    ];
+    Quill.register({ 'formats/size': SizeStyle }, true);
+  }
+
+  const Parchment = Quill.import('parchment');
+  if (Parchment && Parchment.Attributor && Parchment.Attributor.Style) {
+    const LineHeightStyle = new Parchment.Attributor.Style('line-height', 'line-height', {
+      scope: Parchment.Scope.BLOCK
+    });
+    Quill.register({ 'formats/lineHeight': LineHeightStyle, 'attributors/style/lineHeight': LineHeightStyle }, true);
+
+    const BlockBackground = new Parchment.Attributor.Style('blockBackground', 'background-color', {
+      scope: Parchment.Scope.BLOCK
+    });
+    Quill.register({ 'formats/blockBackground': BlockBackground, 'attributors/style/blockBackground': BlockBackground }, true);
+
+    const BlockBorder = new Parchment.Attributor.Style('blockBorder', 'border', {
+      scope: Parchment.Scope.BLOCK
+    });
+    Quill.register({ 'formats/blockBorder': BlockBorder, 'attributors/style/blockBorder': BlockBorder }, true);
+
+    const UnderlineStyle = new Parchment.Attributor.Style('underlineStyle', 'text-decoration-style', {
+      scope: Parchment.Scope.INLINE
+    });
+    Quill.register({ 'formats/underlineStyle': UnderlineStyle, 'attributors/style/underlineStyle': UnderlineStyle }, true);
+  }
+} catch (e) {
+  console.warn('Custom Quill format registration:', e);
+}
+
 const icons = Quill.import('ui/icons');
 icons['undo'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>`;
 icons['redo'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>`;
@@ -85,6 +140,11 @@ import RemoveRedEyeOutlinedIcon from '@mui/icons-material/RemoveRedEyeOutlined';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import ArticleIcon from '@mui/icons-material/Article';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
+import SlideshowIcon from '@mui/icons-material/Slideshow';
+import SpreadsheetEditor from './SpreadsheetEditor';
+import PresentationEditor from './PresentationEditor';
+import EditorHeader from './EditorHeader';
+import WordRibbonToolbar from './WordRibbonToolbar';
 import './DocumentEditor.css';
 
 export const getTagColor = (tag) => {
@@ -105,10 +165,14 @@ export const getTagColor = (tag) => {
 const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const dispatch = useDispatch();
   const { documents } = useSelector((state) => state.documents);
+  const { groupStats, userStats } = useSelector((state) => state.subscription);
   const selectedDocument = documents.find(doc => doc._id === documentId);
+  const isStorageExceeded = Boolean(groupStats?.isExceeded || userStats?.isExceeded);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [docType, setDocType] = useState('doc');
+  const formatDraftsRef = useRef({});
   const [isSaving, setIsSaving] = useState(false);
   const [isA4Mode, setIsA4Mode] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -149,6 +213,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const [tableOverlayStyle, setTableOverlayStyle] = useState(null);
   const [overlayStyle, setOverlayStyle] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [showParagraphMarks, setShowParagraphMarks] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const fileInputRef = useRef(null);
   const attachmentInputRef = useRef(null);
@@ -156,6 +221,16 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const editorContainerRef = useRef(null);
   const overlayRef = useRef(null);
   const recognitionRef = useRef(null);
+
+  const handleInsertTableGrid = (rows, cols) => {
+    if (quillRef.current) {
+      const quill = quillRef.current.getEditor();
+      const tableModule = quill.getModule('table');
+      if (tableModule) {
+        tableModule.insertTable(rows, cols);
+      }
+    }
+  };
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -227,10 +302,35 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       setTitle(selectedDocument.title || '');
       setContent(selectedDocument.content || '');
       setTags(selectedDocument.tags || []);
+      let detectedType = selectedDocument.docType || 'doc';
+      if (!selectedDocument.docType && selectedDocument.content) {
+        try {
+          const parsed = JSON.parse(selectedDocument.content);
+          if (parsed.sheets && Array.isArray(parsed.sheets)) {
+            detectedType = 'sheet';
+          } else if (parsed.slides && Array.isArray(parsed.slides)) {
+            detectedType = 'ppt';
+          }
+        } catch {
+          // Normal HTML
+        }
+      }
+      setDocType(detectedType);
+      formatDraftsRef.current[detectedType] = selectedDocument.content || '';
       setIsEditing(false);
       setPendingAttachments([]);
     }
   }, [selectedDocument]);
+
+  const handleDocTypeChange = (newType) => {
+    if (newType === docType) return;
+    formatDraftsRef.current[docType] = content;
+    setDocType(newType);
+    if (formatDraftsRef.current[newType]) {
+      setContent(formatDraftsRef.current[newType]);
+    }
+    setIsEditing(true);
+  };
 
   const handleImportClick = () => {
     if (fileInputRef.current) {
@@ -324,8 +424,28 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       try {
         const resultAction = await dispatch(importDocumentContent(file));
         if (importDocumentContent.fulfilled.match(resultAction)) {
-          // Append the imported HTML to existing content or replace it if empty
-          setContent(prev => prev ? prev + '<br/>' + resultAction.payload.html : resultAction.payload.html);
+          const payload = resultAction.payload;
+          const importedType = payload.docType || 'doc';
+          const importedContent = payload.content !== undefined ? payload.content : payload.html;
+
+          setDocType(importedType);
+          setContent(importedContent);
+
+          let updatedTitle = title;
+          if (!title || title.toLowerCase().includes('untitled') || title.trim() === '') {
+            updatedTitle = payload.title || title;
+            setTitle(updatedTitle);
+          }
+
+          if (selectedDocument) {
+            await dispatch(updateDocument({
+              id: selectedDocument._id,
+              title: updatedTitle,
+              content: importedContent,
+              tags,
+              docType: importedType
+            }));
+          }
         }
       } catch (err) {
         console.error("Import failed", err);
@@ -351,10 +471,24 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       setPendingAttachments([]); // Clear after upload
     }
 
-    await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags }));
+    await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags, docType }));
     setIsSaving(false);
     setIsEditing(false);
   };
+
+  // Keyboard shortcut: Ctrl+S / Cmd+S for instant smooth save
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        if (isEditing && !isSaving && !isStorageExceeded) {
+          handleSave();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isEditing, isSaving, isStorageExceeded, title, content, tags, docType, selectedDocument]);
 
   
   const handleOpenTagMenu = (event) => setTagAnchorEl(event.currentTarget);
@@ -368,7 +502,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       const newTags = [...tags, trimmed];
       setTags(newTags);
       if (!isEditing) {
-        await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags: newTags }));
+        await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags: newTags, docType }));
       }
     }
     handleCloseTagMenu();
@@ -377,55 +511,46 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     const newTags = tags.filter(t => t !== tagToRemove);
     setTags(newTags);
     if (!isEditing) {
-      await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags: newTags }));
+      await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags: newTags, docType }));
     }
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadFormat = async (format) => {
     if (!selectedDocument) return;
     setIsDownloading(true);
-    
-    const element = document.createElement('div');
-    element.innerHTML = `
-      <style>
-        .pdf-container {
-          font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
-          width: 100%;
-          max-width: 210mm; /* A4 width */
+    try {
+      if (docType === 'sheet') {
+        if (format === 'xlsx') {
+          downloadSheetAsXlsx(title, content);
+        } else if (format === 'csv') {
+          downloadSheetAsCsv(title, content);
+        } else {
+          await downloadSheetAsPdf(title, content);
         }
-        .pdf-container img, .pdf-container video {
-          max-width: 100%;
-          height: auto;
-          page-break-inside: avoid;
+      } else if (docType === 'ppt') {
+        if (format === 'pptx') {
+          await downloadPptAsPptx(title, content);
+        } else {
+          await downloadPptAsPdf(title, content);
         }
-        .pdf-container p, .pdf-container h1, .pdf-container h2, .pdf-container h3, .pdf-container h4, .pdf-container h5, .pdf-container h6, .pdf-container table, .pdf-container tr, .pdf-container div.ql-code-block {
-          page-break-inside: avoid;
+      } else {
+        // docType === 'doc'
+        if (format === 'doc' || format === 'docx') {
+          downloadDocAsWord(title, content);
+        } else if (format === 'txt') {
+          downloadDocAsText(title, content);
+        } else {
+          await downloadDocAsPdf(title, content);
         }
-      </style>
-      <div class="pdf-container">
-        <h1 style="font-size: 2.2rem; font-weight: 900; color: #4a4a4a; margin-bottom: 20px; border-bottom: 2px solid #427c36; padding-bottom: 10px;">${title || 'Untitled Document'}</h1>
-        <div style="font-size: 1.05rem; color: #374151; line-height: 1.6;">
-          ${content}
-        </div>
-      </div>
-    `;
-    
-    const opt = {
-      margin:       [20, 15, 20, 15], // [top, left, bottom, right] for header and footer margins
-      filename:     `${title || 'document'}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:    { mode: ['css', 'legacy'] }
-    };
-    
-    html2pdf().set(opt).from(element).save().then(() => {
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+    } finally {
       setIsDownloading(false);
-    }).catch((err) => {
-      console.error('PDF generation error:', err);
-      setIsDownloading(false);
-    });
+    }
   };
+
+  const handleDownloadPdf = () => handleDownloadFormat('pdf');
 
   const updateOverlayPosition = useCallback(() => {
     if (!mediaEditNode || !editorContainerRef.current) return;
@@ -687,27 +812,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     history: { delay: 500, maxStack: 100, userOnly: true },
     clipboard: { matchVisual: false }, // Prevent Quill from stripping HTML styling
     table: true,
-    toolbar: {
-      container: [
-          [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
-          [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ 'script': 'sub'}, { 'script': 'super' }],
-          [{ 'color': [] }, { 'background': [] }],
-          [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
-          [{ 'direction': 'rtl' }, { 'align': [] }],
-          ['blockquote', 'code-block'],
-          ['link', 'image', 'video', 'table'],
-          ['undo', 'redo', 'clean']
-        ],
-      handlers: {
-        image: imageHandler,
-        table: function() { if (openTableDialogRef.current) openTableDialogRef.current(); },
-        undo: function() { this.quill.history.undo(); },
-        redo: function() { this.quill.history.redo(); }
-      }
-    }
-  }), [imageHandler]);
+    toolbar: false
+  }), []);
 
     if (!selectedDocument) return null;
 
@@ -720,210 +826,46 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       aria-label={`Document Editor for ${title || 'Untitled Document'}`}
       className="h-full flex flex-col p-2 sm:p-3 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm relative"
     >
-      {/* ── Single-Row Compact Header ──────────────────────── */}
-      <Box className="flex items-start gap-1 mb-1 sm:mb-1.5 min-w-0">
-
-        {/* Left: Back btn (mobile) + Title + Tags — flex-1 wraps naturally */}
-        <Box className="flex-1 flex flex-col min-w-0">
-          <Box className="flex items-center gap-1 min-w-0">
-            {onBackToLibrary && (
-              <Tooltip title="Back to Library">
-                <IconButton 
-                  id={`doc-back-library-btn-${documentId}`}
-                  aria-label="Back to Library"
-                  onClick={onBackToLibrary} 
-                  size="small"
-                  className="md:hidden shrink-0" 
-                  sx={{ color: '#427c36', bgcolor: 'rgba(255,255,255,0.85)', p: '5px', borderRadius: '8px', '&:hover': { bgcolor: '#f0fdf4' } }}
-                >
-                  <ArrowBackIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-            <InputBase
-              id={`doc-title-input-${documentId}`}
-              slotProps={{ input: { 'aria-label': 'Document Title', id: `doc-title-field-${documentId}` } }}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Document Title"
-              readOnly={!isEditing}
-              sx={{ 
-                fontSize: { xs: '0.95rem', sm: '1.05rem', md: '1.15rem' }, 
-                fontWeight: '900', 
-                color: '#1f2937', 
-                letterSpacing: '-0.02em',
-                opacity: isEditing ? 1 : 0.9,
-                lineHeight: 1.2,
-                flex: 1,
-                '& input': { padding: '2px 0' }
-              }}
-              fullWidth
-            />
-          </Box>
-
-          <Box className="flex flex-wrap items-center gap-1 mt-0.5 px-0.5">
-            {tags && tags.map((tag, idx) => {
-              const tagColor = getTagColor(tag);
-              return (
-                <Chip 
-                  key={idx} 
-                  label={tag} 
-                  size="small" 
-                  onDelete={isEditing ? () => handleRemoveTag(tag) : undefined}
-                  sx={{ 
-                    height: '24px', 
-                    fontSize: '0.7rem', 
-                    bgcolor: tagColor, 
-                    color: '#ffffff',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                    '& .MuiChip-deleteIcon': { color: '#ffffff', opacity: 0.7, '&:hover': { color: '#ffffff', opacity: 1 } }
-                  }} 
-                />
-              );
-            })}
-            {isEditing && (
-              <>
-                <Tooltip title="Add Tag">
-                  <IconButton size="small" onClick={handleOpenTagMenu} sx={{ p: '2px', bgcolor: 'rgba(0,0,0,0.04)', '&:hover': { bgcolor: 'rgba(0,0,0,0.08)' } }} className="dark:bg-gray-800 dark:hover:bg-gray-700">
-                    <LocalOfferIcon sx={{ fontSize: 16, color: '#9ca3af' }} />
-                  </IconButton>
-                </Tooltip>
-                <Popover
-                  open={Boolean(tagAnchorEl)}
-                  anchorEl={tagAnchorEl}
-                  onClose={handleCloseTagMenu}
-                  anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-                  transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                  slotProps={{ paper: { className: 'p-3 rounded-xl shadow-lg mt-1 dark:bg-gray-800 border dark:border-gray-700' } }}
-                >
-                  <Box className="flex items-center gap-2">
-                    <TextField 
-                      size="small" 
-                      placeholder="Tag name" 
-                      value={newTagInput} 
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag(); }}
-                      autoFocus
-                      slotProps={{ input: { className: 'dark:text-white' } }}
-                      sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#d1d5db' }, '&:hover fieldset': { borderColor: '#427c36' }, '&.Mui-focused fieldset': { borderColor: '#427c36' } } }}
-                    />
-                    <Button variant="contained" onClick={handleAddTag} sx={{ bgcolor: '#427c36', '&:hover': { bgcolor: '#326127' }, textTransform: 'none', minWidth: '60px' }}>
-                      Add
-                    </Button>
-                  </Box>
-                </Popover>
-              </>
-            )}
-          </Box>{/* end tags row */}
-        </Box>{/* end left column (title + tags) */}
-
-        {/* Right: All action buttons — shrink-0 so they never wrap */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, shrink: 0, flexShrink: 0, pt: '2px' }}>
-
-          {/* A4 Print Layout Toggle */}
-          <Tooltip title={isA4Mode ? 'Exit A4 Layout' : 'A4 Print Layout'}>
-            <IconButton onClick={() => setIsA4Mode(!isA4Mode)}
-              sx={{ color: isA4Mode ? '#f59e0b' : '#8b5cf6', bgcolor: isA4Mode ? 'rgba(245,158,11,0.1)' : 'rgba(139,92,246,0.06)', '&:hover': { bgcolor: isA4Mode ? 'rgba(245,158,11,0.15)' : 'rgba(139,92,246,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
-              {isA4Mode ? <CloseFullscreenIcon sx={{ fontSize: 18 }} /> : <ArticleIcon sx={{ fontSize: 18 }} />}
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip title="History">
-            <IconButton onClick={() => setHistoryOpen(true)}
-              sx={{ color: '#9c27b0', bgcolor: 'rgba(156,39,176,0.06)', '&:hover': { bgcolor: 'rgba(156,39,176,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
-              <HistoryIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-
-          {/* Read Mode */}
-          <Tooltip title="Read Mode">
-            <IconButton onClick={() => dispatch(setGlobalReadMode(true))}
-              sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.06)', '&:hover': { bgcolor: 'rgba(66,124,54,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
-              <RemoveRedEyeOutlinedIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-
-          {/* Download PDF */}
-          <Tooltip title={isDownloading ? 'Downloading...' : 'Download PDF'}>
-            <span>
-              <IconButton onClick={handleDownloadPdf} disabled={isDownloading}
-                sx={{ color: '#3b82f6', bgcolor: 'rgba(59,130,246,0.06)', '&:hover': { bgcolor: 'rgba(59,130,246,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
-                <FileDownloadOutlinedIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-
-          {/* Divider */}
-          <Box sx={{ width: '1px', height: 22, bgcolor: '#e5e7eb', mx: 0.25 }} />
-
-          {/* Edit / Import + Save */}
-          {!isEditing ? (
-            <Tooltip title="Edit Document">
-              <IconButton onClick={() => setIsEditing(true)}
-                sx={{ 
-                  color: 'white',
-                  background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
-                  '&:hover': { background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)', transform: 'translateY(-1px)', boxShadow: '0 6px 16px rgba(66,124,54,0.4)' },
-                  p: '5px', borderRadius: '10px', boxShadow: '0 3px 10px rgba(66,124,54,0.3)', transition: 'all 0.2s'
-                }}>
-                <EditIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
-          ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Tooltip title="AI Assistant (Gemini)">
-                <IconButton onClick={() => setAiOpen(true)}
-                  sx={{ color: '#0ea5e9', bgcolor: 'rgba(14,165,233,0.06)', '&:hover': { bgcolor: 'rgba(14,165,233,0.13)', transform: 'translateY(-1px)' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
-                  <AutoAwesomeIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={isImporting ? 'Importing...' : 'Import File'}>
-                <span>
-                  <IconButton onClick={handleImportClick} disabled={isImporting}
-                    sx={{ color: '#6366f1', bgcolor: 'rgba(99,102,241,0.06)', '&:hover': { bgcolor: 'rgba(99,102,241,0.13)', transform: 'translateY(-1px)' }, '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
-                    <UploadFileIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <input type="file" ref={fileInputRef} hidden onChange={handleFileImport}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-              {/* Save */}
-              <Tooltip title={isSaving ? 'Saving...' : 'Save Document'}>
-                <span>
-                  <IconButton onClick={handleSave} disabled={isSaving}
-                    sx={{ 
-                      color: 'white',
-                      background: isSaving
-                        ? 'linear-gradient(135deg, #86efac 0%, #4ade80 100%)'
-                        : 'linear-gradient(135deg, #427c36 0%, #326127 100%)',
-                      boxShadow: '0 3px 12px rgba(66,124,54,0.45)',
-                      '&:hover': { 
-                        background: 'linear-gradient(135deg, #326127 0%, #1f4d1d 100%)',
-                        boxShadow: '0 6px 18px rgba(66,124,54,0.55)',
-                        transform: 'translateY(-2px)'
-                      },
-                      '&.Mui-disabled': { background: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' },
-                      p: '5px', borderRadius: '10px', transition: 'all 0.2s'
-                    }}>
-                    <CloudDoneOutlinedIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </Box>
-          )}
-
-          {/* Close */}
-          <Tooltip title="Close Document">
-            <IconButton onClick={() => dispatch(removeOpenDocument(documentId))}
-              sx={{ color: '#ef4444', bgcolor: '#fee2e2', '&:hover': { bgcolor: '#fecaca', transform: 'translateY(-1px)' }, ml: 0.25, p: '5px', borderRadius: '10px', transition: 'all 0.2s' }}>
-              <CloseIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>{/* end right action buttons */}
-      </Box>{/* end outer single-row header */}
-      
+      {/* Modular Editor Header with Title, Model Switcher, Actions, and Storage Notice */}
+      <EditorHeader
+        documentId={documentId}
+        title={title}
+        setTitle={setTitle}
+        tags={tags}
+        onAddTag={handleAddTag}
+        onRemoveTag={handleRemoveTag}
+        tagAnchorEl={tagAnchorEl}
+        onOpenTagMenu={handleOpenTagMenu}
+        onCloseTagMenu={handleCloseTagMenu}
+        newTagInput={newTagInput}
+        setNewTagInput={setNewTagInput}
+        docType={docType}
+        isEditing={isEditing}
+        setIsEditing={setIsEditing}
+        isSaving={isSaving}
+        onSave={handleSave}
+        isA4Mode={isA4Mode}
+        setIsA4Mode={setIsA4Mode}
+        isDownloading={isDownloading}
+        onDownloadPdf={handleDownloadPdf}
+        onDownloadFormat={handleDownloadFormat}
+        onHistoryOpen={() => setHistoryOpen(true)}
+        onAiOpen={() => setAiOpen(true)}
+        onImportClick={handleImportClick}
+        fileInputRef={fileInputRef}
+        onFileImport={handleFileImport}
+        isImporting={isImporting}
+        onCloseDoc={() => dispatch(removeOpenDocument(documentId))}
+        onBackToLibrary={onBackToLibrary}
+        isStorageExceeded={isStorageExceeded}
+        onUpgradeClick={() => dispatch(setSubscriptionModalOpen(true))}
+        onReadModeOpen={async () => {
+          if (isEditing) {
+            await handleSave();
+          }
+          dispatch(setGlobalReadMode(documentId));
+        }}
+      />
 
       <Box className="flex-1 flex flex-col gap-3 sm:gap-1 min-h-1 relative">
         <Paper 
@@ -933,138 +875,146 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           onClickCapture={handleEditorClick}
           className={`flex-1 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-900/80 shadow-sm dark:shadow-none flex flex-col relative ${isEditing ? 'border-2 border-[#427c36]' : 'border border-green-100 dark:border-green-900'} ${!isEditing ? 'editor-readonly' : ''}`}
         >
-        {isEditing && (
-          <Tooltip title={isListening ? "Stop Dictation" : "Dictate"}>
-            <IconButton
-              onClick={toggleListen}
-              sx={{
-                position: 'absolute',
-                top: 3,
-                right: 10,
-                zIndex: 10,
-                color: isListening ? 'white' : '#326127',
-                bgcolor: isListening ? '#ef4444' : 'rgba(255, 255, 255, 0.9)',
-                border: isListening ? 'none' : '1px solid #326127',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                '&:hover': {
-                  bgcolor: isListening ? '#dc2626' : '#f0fdf4',
-                },
-                width: 30,
-                height: 30,
+          {docType === 'sheet' ? (
+            <SpreadsheetEditor
+              content={content}
+              onChange={(newContent) => {
+                setContent(newContent);
               }}
-            >
-              {isListening ? <MicOffIcon /> : <MicIcon />}
-            </IconButton>
-          </Tooltip>
-        )}
-        <ReactQuill
-          ref={quillRef}
-          theme="snow"
-          value={content}
-          onChange={(val) => {
-            setContent(val);
-            if (mediaEditNode) updateOverlayPosition();
-          }}
-          readOnly={!isEditing}
-          modules={modules}
-          className={`flex-1 flex flex-col min-h-0 custom-quill ${isA4Mode ? 'a4-mode' : ''}`}
-        />
-          {/* Interactive Table Edit Overlay */}
-          {isEditing && tableOverlayStyle && tableEditNode && (
-            <Box sx={{ position: 'absolute', top: tableOverlayStyle.top, left: tableOverlayStyle.left, zIndex: 60 }}>
-              <Paper elevation={4} className="flex items-center gap-1 p-1 rounded-lg bg-white/90 backdrop-blur-md border border-green-200">
-                <Tooltip title="Insert Row Above"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertRowAbove(); }}><TableRowsIcon fontSize="small" color="primary" sx={{ transform: 'rotate(180deg)' }}/></IconButton></Tooltip>
-                <Tooltip title="Insert Row Below"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertRowBelow(); }}><TableRowsIcon fontSize="small" color="primary" /></IconButton></Tooltip>
-                <Box sx={{ width: '1px', height: '24px', bgcolor: 'divider', mx: 0.5 }} />
-                <Tooltip title="Insert Column Left"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertColumnLeft(); }}><ViewColumnIcon fontSize="small" color="secondary" sx={{ transform: 'rotate(180deg)' }}/></IconButton></Tooltip>
-                <Tooltip title="Insert Column Right"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertColumnRight(); }}><ViewColumnIcon fontSize="small" color="secondary" /></IconButton></Tooltip>
-                <Box sx={{ width: '1px', height: '24px', bgcolor: 'divider', mx: 0.5 }} />
-                <Tooltip title="Delete Row"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').deleteRow(); }}><DeleteOutlineIcon fontSize="small" color="error" /></IconButton></Tooltip>
-                <Tooltip title="Delete Column"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').deleteColumn(); }}><DeleteOutlineIcon fontSize="small" color="error" /></IconButton></Tooltip>
-                <Tooltip title="Delete Table"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').deleteTable(); setTableEditNode(null); }}><GridOnIcon fontSize="small" color="error" /></IconButton></Tooltip>
-              </Paper>
-            </Box>
-          )}
-
-        
-        {/* Interactive Image Resizing Overlay */}
-        {isEditing && overlayStyle && mediaEditNode && (
-          <Box 
-            ref={overlayRef}
-            sx={{
-              position: 'absolute',
-              top: overlayStyle.top,
-              left: overlayStyle.left,
-              width: overlayStyle.width,
-              height: overlayStyle.height,
-              border: '2px solid #3b82f6',
-              pointerEvents: 'none',
-              zIndex: 50
-            }}
-          >
-            {/* Action Bar */}
-            <Paper
-              elevation={3}
-              sx={{
-                position: 'absolute',
-                top: -45,
-                right: 0,
-                pointerEvents: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                px: 1,
-                py: 0.5,
-                borderRadius: '8px',
-                bgcolor: 'white'
+              readOnly={!isEditing}
+            />
+          ) : docType === 'ppt' ? (
+            <PresentationEditor
+              content={content}
+              docTitle={title}
+              onChange={(newContent) => {
+                setContent(newContent);
               }}
-            >
-              <Tooltip title="Align Left">
-                <IconButton size="small" onClick={() => alignMedia('left')} sx={{ color: '#64748b', p: 0.5, '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' } }}>
-                  <FormatAlignLeftIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Align Center">
-                <IconButton size="small" onClick={() => alignMedia('center')} sx={{ color: '#64748b', p: 0.5, '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' } }}>
-                  <FormatAlignCenterIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Align Right">
-                <IconButton size="small" onClick={() => alignMedia('right')} sx={{ color: '#64748b', p: 0.5, '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' } }}>
-                  <FormatAlignRightIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.5 }} />
-              <Tooltip title="Delete">
-                <IconButton size="small" onClick={deleteMedia} sx={{ color: '#ef4444', p: 0.5, '&:hover': { bgcolor: '#fee2e2' } }}>
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Paper>
-
-            {/* Resize Handles */}
-            {['nw', 'ne', 'sw', 'se'].map(pos => (
-              <Box
-                key={pos}
-                onMouseDown={(e) => handleDragStart(e, pos)}
-                sx={{
-                  position: 'absolute',
-                  width: 12,
-                  height: 12,
-                  bgcolor: 'white',
-                  border: '2px solid #3b82f6',
-                  borderRadius: '50%',
-                  pointerEvents: 'auto',
-                  cursor: `${pos}-resize`,
-                  top: pos.includes('n') ? -6 : 'auto',
-                  bottom: pos.includes('s') ? -6 : 'auto',
-                  left: pos.includes('w') ? -6 : 'auto',
-                  right: pos.includes('e') ? -6 : 'auto',
+              readOnly={!isEditing}
+            />
+          ) : (
+            <>
+              {isEditing && (
+                <WordRibbonToolbar
+                  quillRef={quillRef}
+                  isListening={isListening}
+                  toggleListen={toggleListen}
+                  content={content}
+                  onInsertImage={imageHandler}
+                  onInsertTable={handleInsertTableGrid}
+                  showParagraphMarks={showParagraphMarks}
+                  setShowParagraphMarks={setShowParagraphMarks}
+                />
+              )}
+              <ReactQuill
+                ref={quillRef}
+                theme="snow"
+                value={content}
+                onChange={(val) => {
+                  setContent(val);
+                  if (mediaEditNode) updateOverlayPosition();
                 }}
+                readOnly={!isEditing}
+                modules={modules}
+                className={`flex-1 flex flex-col min-h-0 custom-quill ${isA4Mode ? 'a4-mode' : ''} ${showParagraphMarks ? 'show-paragraph-marks' : ''}`}
               />
-            ))}
-          </Box>
-        )}
+              {/* Interactive Table Edit Overlay */}
+              {isEditing && tableOverlayStyle && tableEditNode && (
+                <Box sx={{ position: 'absolute', top: tableOverlayStyle.top, left: tableOverlayStyle.left, zIndex: 60 }}>
+                  <Paper elevation={4} className="flex items-center gap-1 p-1 rounded-lg bg-white/90 backdrop-blur-md border border-green-200">
+                    <Tooltip title="Insert Row Above"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertRowAbove(); }}><TableRowsIcon fontSize="small" color="primary" sx={{ transform: 'rotate(180deg)' }}/></IconButton></Tooltip>
+                    <Tooltip title="Insert Row Below"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertRowBelow(); }}><TableRowsIcon fontSize="small" color="primary" /></IconButton></Tooltip>
+                    <Box sx={{ width: '1px', height: '24px', bgcolor: 'divider', mx: 0.5 }} />
+                    <Tooltip title="Insert Column Left"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertColumnLeft(); }}><ViewColumnIcon fontSize="small" color="secondary" sx={{ transform: 'rotate(180deg)' }}/></IconButton></Tooltip>
+                    <Tooltip title="Insert Column Right"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').insertColumnRight(); }}><ViewColumnIcon fontSize="small" color="secondary" /></IconButton></Tooltip>
+                    <Box sx={{ width: '1px', height: '24px', bgcolor: 'divider', mx: 0.5 }} />
+                    <Tooltip title="Delete Row"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').deleteRow(); }}><DeleteOutlineIcon fontSize="small" color="error" /></IconButton></Tooltip>
+                    <Tooltip title="Delete Column"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').deleteColumn(); }}><DeleteOutlineIcon fontSize="small" color="error" /></IconButton></Tooltip>
+                    <Tooltip title="Delete Table"><IconButton size="small" onMouseDown={e => e.preventDefault()} onClick={() => { if(quillRef.current) quillRef.current.getEditor().getModule('table').deleteTable(); setTableEditNode(null); }}><GridOnIcon fontSize="small" color="error" /></IconButton></Tooltip>
+                  </Paper>
+                </Box>
+              )}
+
+              {/* Interactive Image Resizing Overlay */}
+              {isEditing && overlayStyle && mediaEditNode && (
+                <Box 
+                  ref={overlayRef}
+                  sx={{
+                    position: 'absolute',
+                    top: overlayStyle.top,
+                    left: overlayStyle.left,
+                    width: overlayStyle.width,
+                    height: overlayStyle.height,
+                    border: '2px solid #3b82f6',
+                    pointerEvents: 'none',
+                    zIndex: 50
+                  }}
+                >
+                  {/* Action Bar */}
+                  <Paper
+                    elevation={3}
+                    sx={{
+                      position: 'absolute',
+                      top: -45,
+                      right: 0,
+                      pointerEvents: 'auto',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      px: 1,
+                      py: 0.5,
+                      borderRadius: '8px',
+                      bgcolor: 'white'
+                    }}
+                  >
+                    <Tooltip title="Align Left">
+                      <IconButton size="small" onClick={() => alignMedia('left')} sx={{ color: '#64748b', p: 0.5, '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' } }}>
+                        <FormatAlignLeftIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Align Center">
+                      <IconButton size="small" onClick={() => alignMedia('center')} sx={{ color: '#64748b', p: 0.5, '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' } }}>
+                        <FormatAlignCenterIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Align Right">
+                      <IconButton size="small" onClick={() => alignMedia('right')} sx={{ color: '#64748b', p: 0.5, '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' } }}>
+                        <FormatAlignRightIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.5 }} />
+                    <Tooltip title="Delete">
+                      <IconButton size="small" onClick={deleteMedia} sx={{ color: '#ef4444', p: 0.5, '&:hover': { bgcolor: '#fee2e2' } }}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Paper>
+
+                  {/* Resize Handles */}
+                  {['nw', 'ne', 'sw', 'se'].map(pos => (
+                    <Box
+                      key={pos}
+                      onMouseDown={(e) => handleDragStart(e, pos)}
+                      sx={{
+                        position: 'absolute',
+                        width: 12,
+                        height: 12,
+                        bgcolor: 'white',
+                        border: '2px solid #3b82f6',
+                        borderRadius: '50%',
+                        pointerEvents: 'auto',
+                        cursor: `${pos}-resize`,
+                        top: pos.includes('n') ? -6 : 'auto',
+                        bottom: pos.includes('s') ? -6 : 'auto',
+                        left: pos.includes('w') ? -6 : 'auto',
+                        right: pos.includes('e') ? -6 : 'auto',
+                      }}
+                    />
+                  ))}
+                </Box>
+              )}
+            </>
+          )}
         </Paper>
 
         {/* Attachments Bar (Below Editor) — Ultra-Compact & Premium */}

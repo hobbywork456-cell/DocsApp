@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  Box, 
-  Button, 
+import { useState, useEffect } from 'react';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Box,
+  Button,
   Tooltip,
   Dialog,
   DialogTitle,
@@ -23,6 +23,7 @@ import {
   List,
   ListItem,
   Avatar,
+  LinearProgress,
 } from '@mui/material';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -47,13 +48,14 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import LinkIcon from '@mui/icons-material/Link';
 import AlternateEmailIcon from '@mui/icons-material/AlternateEmail';
+import CloudQueueIcon from '@mui/icons-material/CloudQueue';
 import { useDispatch, useSelector } from 'react-redux';
 import { toggleTheme } from '../../slices/themeSlice';
 import { logout } from '../../slices/authSlice';
-import { 
-  createGroup, 
-  joinGroup, 
-  setActiveGroupId, 
+import {
+  createGroup,
+  joinGroup,
+  setActiveGroupId,
   fetchGroupMembers,
   removeGroupMember,
   deleteGroup,
@@ -61,21 +63,30 @@ import {
   rejectJoinRequest,
   fetchInviteToken
 } from '../../slices/groupSlice';
+import { useNavigate } from 'react-router-dom';
+import {
+  fetchTariff,
+  fetchStorageUsage,
+  setSubscriptionModalOpen
+} from '../../slices/subscriptionSlice';
+import SubscriptionModal from '../Subscription/SubscriptionModal';
 import './Navbar.css';
 
 const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
   const isDarkMode = useSelector((state) => state.theme?.isDarkMode);
-  const { 
-    groups, 
-    activeGroupId, 
-    actionLoading, 
-    currentGroupMembers, 
+  const {
+    groups,
+    activeGroupId,
+    actionLoading,
+    currentGroupMembers,
     currentJoinRequests,
-    isCurrentUserAdmin, 
-    membersLoading 
+    isCurrentUserAdmin,
+    membersLoading
   } = useSelector((state) => state.groups);
+  const { userStats, tariff } = useSelector((state) => state.subscription);
 
   // Group Switcher Menu
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -103,6 +114,29 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
   const [toastMessage, setToastMessage] = useState('');
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [toastSeverity, setToastSeverity] = useState('success');
+
+  // Fetch updated subscription & storage usage whenever Profile dialog is opened
+  useEffect(() => {
+    if (profileDialogOpen) {
+      dispatch(fetchTariff());
+      dispatch(fetchStorageUsage());
+    }
+  }, [profileDialogOpen, dispatch]);
+
+  // Storage calculations for profile
+  const defaultFreeMB = tariff?.freeStorageMB || 50;
+  const profileStats = userStats || {
+    totalUsedMB: 0,
+    totalQuotaMB: defaultFreeMB,
+    freeStorageMB: defaultFreeMB,
+    bonusStorageMB: 0,
+    percentUsed: 0,
+    currentPlan: 'Free Tier'
+  };
+  const profileUsedMB = profileStats.totalUsedMB || 0;
+  const profileQuotaMB = profileStats.totalQuotaMB || defaultFreeMB;
+  const profilePercent = Math.min(100, Math.round(profileStats.percentUsed || (profileQuotaMB > 0 ? (profileUsedMB / profileQuotaMB) * 100 : 0)));
+  const profileIsExceeded = profileStats.isExceeded || profilePercent >= 100;
 
   const currentGroup = groups.find((g) => g.groupId === activeGroupId) || null;
 
@@ -162,9 +196,9 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
     setAddDialogError('');
     const resultAction = await dispatch(
-      createGroup({ 
-        name: newGroupName.trim(), 
-        groupId: newGroupId.trim() || undefined 
+      createGroup({
+        name: newGroupName.trim(),
+        groupId: newGroupId.trim() || undefined
       })
     );
 
@@ -288,208 +322,271 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
   return (
     <>
-    <AppBar 
-      component="header" 
-      id="app-header" 
-      position="static" 
-      color="transparent" 
-      elevation={0}
-      className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 pt-0 pb-0"
-    >
-      <Toolbar component="nav" id="app-navigation" aria-label="Main Navigation" className="px-2 sm:px-6 min-h-[40px] sm:min-h-[48px] flex items-center justify-between gap-1 sm:gap-4">
-        {/* Left Side: Brand Logo, Group Switcher */}
-        <Box className="flex items-center overflow-hidden">
-          <Box className="flex items-center shrink-0">
-            <MenuBookIcon sx={{ color: '#427c36', mr: 0.75, fontSize: { xs: 22, sm: 26 } }} />
-            <Typography 
-              variant="h6" 
-              noWrap 
-              component="span" 
-              className="font-black gradient-text tracking-wide text-xl sm:text-2xl select-none"
-              sx={{ display: 'inline-block', fontWeight: 900 }}
-            >
-              DocsApp
-            </Typography>
-          </Box>
-
-
-
-          {/* Group Selector Dropdown Menu */}
-          <Menu
-            id="group-switcher-menu"
-            anchorEl={menuAnchorEl}
-            open={isMenuOpen}
-            onClose={handleCloseGroupMenu}
-            PaperProps={{
-              sx: {
-                borderRadius: '6px',
-                mt: 1,
-                minWidth: '240px',
-                maxWidth: '320px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                border: '1px solid #e5e7eb',
-                p: 0.5
-              }
-            }}
-          >
-            <Typography variant="caption" className="px-3 py-1 font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block text-[11px]">
-              My Groups ({groups.length})
-            </Typography>
-
-            {groups.map((group) => {
-              const isSelected = group.groupId === activeGroupId;
-              return (
-                <MenuItem 
-                  key={group._id || group.groupId}
-                  onClick={() => handleSelectGroup(group.groupId)}
-                  className={`rounded-xl my-0.5 transition-all ${isSelected ? 'bg-green-50 dark:bg-green-900/40 font-bold' : ''}`}
-                >
-                  <ListItemIcon sx={{ minWidth: 32 }}>
-                    {isSelected ? <CheckIcon sx={{ color: '#000', fontSize: 18 }} /> : <GroupIcon sx={{ color: '#9ca3af', fontSize: 18 }} />}
-                  </ListItemIcon>
-                  <Box className="flex flex-col">
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        fontSize: '0.85rem', 
-                        fontWeight: isSelected ? 700 : 500,
-                        color: isSelected ? '#326127' : '#374151'
-                      }}
-                    >
-                      {group.name}
-                    </Typography>
-                    <Typography variant="caption" sx={{ fontSize: '0.72rem', color: '#6b7280' }}>
-                      ID: {group.groupId}
-                    </Typography>
-                  </Box>
-                </MenuItem>
-              );
-            })}
-
-            {groups.length === 0 && (
-              <Box className="px-3 py-2 text-center text-gray-400 dark:text-gray-500 text-xs italic">
-                No groups joined yet
-              </Box>
-            )}
-
-            <Box className="border-t border-gray-200 dark:border-gray-700 my-1 pt-1">
-              {currentGroup && (
-                <MenuItem onClick={handleOpenMembersDialog} className="rounded-md text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-800">
-                  <ListItemIcon sx={{ minWidth: 28 }}>
-                    <PeopleIcon sx={{ color: '#4b5563', fontSize: 15 }} />
-                  </ListItemIcon>
-                  Manage Group Members
-                </MenuItem>
-              )}
-              <MenuItem onClick={handleOpenAddDialog} className="rounded-md text-xs font-bold text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:bg-gray-800">
-                <ListItemIcon sx={{ minWidth: 28 }}>
-                  <GroupAddIcon sx={{ color: '#4b5563', fontSize: 15 }} />
-                </ListItemIcon>
-                Create New Group
-              </MenuItem>
-              <MenuItem onClick={handleOpenJoinDialog} className="rounded-md text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-800">
-                <ListItemIcon sx={{ minWidth: 28 }}>
-                  <GroupIcon sx={{ color: '#6b7280', fontSize: 15 }} />
-                </ListItemIcon>
-                Join Existing Group
-              </MenuItem>
+      <AppBar
+        component="header"
+        id="app-header"
+        position="static"
+        color="transparent"
+        elevation={0}
+        className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 pt-0 pb-0"
+      >
+        <Toolbar component="nav" id="app-navigation" aria-label="Main Navigation" className="px-2 sm:px-6 min-h-[40px] sm:min-h-[48px] flex items-center justify-between gap-1 sm:gap-4">
+          {/* Left Side: Brand Logo, Group Switcher */}
+          <Box className="flex items-center overflow-hidden">
+            <Box className="flex items-center shrink-0">
+              <MenuBookIcon sx={{ color: '#427c36', mr: 0.75, fontSize: { xs: 22, sm: 26 } }} />
+            <Typography
+  variant="h6"
+  noWrap
+  component="span"
+  className="font-black tracking-wide text-xl sm:text-2xl select-none"
+  sx={{
+    display: 'inline-block',
+    fontWeight: 900,
+    background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+  }}
+>
+  DocsApp
+</Typography>
             </Box>
-          </Menu>
 
-        </Box>
 
-        {/* Right Side Actions */}
-        <Box className="flex items-center gap-1 sm:gap-2 shrink-0">
-          
-          {/* Group Switcher (Visible on Mobile & Desktop) */}
-          <Tooltip title="Switch Active Group">
-            <Box 
-              onClick={handleOpenGroupMenu}
-              className="group flex items-center cursor-pointer transition-all duration-200"
-              sx={{
-                background: 'linear-gradient(135deg, rgba(96,165,250,0.06) 0%, rgba(66,124,54,0.06) 100%)',
-                border: '1px solid rgba(66,124,54,0.1)',
-                borderRadius: '10px',
-                padding: { xs: '4px 6px', sm: '6px 12px' },
-                '&:hover': { 
-                  background: 'linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(66,124,54,0.12) 100%)',
-                  borderColor: 'rgba(66,124,54,0.3)',
-                  boxShadow: '0 2px 8px rgba(66,124,54,0.1)'
+
+            {/* Group Selector Dropdown Menu */}
+            <Menu
+              id="group-switcher-menu"
+              anchorEl={menuAnchorEl}
+              open={isMenuOpen}
+              onClose={handleCloseGroupMenu}
+              PaperProps={{
+                sx: {
+                  borderRadius: '6px',
+                  mt: 1,
+                  minWidth: '240px',
+                  maxWidth: '320px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                  border: '1px solid #e5e7eb',
+                  p: 0.5
                 }
               }}
             >
-              <Typography 
-                variant="caption" 
-                className="font-bold text-[#326127] uppercase tracking-wide truncate max-w-[100px] sm:max-w-[140px] mr-0.5 sm:mr-1 transition-colors"
-                sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
-              >
-                {currentGroup ? currentGroup.name : 'NO GROUP'}
+              <Typography variant="caption" className="px-3 py-1 font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block text-[11px]">
+                My Groups ({groups.length})
               </Typography>
-              <KeyboardArrowDownIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#427c36', transition: 'transform 0.2s', ...{ '.group:hover &': { transform: 'translateY(1px)' } } }} />
-            </Box>
-          </Tooltip>
 
-          <Box className="w-[1px] h-6 bg-green-100 dark:bg-green-900/60 mx-0.5 sm:mx-1 hidden md:block" />
-          
-          {/* Desktop-only extra buttons */}
-          <Box className="hidden md:flex items-center gap-1.5">
-            {currentGroup && (
-              <Tooltip title="Manage Group Members">
-                <IconButton
-                  onClick={handleOpenMembersDialog}
-                  size="small"
-                  sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
-                >
-                  <AdminPanelSettingsIcon sx={{ fontSize: 20 }} />
-                </IconButton>
-              </Tooltip>
-            )}
+              {groups.map((group) => {
+                const isSelected = group.groupId === activeGroupId;
+                return (
+                  <MenuItem
+                    key={group._id || group.groupId}
+                    onClick={() => handleSelectGroup(group.groupId)}
+                    className={`rounded-xl my-0.5 transition-all ${isSelected ? 'bg-green-50 dark:bg-green-900/40 font-bold' : ''}`}
+                  >
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      {isSelected ? <CheckIcon sx={{ color: '#000', fontSize: 18 }} /> : <GroupIcon sx={{ color: '#9ca3af', fontSize: 18 }} />}
+                    </ListItemIcon>
+                    <Box className="flex flex-col">
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: '0.85rem',
+                          fontWeight: isSelected ? 700 : 500,
+                          color: isSelected ? '#326127' : '#374151'
+                        }}
+                      >
+                        {group.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontSize: '0.72rem', color: '#6b7280' }}>
+                        ID: {group.groupId}
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                );
+              })}
 
-            <Tooltip title="Create New Group">
-              <IconButton
-                onClick={handleOpenAddDialog}
-                size="small"
-                sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
-              >
-                <GroupAddIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            </Tooltip>
+              {groups.length === 0 && (
+                <Box className="px-3 py-2 text-center text-gray-400 dark:text-gray-500 text-xs italic">
+                  No groups joined yet
+                </Box>
+              )}
 
-            <Tooltip title="Join Existing Group">
-              <IconButton
-                onClick={handleOpenJoinDialog}
-                size="small"
-                sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
-              >
-                <GroupIcon sx={{ fontSize: 20 }} />
-              </IconButton>
-            </Tooltip>
+              <Box className="border-t border-gray-200 dark:border-gray-700 my-1 pt-1">
+                {currentGroup && (
+                  <MenuItem onClick={handleOpenMembersDialog} className="rounded-md text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-800">
+                    <ListItemIcon sx={{ minWidth: 28 }}>
+                      <PeopleIcon sx={{ color: '#4b5563', fontSize: 15 }} />
+                    </ListItemIcon>
+                    Manage Group Members
+                  </MenuItem>
+                )}
+                <MenuItem onClick={handleOpenAddDialog} className="rounded-md text-xs font-bold text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:bg-gray-800">
+                  <ListItemIcon sx={{ minWidth: 28 }}>
+                    <GroupAddIcon sx={{ color: '#4b5563', fontSize: 15 }} />
+                  </ListItemIcon>
+                  Create New Group
+                </MenuItem>
+                <MenuItem onClick={handleOpenJoinDialog} className="rounded-md text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-800">
+                  <ListItemIcon sx={{ minWidth: 28 }}>
+                    <GroupIcon sx={{ color: '#6b7280', fontSize: 15 }} />
+                  </ListItemIcon>
+                  Join Existing Group
+                </MenuItem>
+              </Box>
+            </Menu>
+
           </Box>
 
-          <Box className="w-[1px] h-6 bg-blue-100 mx-1 hidden md:block" />
+          {/* Right Side Actions */}
+          <Box className="flex items-center gap-1 sm:gap-2 shrink-0">
 
-          {/* Theme Toggle */}
+            {user?.role === 'superadmin' ? (
+              <>
+                {/* Super Admin Global Governance Badge */}
+                <Tooltip title="Super Admin has root access to all applications and is exempt from group requirements">
+                  <Box
+                    onClick={() => navigate('/superadmin')}
+                    className="flex items-center cursor-pointer transition-all duration-200"
+                    sx={{
+                      background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.18) 0%, rgba(245, 158, 11, 0.18) 100%)',
+                      border: '1px solid rgba(245, 158, 11, 0.45)',
+                      borderRadius: '10px',
+                      padding: { xs: '4px 8px', sm: '6px 14px' },
+                      boxShadow: '0 0 14px rgba(245, 158, 11, 0.2)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.28) 0%, rgba(245, 158, 11, 0.28) 100%)',
+                        borderColor: '#fbbf24',
+                        transform: 'translateY(-1px)'
+                      }
+                    }}
+                  >
+                    <AdminPanelSettingsIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#fbbf24', mr: 0.75 }} />
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 900, color: '#fbbf24', letterSpacing: '0.04em', fontSize: { xs: '0.68rem', sm: '0.78rem' } }}
+                    >
+                      👑 SUPER ADMIN · GLOBAL CONTROL
+                    </Typography>
+                  </Box>
+                </Tooltip>
+
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => navigate('/superadmin')}
+                  startIcon={<AdminPanelSettingsIcon sx={{ fontSize: '1rem !important' }} />}
+                  sx={{
+                    background: 'linear-gradient(135deg, var(--theme-palette-primary, #7c3aed), var(--theme-palette-dark, #4f46e5)) !important',
+                    color: '#ffffff !important',
+                    fontWeight: 800,
+                    textTransform: 'none',
+                    borderRadius: '9px',
+                    fontSize: '0.74rem',
+                    py: '5px',
+                    px: '12px',
+                    boxShadow: '0 2px 10px rgba(124, 58, 237, 0.35)',
+                    '&:hover': {
+                      transform: 'translateY(-1px)'
+                    },
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Super Admin Dashboard
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Group Switcher (Visible on Mobile & Desktop) */}
+                <Tooltip title="Switch Active Group">
+                  <Box
+                    onClick={handleOpenGroupMenu}
+                    className="group flex items-center cursor-pointer transition-all duration-200"
+                    sx={{
+                      background: 'linear-gradient(135deg, rgba(96,165,250,0.06) 0%, rgba(66,124,54,0.06) 100%)',
+                      border: '1px solid rgba(66,124,54,0.1)',
+                      borderRadius: '10px',
+                      padding: { xs: '4px 6px', sm: '6px 12px' },
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(66,124,54,0.12) 100%)',
+                        borderColor: 'rgba(66,124,54,0.3)',
+                        boxShadow: '0 2px 8px rgba(66,124,54,0.1)'
+                      }
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      className="font-bold text-[#326127] uppercase tracking-wide truncate max-w-[100px] sm:max-w-[140px] mr-0.5 sm:mr-1 transition-colors"
+                      sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+                    >
+                      {currentGroup ? currentGroup.name : 'NO GROUP'}
+                    </Typography>
+                    <KeyboardArrowDownIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#427c36', transition: 'transform 0.2s', ...{ '.group:hover &': { transform: 'translateY(1px)' } } }} />
+                  </Box>
+                </Tooltip>
+
+                <Box className="w-[1px] h-6 bg-green-100 dark:bg-green-900/60 mx-0.5 sm:mx-1 hidden md:block" />
+
+                {/* Desktop-only extra buttons */}
+                <Box className="hidden md:flex items-center gap-1.5">
+                  {currentGroup && (
+                    <Tooltip title="Manage Group Members">
+                      <IconButton
+                        onClick={handleOpenMembersDialog}
+                        size="small"
+                        sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                      >
+                        <AdminPanelSettingsIcon sx={{ fontSize: 20 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+
+                  <Tooltip title="Create New Group">
+                    <IconButton
+                      onClick={handleOpenAddDialog}
+                      size="small"
+                      sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                    >
+                      <GroupAddIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                  </Tooltip>
+
+                  <Tooltip title="Join Existing Group">
+                    <IconButton
+                      onClick={handleOpenJoinDialog}
+                      size="small"
+                      sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                    >
+                      <GroupIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </>
+            )}
+
+            {/* Theme Toggle */}
             <Tooltip title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
-              <IconButton 
+              <IconButton
                 onClick={() => dispatch(toggleTheme())}
                 size="small"
-                sx={{ 
-                  color: isDarkMode ? '#fbbf24' : '#4b5563', 
-                  bgcolor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6', 
-                  p: { xs: '6px', sm: '8px' }, 
-                  borderRadius: '10px', 
-                  mr: 1, 
-                  '&:hover': { bgcolor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#e5e7eb', transform: 'translateY(-1px)' }, 
-                  transition: 'all 0.2s' 
+                sx={{
+                  color: isDarkMode ? '#fbbf24' : '#4b5563',
+                  bgcolor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
+                  p: { xs: '6px', sm: '8px' },
+                  borderRadius: '10px',
+                  mr: 1,
+                  '&:hover': { bgcolor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#e5e7eb', transform: 'translateY(-1px)' },
+                  transition: 'all 0.2s'
                 }}
               >
                 {isDarkMode ? <LightModeIcon sx={{ fontSize: { xs: 18, sm: 20 } }} /> : <DarkModeIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />}
               </IconButton>
             </Tooltip>
-            
+
             {/* User Avatar (Desktop only) */}
             <Tooltip title="My Profile">
-              <Box 
+              <Box
                 onClick={() => setProfileDialogOpen(true)}
                 className="hidden md:flex w-9 h-9 rounded-full items-center justify-center font-bold text-sm cursor-pointer shadow-sm dark:shadow-none border-2 border-white hover:scale-105 transition-transform"
                 sx={{ background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)', color: 'white', ml: 1 }}
@@ -497,569 +594,569 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 {user?.email?.charAt(0).toUpperCase() || 'U'}
               </Box>
             </Tooltip>
-        </Box>
-      </Toolbar>
+          </Box>
+        </Toolbar>
 
-      <Dialog
-        id="add-group-dialog"
-        open={addDialogOpen}
-        onClose={handleCloseAddDialog}
-        maxWidth="xs"
-        fullWidth
-        slotProps={{
-          backdrop: {
-            sx: { backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }
-          },
-          paper: {
-            sx: {
-              borderRadius: '24px',
-              boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
-              backgroundImage: 'none',
-              overflow: 'hidden',
-              position: 'relative'
+        <Dialog
+          id="add-group-dialog"
+          open={addDialogOpen}
+          onClose={handleCloseAddDialog}
+          maxWidth="xs"
+          fullWidth
+          slotProps={{
+            backdrop: {
+              sx: { backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }
             },
-            className: 'bg-white dark:bg-gray-900 border border-green-100 dark:border-gray-800'
-          }
-        }}
-      >
-        <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#60a5fa]/20 to-[#427c36]/20 dark:from-[#60a5fa]/30 dark:to-[#427c36]/30 pointer-events-none" />
-        
-        <IconButton 
-          onClick={handleCloseAddDialog} 
-          size="small"
-          sx={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
-          className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            paper: {
+              sx: {
+                borderRadius: '24px',
+                boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+                backgroundImage: 'none',
+                overflow: 'hidden',
+                position: 'relative'
+              },
+              className: 'bg-white dark:bg-gray-900 border border-green-100 dark:border-gray-800'
+            }
+          }}
         >
-          <CloseIcon fontSize="small" />
-        </IconButton>
+          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#60a5fa]/20 to-[#427c36]/20 dark:from-[#60a5fa]/30 dark:to-[#427c36]/30 pointer-events-none" />
 
-        <Box component="form" onSubmit={handleCreateGroupSubmit} className="relative z-10 flex flex-col pt-8">
-          <DialogTitle className="flex flex-col items-center pb-2 text-center">
-            <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center shadow-lg shadow-[#427c36]/30 mb-4 text-white">
-              <GroupAddIcon fontSize="large" />
-            </Box>
-            <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
-              Create Workspace
-            </Typography>
-            <Typography variant="body2" className="text-gray-500 dark:text-gray-400 text-center px-4">
-              Set up a private collaborative space for your team's documentation.
-            </Typography>
-          </DialogTitle>
+          <IconButton
+            onClick={handleCloseAddDialog}
+            size="small"
+            sx={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
+            className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
 
-          <DialogContent className="px-6 pb-6 pt-2">
-            {addDialogError && (
-              <Alert severity="error" className="mb-6 rounded-xl border border-red-200 dark:border-red-900/50" onClose={() => setAddDialogError('')}>
-                {addDialogError}
-              </Alert>
-            )}
+          <Box component="form" onSubmit={handleCreateGroupSubmit} className="relative z-10 flex flex-col pt-8">
+            <DialogTitle className="flex flex-col items-center pb-2 text-center">
+              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center shadow-lg shadow-[#427c36]/30 mb-4 text-white">
+                <GroupAddIcon fontSize="large" />
+              </Box>
+              <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
+                Create Workspace
+              </Typography>
+              <Typography variant="body2" className="text-gray-500 dark:text-gray-400 text-center px-4">
+                Set up a private collaborative space for your team's documentation.
+              </Typography>
+            </DialogTitle>
 
-            <Box className="space-y-5">
-              <Box>
-                <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300 ml-1 mb-1 block uppercase tracking-wider">
-                  Workspace Name
+            <DialogContent className="px-6 pb-6 pt-2">
+              {addDialogError && (
+                <Alert severity="error" className="mb-6 rounded-xl border border-red-200 dark:border-red-900/50" onClose={() => setAddDialogError('')}>
+                  {addDialogError}
+                </Alert>
+              )}
+
+              <Box className="space-y-5">
+                <Box>
+                  <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300 ml-1 mb-1 block uppercase tracking-wider">
+                    Workspace Name
+                  </Typography>
+                  <TextField
+                    id="create-group-name-input"
+                    placeholder="e.g. Engineering, Marketing..."
+                    fullWidth
+                    required
+                    value={newGroupName}
+                    onChange={(e) => {
+                      setNewGroupName(e.target.value);
+                      setAddDialogError('');
+                    }}
+                    slotProps={{
+                      input: { className: 'rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors' }
+                    }}
+                    sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.05)' } }}
+                  />
+                </Box>
+
+                <Box>
+                  <Box className="flex justify-between items-center ml-1 mb-1">
+                    <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Unique Group ID
+                    </Typography>
+                    <Button
+                      size="small"
+                      onClick={handleGenerateId}
+                      startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
+                      sx={{ textTransform: 'none', py: 0, minHeight: 'auto', fontSize: '0.7rem', fontWeight: 'bold' }}
+                      className="text-[#427c36] dark:text-[#60a5fa] hover:bg-green-50 dark:hover:bg-blue-900/30 rounded-lg px-2 transition-colors"
+                    >
+                      Auto-generate
+                    </Button>
+                  </Box>
+                  <TextField
+                    id="create-group-id-input"
+                    placeholder="e.g. eng-team-24"
+                    fullWidth
+                    value={newGroupId}
+                    onChange={(e) => {
+                      setNewGroupId(e.target.value.toLowerCase().replace(/\s+/g, '-'));
+                      setAddDialogError('');
+                    }}
+                    slotProps={{
+                      input: {
+                        className: 'rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 font-mono text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
+                      }
+                    }}
+                    sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.05)' } }}
+                  />
+                </Box>
+              </Box>
+            </DialogContent>
+
+            <DialogActions className="px-6 pb-6 pt-0 flex-col gap-3">
+              <Button
+                type="submit"
+                fullWidth
+                disabled={actionLoading || !newGroupName.trim()}
+                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#60a5fa] to-[#427c36] hover:from-blue-500 hover:to-green-700 text-white shadow-lg shadow-[#427c36]/25 transition-all transform hover:-translate-y-0.5"
+                sx={{ textTransform: 'none' }}
+              >
+                {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Create Workspace'}
+              </Button>
+              <Button
+                onClick={handleCloseAddDialog}
+                fullWidth
+                className="rounded-2xl py-2.5 font-bold text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+                disabled={actionLoading}
+                sx={{ textTransform: 'none', margin: '0 !important' }}
+              >
+                Cancel
+              </Button>
+            </DialogActions>
+          </Box>
+        </Dialog>
+
+        {/* JOIN GROUP DIALOG */}
+        <Dialog
+          id="join-group-dialog"
+          open={joinDialogOpen}
+          onClose={handleCloseJoinDialog}
+          maxWidth="xs"
+          fullWidth
+          slotProps={{
+            backdrop: {
+              sx: { backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }
+            },
+            paper: {
+              sx: {
+                borderRadius: '24px',
+                boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+                backgroundImage: 'none',
+                overflow: 'hidden',
+                position: 'relative'
+              },
+              className: 'bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800'
+            }
+          }}
+        >
+          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#60a5fa]/20 to-[#427c36]/20 dark:from-[#60a5fa]/30 dark:to-[#427c36]/30 pointer-events-none" />
+
+          <IconButton
+            onClick={handleCloseJoinDialog}
+            size="small"
+            sx={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
+            className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+
+          <Box component="form" onSubmit={handleJoinGroupSubmit} className="relative z-10 flex flex-col pt-8">
+            <DialogTitle className="flex flex-col items-center pb-2 text-center">
+              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center shadow-lg shadow-[#60a5fa]/30 mb-4 text-white">
+                <GroupIcon fontSize="large" />
+              </Box>
+              <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
+                Join Workspace
+              </Typography>
+              <Typography variant="body2" className="text-gray-500 dark:text-gray-400 text-center px-4">
+                Enter a unique Workspace ID below to request access and collaborate.
+              </Typography>
+            </DialogTitle>
+
+            <DialogContent className="px-6 pb-6 pt-4">
+              {joinDialogError && (
+                <Alert severity="error" className="mb-6 rounded-xl border border-red-200 dark:border-red-900/50" onClose={() => setJoinDialogError('')}>
+                  {joinDialogError}
+                </Alert>
+              )}
+
+              <Box className="space-y-2">
+                <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300 ml-1 block uppercase tracking-wider">
+                  Workspace ID
                 </Typography>
                 <TextField
-                  id="create-group-name-input"
-                  placeholder="e.g. Engineering, Marketing..."
-                  fullWidth
-                  required
-                  value={newGroupName}
-                  onChange={(e) => {
-                    setNewGroupName(e.target.value);
-                    setAddDialogError('');
-                  }}
-                  slotProps={{
-                    input: { className: 'rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors' }
-                  }}
-                  sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.05)' } }}
-                />
-              </Box>
-
-              <Box>
-                <Box className="flex justify-between items-center ml-1 mb-1">
-                  <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Unique Group ID
-                  </Typography>
-                  <Button
-                    size="small"
-                    onClick={handleGenerateId}
-                    startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
-                    sx={{ textTransform: 'none', py: 0, minHeight: 'auto', fontSize: '0.7rem', fontWeight: 'bold' }}
-                    className="text-[#427c36] dark:text-[#60a5fa] hover:bg-green-50 dark:hover:bg-blue-900/30 rounded-lg px-2 transition-colors"
-                  >
-                    Auto-generate
-                  </Button>
-                </Box>
-                <TextField
-                  id="create-group-id-input"
+                  id="join-group-id-input"
                   placeholder="e.g. eng-team-24"
                   fullWidth
-                  value={newGroupId}
+                  autoFocus
+                  required
+                  value={joinInputId}
                   onChange={(e) => {
-                    setNewGroupId(e.target.value.toLowerCase().replace(/\s+/g, '-'));
-                    setAddDialogError('');
+                    setJoinInputId(e.target.value);
+                    setJoinDialogError('');
                   }}
                   slotProps={{
-                    input: { 
-                      className: 'rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 font-mono text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors' 
+                    input: {
+                      className: 'rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 font-mono text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
                     }
                   }}
                   sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.05)' } }}
                 />
               </Box>
-            </Box>
-          </DialogContent>
+            </DialogContent>
 
-          <DialogActions className="px-6 pb-6 pt-0 flex-col gap-3">
-            <Button
-              type="submit"
-              fullWidth
-              disabled={actionLoading || !newGroupName.trim()}
-              className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#60a5fa] to-[#427c36] hover:from-blue-500 hover:to-green-700 text-white shadow-lg shadow-[#427c36]/25 transition-all transform hover:-translate-y-0.5"
-              sx={{ textTransform: 'none' }}
-            >
-              {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Create Workspace'}
-            </Button>
-            <Button 
-              onClick={handleCloseAddDialog} 
-              fullWidth
-              className="rounded-2xl py-2.5 font-bold text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
-              disabled={actionLoading}
-              sx={{ textTransform: 'none', margin: '0 !important' }}
-            >
-              Cancel
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
+            <DialogActions className="px-6 pb-6 pt-0 flex-col gap-3">
+              <Button
+                type="submit"
+                fullWidth
+                disabled={actionLoading || !joinInputId.trim()}
+                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#60a5fa] to-[#427c36] hover:from-blue-500 hover:to-green-700 text-white shadow-lg shadow-[#60a5fa]/25 transition-all transform hover:-translate-y-0.5"
+                sx={{ textTransform: 'none' }}
+              >
+                {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Join Workspace'}
+              </Button>
+              <Button
+                onClick={handleCloseJoinDialog}
+                fullWidth
+                className="rounded-2xl py-2.5 font-bold text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+                disabled={actionLoading}
+                sx={{ textTransform: 'none', margin: '0 !important' }}
+              >
+                Cancel
+              </Button>
+            </DialogActions>
+          </Box>
+        </Dialog>
 
-      {/* JOIN GROUP DIALOG */}
-      <Dialog
-        id="join-group-dialog"
-        open={joinDialogOpen}
-        onClose={handleCloseJoinDialog}
-        maxWidth="xs"
-        fullWidth
-        slotProps={{
-          backdrop: {
-            sx: { backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)' }
-          },
-          paper: {
-            sx: {
-              borderRadius: '24px',
-              boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
-              backgroundImage: 'none',
-              overflow: 'hidden',
-              position: 'relative'
-            },
-            className: 'bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800'
-          }
-        }}
-      >
-        <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#60a5fa]/20 to-[#427c36]/20 dark:from-[#60a5fa]/30 dark:to-[#427c36]/30 pointer-events-none" />
-        
-        <IconButton 
-          onClick={handleCloseJoinDialog} 
-          size="small"
-          sx={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
-          className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+        {/* MANAGE GROUP MEMBERS & SETTINGS DIALOG */}
+        <Dialog
+          id="group-members-dialog"
+          open={membersDialogOpen}
+          onClose={handleCloseMembersDialog}
+          maxWidth="sm"
+          fullWidth
+          slotProps={{
+            paper: {
+              sx: {
+                borderRadius: '20px',
+                p: 1,
+                boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+                border: '1px solid #dcfce3'
+              }
+            }
+          }}
         >
-          <CloseIcon fontSize="small" />
-        </IconButton>
-
-        <Box component="form" onSubmit={handleJoinGroupSubmit} className="relative z-10 flex flex-col pt-8">
-          <DialogTitle className="flex flex-col items-center pb-2 text-center">
-            <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center shadow-lg shadow-[#60a5fa]/30 mb-4 text-white">
-              <GroupIcon fontSize="large" />
+          <DialogTitle className="flex justify-between items-center pb-2">
+            <Box className="flex items-center gap-2">
+              <Box className="p-2 rounded-xl bg-green-50 dark:bg-green-900/40 text-[#427c36] border border-green-100 dark:border-green-900">
+                <PeopleIcon fontSize="small" />
+              </Box>
+              <Box>
+                <Typography component="div" variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 leading-tight">
+                  {currentGroup?.name || 'Group Members'}
+                </Typography>
+                <Typography variant="caption" className="text-gray-500 dark:text-gray-400 dark:text-gray-500 font-mono">
+                  ID: {currentGroup?.groupId}
+                </Typography>
+              </Box>
             </Box>
-            <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
-              Join Workspace
-            </Typography>
-            <Typography variant="body2" className="text-gray-500 dark:text-gray-400 text-center px-4">
-              Enter a unique Workspace ID below to request access and collaborate.
-            </Typography>
+            <IconButton onClick={handleCloseMembersDialog} size="small">
+              <CloseIcon fontSize="small" />
+            </IconButton>
           </DialogTitle>
 
-          <DialogContent className="px-6 pb-6 pt-4">
-            {joinDialogError && (
-              <Alert severity="error" className="mb-6 rounded-xl border border-red-200 dark:border-red-900/50" onClose={() => setJoinDialogError('')}>
-                {joinDialogError}
-              </Alert>
-            )}
-
-            <Box className="space-y-2">
-              <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300 ml-1 block uppercase tracking-wider">
-                Workspace ID
-              </Typography>
-              <TextField
-                id="join-group-id-input"
-                placeholder="e.g. eng-team-24"
-                fullWidth
-                autoFocus
-                required
-                value={joinInputId}
-                onChange={(e) => {
-                  setJoinInputId(e.target.value);
-                  setJoinDialogError('');
-                }}
-                slotProps={{
-                  input: { 
-                    className: 'rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 font-mono text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors' 
-                  }
-                }}
-                sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(0,0,0,0.05)' } }}
-              />
+          <DialogContent className="pt-2 pb-2">
+            {/* Group Info Banner */}
+            <Box className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 dark:border-green-900 mb-4 shadow-sm dark:shadow-none">
+              <Box>
+                <Typography variant="body2" className="font-bold text-gray-700 dark:text-gray-300">
+                  Total Members: <span className="text-[#326127]">{currentGroupMembers.length}</span>
+                </Typography>
+                <Typography variant="caption" className="text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                  {isCurrentUserAdmin ? 'You are the Group Admin.' : 'You are a Member of this group.'}
+                </Typography>
+              </Box>
+              {isCurrentUserAdmin && (
+                <Chip
+                  icon={<AdminPanelSettingsIcon sx={{ fontSize: 16 }} />}
+                  label="Group Admin"
+                  size="small"
+                  className="bg-gradient-to-r from-green-400 to-[#427c36] text-white font-bold text-xs shadow-sm dark:shadow-none"
+                />
+              )}
             </Box>
-          </DialogContent>
 
-          <DialogActions className="px-6 pb-6 pt-0 flex-col gap-3">
-            <Button
-              type="submit"
-              fullWidth
-              disabled={actionLoading || !joinInputId.trim()}
-              className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#60a5fa] to-[#427c36] hover:from-blue-500 hover:to-green-700 text-white shadow-lg shadow-[#60a5fa]/25 transition-all transform hover:-translate-y-0.5"
-              sx={{ textTransform: 'none' }}
-            >
-              {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Join Workspace'}
-            </Button>
-            <Button 
-              onClick={handleCloseJoinDialog} 
-              fullWidth
-              className="rounded-2xl py-2.5 font-bold text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
-              disabled={actionLoading}
-              sx={{ textTransform: 'none', margin: '0 !important' }}
-            >
-              Cancel
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
+            {/* Members List */}
+            <Typography variant="subtitle2" className="font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase text-[11px] tracking-wider">
+              Group Members
+            </Typography>
 
-      {/* MANAGE GROUP MEMBERS & SETTINGS DIALOG */}
-      <Dialog
-        id="group-members-dialog"
-        open={membersDialogOpen}
-        onClose={handleCloseMembersDialog}
-        maxWidth="sm"
-        fullWidth
-        slotProps={{
-          paper: {
-            sx: {
-              borderRadius: '20px',
-              p: 1,
-              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-              border: '1px solid #dcfce3'
-            }
-          }
-        }}
-      >
-        <DialogTitle className="flex justify-between items-center pb-2">
-          <Box className="flex items-center gap-2">
-            <Box className="p-2 rounded-xl bg-green-50 dark:bg-green-900/40 text-[#427c36] border border-green-100 dark:border-green-900">
-              <PeopleIcon fontSize="small" />
-            </Box>
-            <Box>
-              <Typography component="div" variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 leading-tight">
-                {currentGroup?.name || 'Group Members'}
-              </Typography>
-              <Typography variant="caption" className="text-gray-500 dark:text-gray-400 dark:text-gray-500 font-mono">
-                ID: {currentGroup?.groupId}
-              </Typography>
-            </Box>
-          </Box>
-          <IconButton onClick={handleCloseMembersDialog} size="small">
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent className="pt-2 pb-2">
-          {/* Group Info Banner */}
-          <Box className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 dark:border-green-900 mb-4 shadow-sm dark:shadow-none">
-            <Box>
-              <Typography variant="body2" className="font-bold text-gray-700 dark:text-gray-300">
-                Total Members: <span className="text-[#326127]">{currentGroupMembers.length}</span>
-              </Typography>
-              <Typography variant="caption" className="text-gray-500 dark:text-gray-400 dark:text-gray-500">
-                {isCurrentUserAdmin ? 'You are the Group Admin.' : 'You are a Member of this group.'}
-              </Typography>
-            </Box>
-            {isCurrentUserAdmin && (
-              <Chip 
-                icon={<AdminPanelSettingsIcon sx={{ fontSize: 16 }} />} 
-                label="Group Admin" 
-                size="small"
-                className="bg-gradient-to-r from-green-400 to-[#427c36] text-white font-bold text-xs shadow-sm dark:shadow-none" 
-              />
-            )}
-          </Box>
-
-          {/* Members List */}
-          <Typography variant="subtitle2" className="font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase text-[11px] tracking-wider">
-            Group Members
-          </Typography>
-
-          {membersLoading ? (
-            <Box className="flex justify-center py-6">
-              <CircularProgress size={32} sx={{ color: '#427c36' }} />
-            </Box>
-          ) : (
-            <List className="p-0 space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
-              {currentGroupMembers.map((member) => (
-                <ListItem 
-                  key={member._id}
-                  disablePadding
-                  className="p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-green-50 dark:border-green-800 flex items-center justify-between shadow-sm dark:shadow-none"
-                >
-                  <Box className="flex items-center gap-3 overflow-hidden flex-1">
-                    <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#427c36' : '#e0e7ff', color: member.isAdmin ? 'white' : '#4338ca', fontSize: 13, fontWeight: 'bold' }}>
-                      {member.email?.[0]?.toUpperCase() || 'U'}
-                    </Avatar>
-                    <Box className="overflow-hidden">
-                      <Typography variant="body2" className="font-bold text-gray-800 dark:text-gray-200 truncate text-xs sm:text-sm">
-                        {member.email}
-                      </Typography>
-                      <Typography variant="caption" className="text-gray-400 dark:text-gray-500 block text-[10px]">
-                        {member.isAdmin ? 'Admin (Creator)' : 'Member'}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Box className="flex items-center justify-end gap-2 shrink-0 ml-auto pl-2">
-                    {member.isAdmin ? (
-                      <Chip 
-                        label="Admin" 
-                        size="small" 
-                        className="bg-green-100 dark:bg-green-900/60 text-[#326127] font-bold text-[10px] h-5" 
-                      />
-                    ) : (
-                      isCurrentUserAdmin && (
-                        <Button
-                          size="small"
-                          color="error"
-                          variant="outlined"
-                          startIcon={<PersonRemoveIcon sx={{ fontSize: 14 }} />}
-                          onClick={() => handleRemoveMember(member._id, member.email)}
-                          sx={{
-                            borderRadius: '8px',
-                            textTransform: 'none',
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            px: 1,
-                            py: 0.2,
-                            borderColor: '#fca5a5',
-                            '&:hover': { bgcolor: '#fee2e2', borderColor: '#ef4444' }
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      )
-                    )}
-                  </Box>
-                </ListItem>
-              ))}
-            </List>
-          )}
-
-          {/* JOIN REQUESTS (ADMIN ONLY) */}
-          {isCurrentUserAdmin && currentJoinRequests && currentJoinRequests.length > 0 && (
-            <Box className="mt-4 pt-4 border-t border-green-100 dark:border-green-900">
-              <Typography variant="subtitle2" className="font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase text-[11px] tracking-wider">
-                Pending Join Requests ({currentJoinRequests.length})
-              </Typography>
-              <List className="p-0 space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar">
-                {currentJoinRequests.map((req) => (
-                  <ListItem key={req._id} disablePadding className="p-2.5 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-between shadow-sm dark:shadow-none">
-                    <Box className="flex items-center gap-2 overflow-hidden flex-1">
-                      <Avatar sx={{ width: 28, height: 28, bgcolor: '#f97316', fontSize: 12, fontWeight: 'bold' }}>
-                        {req.email?.[0]?.toUpperCase()}
+            {membersLoading ? (
+              <Box className="flex justify-center py-6">
+                <CircularProgress size={32} sx={{ color: '#427c36' }} />
+              </Box>
+            ) : (
+              <List className="p-0 space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
+                {currentGroupMembers.map((member) => (
+                  <ListItem
+                    key={member._id}
+                    disablePadding
+                    className="p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-green-50 dark:border-green-800 flex items-center justify-between shadow-sm dark:shadow-none"
+                  >
+                    <Box className="flex items-center gap-3 overflow-hidden flex-1">
+                      <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#427c36' : '#e0e7ff', color: member.isAdmin ? 'white' : '#4338ca', fontSize: 13, fontWeight: 'bold' }}>
+                        {member.email?.[0]?.toUpperCase() || 'U'}
                       </Avatar>
-                      <Typography variant="body2" className="font-bold text-gray-800 dark:text-gray-200 truncate text-xs">
-                        {req.email}
-                      </Typography>
+                      <Box className="overflow-hidden">
+                        <Typography variant="body2" className="font-bold text-gray-800 dark:text-gray-200 truncate text-xs sm:text-sm">
+                          {member.email}
+                        </Typography>
+                        <Typography variant="caption" className="text-gray-400 dark:text-gray-500 block text-[10px]">
+                          {member.isAdmin ? 'Admin (Creator)' : 'Member'}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Box className="flex items-center justify-end gap-1 shrink-0 ml-auto pl-2">
-                      <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: '#326127', bgcolor: '#f0fdf4', '&:hover': { bgcolor: '#dcfce3' } }}>
-                        <CheckCircleIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => handleRejectRequest(req._id)} sx={{ color: '#ef4444', bgcolor: '#fef2f2', '&:hover': { bgcolor: '#fee2e2' } }}>
-                        <CancelIcon fontSize="small" />
-                      </IconButton>
+
+                    <Box className="flex items-center justify-end gap-2 shrink-0 ml-auto pl-2">
+                      {member.isAdmin ? (
+                        <Chip
+                          label="Admin"
+                          size="small"
+                          className="bg-green-100 dark:bg-green-900/60 text-[#326127] font-bold text-[10px] h-5"
+                        />
+                      ) : (
+                        isCurrentUserAdmin && (
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            startIcon={<PersonRemoveIcon sx={{ fontSize: 14 }} />}
+                            onClick={() => handleRemoveMember(member._id, member.email)}
+                            sx={{
+                              borderRadius: '8px',
+                              textTransform: 'none',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              px: 1,
+                              py: 0.2,
+                              borderColor: '#fca5a5',
+                              '&:hover': { bgcolor: '#fee2e2', borderColor: '#ef4444' }
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        )
+                      )}
                     </Box>
                   </ListItem>
                 ))}
               </List>
-            </Box>
-          )}
+            )}
 
-          {/* INVITE LINK (ADMIN ONLY) */}
-          {isCurrentUserAdmin && (
-            <Box className="mt-4 pt-4 border-t border-green-100 dark:border-green-900">
-              <Box className="p-3.5 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 dark:border-green-900 flex flex-col items-start gap-2 shadow-sm dark:shadow-none">
-                <Typography variant="subtitle2" className="font-extrabold text-[#326127] flex items-center gap-1">
-                  <LinkIcon fontSize="small" /> Share Invite Link
+            {/* JOIN REQUESTS (ADMIN ONLY) */}
+            {isCurrentUserAdmin && currentJoinRequests && currentJoinRequests.length > 0 && (
+              <Box className="mt-4 pt-4 border-t border-green-100 dark:border-green-900">
+                <Typography variant="subtitle2" className="font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase text-[11px] tracking-wider">
+                  Pending Join Requests ({currentJoinRequests.length})
                 </Typography>
-                <Typography variant="caption" className="text-gray-600 dark:text-gray-400 dark:text-gray-500 leading-relaxed">
-                  Users who click the invite link will automatically join without needing approval.
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<ContentCopyIcon />}
-                  onClick={handleCopyInviteLink}
-                  sx={{ mt: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', borderColor: '#ffb6d8', color: '#326127', '&:hover': { borderColor: '#427c36', bgcolor: '#f0fdf4' } }}
-                >
-                  Copy Link
-                </Button>
+                <List className="p-0 space-y-1.5 max-h-[200px] overflow-y-auto custom-scrollbar">
+                  {currentJoinRequests.map((req) => (
+                    <ListItem key={req._id} disablePadding className="p-2.5 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-between shadow-sm dark:shadow-none">
+                      <Box className="flex items-center gap-2 overflow-hidden flex-1">
+                        <Avatar sx={{ width: 28, height: 28, bgcolor: '#f97316', fontSize: 12, fontWeight: 'bold' }}>
+                          {req.email?.[0]?.toUpperCase()}
+                        </Avatar>
+                        <Typography variant="body2" className="font-bold text-gray-800 dark:text-gray-200 truncate text-xs">
+                          {req.email}
+                        </Typography>
+                      </Box>
+                      <Box className="flex items-center justify-end gap-1 shrink-0 ml-auto pl-2">
+                        <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: '#326127', bgcolor: '#f0fdf4', '&:hover': { bgcolor: '#dcfce3' } }}>
+                          <CheckCircleIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleRejectRequest(req._id)} sx={{ color: '#ef4444', bgcolor: '#fef2f2', '&:hover': { bgcolor: '#fee2e2' } }}>
+                          <CancelIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </ListItem>
+                  ))}
+                </List>
               </Box>
-            </Box>
-          )}
+            )}
 
-          {/* DANGER ZONE (ADMIN ONLY) */}
-          {isCurrentUserAdmin && (
-            <Box className="mt-6 pt-4 border-t border-red-100">
-              <Box className="p-3.5 rounded-xl bg-red-50/70 border border-red-200 shadow-sm dark:shadow-none">
-                <Box className="flex items-center gap-2 mb-1.5">
-                  <WarningAmberIcon color="error" fontSize="small" />
-                  <Typography variant="subtitle2" className="font-extrabold text-red-700">
-                    Danger Zone: Delete Group
+            {/* INVITE LINK (ADMIN ONLY) */}
+            {isCurrentUserAdmin && (
+              <Box className="mt-4 pt-4 border-t border-green-100 dark:border-green-900">
+                <Box className="p-3.5 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 dark:border-green-900 flex flex-col items-start gap-2 shadow-sm dark:shadow-none">
+                  <Typography variant="subtitle2" className="font-extrabold text-[#326127] flex items-center gap-1">
+                    <LinkIcon fontSize="small" /> Share Invite Link
                   </Typography>
+                  <Typography variant="caption" className="text-gray-600 dark:text-gray-400 dark:text-gray-500 leading-relaxed">
+                    Users who click the invite link will automatically join without needing approval.
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<ContentCopyIcon />}
+                    onClick={handleCopyInviteLink}
+                    sx={{ mt: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', borderColor: '#ffb6d8', color: '#326127', '&:hover': { borderColor: '#427c36', bgcolor: '#f0fdf4' } }}
+                  >
+                    Copy Link
+                  </Button>
                 </Box>
-                <Typography variant="caption" className="text-gray-600 dark:text-gray-400 dark:text-gray-500 block mb-3 leading-relaxed">
-                  Deleting this group will <strong>permanently delete all documents</strong> belonging to this group. This action cannot be reversed.
-                </Typography>
-                <Button
-                  id="open-delete-group-modal-btn"
-                  variant="contained"
-                  color="error"
-                  size="small"
-                  startIcon={<DeleteForeverIcon />}
-                  onClick={handleOpenDeleteGroupDialog}
-                  sx={{
-                    borderRadius: '8px',
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    fontSize: '0.78rem',
-                    boxShadow: 'none',
-                    '&:hover': { boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)', bgcolor: '#dc2626' }
-                  }}
-                >
-                  Delete Group & Documents
-                </Button>
               </Box>
-            </Box>
-          )}
-        </DialogContent>
+            )}
 
-        <DialogActions className="p-3 pt-1">
-          <Button onClick={handleCloseMembersDialog} className="font-bold text-gray-500 dark:text-gray-400 dark:text-gray-500 capitalize">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+            {/* DANGER ZONE (ADMIN ONLY) */}
+            {isCurrentUserAdmin && (
+              <Box className="mt-6 pt-4 border-t border-red-100">
+                <Box className="p-3.5 rounded-xl bg-red-50/70 border border-red-200 shadow-sm dark:shadow-none">
+                  <Box className="flex items-center gap-2 mb-1.5">
+                    <WarningAmberIcon color="error" fontSize="small" />
+                    <Typography variant="subtitle2" className="font-extrabold text-red-700">
+                      Danger Zone: Delete Group
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" className="text-gray-600 dark:text-gray-400 dark:text-gray-500 block mb-3 leading-relaxed">
+                    Deleting this group will <strong>permanently delete all documents</strong> belonging to this group. This action cannot be reversed.
+                  </Typography>
+                  <Button
+                    id="open-delete-group-modal-btn"
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    startIcon={<DeleteForeverIcon />}
+                    onClick={handleOpenDeleteGroupDialog}
+                    sx={{
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.78rem',
+                      boxShadow: 'none',
+                      '&:hover': { boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)', bgcolor: '#dc2626' }
+                    }}
+                  >
+                    Delete Group & Documents
+                  </Button>
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
 
-      {/* CONFIRM DELETE GROUP DIALOG */}
-      <Dialog
-        id="delete-group-confirm-dialog"
-        open={deleteGroupDialogOpen}
-        onClose={handleCloseDeleteGroupDialog}
-        maxWidth="xs"
-        fullWidth
-        slotProps={{
-          paper: {
-            sx: {
-              borderRadius: '20px',
-              p: 1,
-              boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
-              border: '2px solid #fca5a5'
+          <DialogActions className="p-3 pt-1">
+            <Button onClick={handleCloseMembersDialog} className="font-bold text-gray-500 dark:text-gray-400 dark:text-gray-500 capitalize">
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* CONFIRM DELETE GROUP DIALOG */}
+        <Dialog
+          id="delete-group-confirm-dialog"
+          open={deleteGroupDialogOpen}
+          onClose={handleCloseDeleteGroupDialog}
+          maxWidth="xs"
+          fullWidth
+          slotProps={{
+            paper: {
+              sx: {
+                borderRadius: '20px',
+                p: 1,
+                boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
+                border: '2px solid #fca5a5'
+              }
             }
-          }
-        }}
-      >
-        <DialogTitle className="flex items-center gap-2 pb-2 text-red-600 font-extrabold">
-          <DeleteForeverIcon />
-          Delete Group Permanently?
-        </DialogTitle>
-
-        <DialogContent className="pt-2 pb-2">
-          <Typography variant="body2" className="text-gray-700 dark:text-gray-300 mb-3">
-            You are about to permanently delete <strong>{currentGroup?.name}</strong> (ID: <code className="text-green-600">{currentGroup?.groupId}</code>).
-          </Typography>
-          
-          <Alert severity="error" className="mb-4 text-xs rounded-xl font-medium">
-            <strong>Warning:</strong> All documentation created inside this group will be permanently deleted as well!
-          </Alert>
-
-          <Typography variant="body2" className="text-gray-600 dark:text-gray-400 dark:text-gray-500 mb-2 text-xs">
-            Please type <strong className="text-red-600 font-mono">delete group</strong> to confirm:
-          </Typography>
-
-          <TextField
-            id="delete-group-confirm-input"
-            fullWidth
-            size="small"
-            autoFocus
-            placeholder="delete group"
-            value={deleteConfirmText}
-            onChange={(e) => setDeleteConfirmText(e.target.value)}
-            slotProps={{
-              input: { className: 'rounded-xl bg-white/70 dark:bg-gray-800/70 font-mono' }
-            }}
-          />
-        </DialogContent>
-
-        <DialogActions className="p-4 pt-2 gap-2">
-          <Button 
-            onClick={handleCloseDeleteGroupDialog} 
-            color="inherit" 
-            className="font-bold text-gray-500 dark:text-gray-400 dark:text-gray-500 rounded-xl capitalize"
-            disabled={actionLoading}
-          >
-            Cancel
-          </Button>
-          <Button
-            id="confirm-delete-group-submit-btn"
-            variant="contained"
-            color="error"
-            disabled={deleteConfirmText.trim() !== 'delete group' || actionLoading}
-            onClick={handleDeleteGroupSubmit}
-            className="rounded-xl font-bold capitalize shadow-md hover:shadow-lg"
-            sx={{ px: 3, textTransform: 'none' }}
-          >
-            {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Delete Group'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* TOAST SNACKBAR */}
-      <Snackbar
-        open={Boolean(toastMessage)}
-        autoHideDuration={4000}
-        onClose={() => setToastMessage('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setToastMessage('')} 
-          severity={toastSeverity} 
-          sx={{ width: '100%', borderRadius: '12px', fontWeight: 600 }}
+          }}
         >
-          {toastMessage}
-        </Alert>
-      </Snackbar>
-    </AppBar>
+          <DialogTitle className="flex items-center gap-2 pb-2 text-red-600 font-extrabold">
+            <DeleteForeverIcon />
+            Delete Group Permanently?
+          </DialogTitle>
 
-    
+          <DialogContent className="pt-2 pb-2">
+            <Typography variant="body2" className="text-gray-700 dark:text-gray-300 mb-3">
+              You are about to permanently delete <strong>{currentGroup?.name}</strong> (ID: <code className="text-green-600">{currentGroup?.groupId}</code>).
+            </Typography>
+
+            <Alert severity="error" className="mb-4 text-xs rounded-xl font-medium">
+              <strong>Warning:</strong> All documentation created inside this group will be permanently deleted as well!
+            </Alert>
+
+            <Typography variant="body2" className="text-gray-600 dark:text-gray-400 dark:text-gray-500 mb-2 text-xs">
+              Please type <strong className="text-red-600 font-mono">delete group</strong> to confirm:
+            </Typography>
+
+            <TextField
+              id="delete-group-confirm-input"
+              fullWidth
+              size="small"
+              autoFocus
+              placeholder="delete group"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              slotProps={{
+                input: { className: 'rounded-xl bg-white/70 dark:bg-gray-800/70 font-mono' }
+              }}
+            />
+          </DialogContent>
+
+          <DialogActions className="p-4 pt-2 gap-2">
+            <Button
+              onClick={handleCloseDeleteGroupDialog}
+              color="inherit"
+              className="font-bold text-gray-500 dark:text-gray-400 dark:text-gray-500 rounded-xl capitalize"
+              disabled={actionLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              id="confirm-delete-group-submit-btn"
+              variant="contained"
+              color="error"
+              disabled={deleteConfirmText.trim() !== 'delete group' || actionLoading}
+              onClick={handleDeleteGroupSubmit}
+              className="rounded-xl font-bold capitalize shadow-md hover:shadow-lg"
+              sx={{ px: 3, textTransform: 'none' }}
+            >
+              {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Delete Group'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* TOAST SNACKBAR */}
+        <Snackbar
+          open={Boolean(toastMessage)}
+          autoHideDuration={4000}
+          onClose={() => setToastMessage('')}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            onClose={() => setToastMessage('')}
+            severity={toastSeverity}
+            sx={{ width: '100%', borderRadius: '12px', fontWeight: 600 }}
+          >
+            {toastMessage}
+          </Alert>
+        </Snackbar>
+      </AppBar>
+
+
       {/* Profile Dialog */}
-      <Dialog 
-        open={profileDialogOpen} 
+      <Dialog
+        open={profileDialogOpen}
         onClose={() => setProfileDialogOpen(false)}
-        maxWidth="xs"
+        maxWidth="sm"
         fullWidth
-        slotProps={{ paper: { className: 'rounded-3xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden m-4' } }}
+        slotProps={{ paper: { className: 'rounded-3xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden m-4 max-w-[480px] w-full' } }}
       >
         {/* Cover Photo Area */}
         <Box className="h-32 relative bg-gradient-to-r from-blue-100 to-green-100 dark:from-blue-900/40 dark:to-green-900/40">
           <Box className="absolute inset-0 opacity-30 mix-blend-multiply dark:mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, rgba(0,0,0,0.1) 2px, transparent 0)', backgroundSize: '24px 24px' }} />
-          <IconButton 
+          <IconButton
             onClick={() => setProfileDialogOpen(false)}
             sx={{ position: 'absolute', top: 12, right: 12, color: 'text.secondary', bgcolor: 'rgba(255,255,255,0.5)', '&:hover': { bgcolor: 'rgba(255,255,255,0.8)' } }}
             className="dark:bgcolor-gray-800/50 dark:hover:bg-gray-800"
@@ -1067,14 +1164,14 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
-        
+
         {/* Profile Info Area */}
         <Box className="flex flex-col items-center px-8 pb-8 -mt-16 relative z-10">
-          <Avatar 
-            sx={{ 
-              width: 100, 
-              height: 100, 
-              bgcolor: 'white', 
+          <Avatar
+            sx={{
+              width: 100,
+              height: 100,
+              bgcolor: 'white',
               color: '#427c36',
               fontSize: 36,
               fontWeight: 800,
@@ -1085,18 +1182,18 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           >
             {user?.firstName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
           </Avatar>
-          
+
           <Box className="mt-4 text-center w-full">
             <Typography variant="h5" className="font-extrabold text-gray-800 dark:text-white tracking-tight">
-              {user?.firstName 
-                ? (user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName) 
+              {user?.firstName
+                ? (user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName)
                 : (user?.email ? user.email.split('@')[0] : 'Workspace User')}
             </Typography>
-            
-            <Chip 
-              label={user?.firstName ? "Verified Account" : "Standard Member"} 
-              size="small" 
-              className="mt-2 font-bold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-100 dark:border-green-800" 
+
+            <Chip
+              label={user?.role === 'superadmin' ? "👑 Super Admin" : user?.firstName ? "Verified Account" : "Standard Member"}
+              size="small"
+              className="mt-2 font-bold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-100 dark:border-green-800"
               sx={{ borderRadius: '8px' }}
             />
           </Box>
@@ -1116,7 +1213,122 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               </Box>
             </Box>
           </Box>
-          
+
+          {/* Workspace Storage & Subscription Section (Moved to My Profile in blue & green gradient theme) */}
+          <Box className="w-full mt-4 bg-gradient-to-br from-blue-50/80 via-white to-green-50/80 dark:from-gray-800/90 dark:via-gray-800/60 dark:to-green-950/40 rounded-2xl p-4 border border-green-100 dark:border-green-900/50 shadow-xs">
+            <Box className="flex items-center justify-between mb-3">
+              <Box className="flex items-center gap-2.5">
+                <Box className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center text-white shadow-sm shadow-[#427c36]/20">
+                  <CloudQueueIcon sx={{ fontSize: 18 }} />
+                </Box>
+                <Box>
+                  <Typography variant="caption" className="font-extrabold text-gray-800 dark:text-white uppercase tracking-wider block text-[11px] leading-tight">
+                    Storage &amp; Subscription
+                  </Typography>
+                  <Typography variant="caption" className="text-gray-500 dark:text-gray-400 text-[10px]">
+                    Workspace cloud capacity
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Chip
+                label={profileStats.currentPlan || 'Free Tier (50 MB)'}
+                size="small"
+                sx={{
+                  background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.68rem',
+                  height: '22px',
+                  borderRadius: '6px',
+                  boxShadow: '0 2px 6px rgba(66, 124, 54, 0.25)'
+                }}
+              />
+            </Box>
+
+            {/* Storage Progress Bar */}
+            <Box className="mb-2">
+              <Box className="flex justify-between items-center mb-1 text-xs">
+                <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300">
+                  {profileUsedMB} MB <span className="font-normal text-gray-400 dark:text-gray-500">used of</span> {profileQuotaMB} MB
+                </Typography>
+                <Typography
+                  variant="caption"
+                  className="font-extrabold"
+                  sx={{ color: profileIsExceeded ? '#ef4444' : profilePercent > 80 ? '#f59e0b' : '#326127' }}
+                >
+                  {profilePercent}%
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={profilePercent}
+                sx={{
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: 'rgba(0, 0, 0, 0.06)',
+                  '& .MuiLinearProgress-bar': {
+                    background: profileIsExceeded
+                      ? 'linear-gradient(90deg, #ef4444, #dc2626)'
+                      : profilePercent > 80
+                        ? 'linear-gradient(90deg, #f59e0b, #ea580c)'
+                        : 'linear-gradient(90deg, #60a5fa 0%, #427c36 100%)',
+                    borderRadius: 4
+                  }
+                }}
+              />
+            </Box>
+
+            {/* Storage Metric Breakdown */}
+            <Box className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-xs">
+              <Box className="p-2.5 rounded-xl bg-white/80 dark:bg-gray-800/80 border border-gray-100 dark:border-gray-700">
+                <Typography variant="caption" className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-bold block">
+                  Free Quota
+                </Typography>
+                <Typography variant="body2" className="font-extrabold text-gray-800 dark:text-gray-200 text-xs">
+                  {profileStats.freeStorageMB || defaultFreeMB} MB
+                </Typography>
+              </Box>
+              <Box className="p-2.5 rounded-xl bg-white/80 dark:bg-gray-800/80 border border-gray-100 dark:border-gray-700">
+                <Typography variant="caption" className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-bold block">
+                  Bonus Storage
+                </Typography>
+                <Typography variant="body2" className="font-extrabold text-[#326127] dark:text-green-400 text-xs">
+                  +{profileStats.bonusStorageMB || 0} MB
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Upgrade Button in Blue & Green gradient */}
+            <Button
+              fullWidth
+              size="small"
+              variant="contained"
+              startIcon={<AutoAwesomeIcon sx={{ fontSize: '1rem !important' }} />}
+              onClick={() => {
+                dispatch(setSubscriptionModalOpen(true));
+              }}
+              sx={{
+                mt: 2.5,
+                py: 1,
+                background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%) !important',
+                color: '#ffffff !important',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                textTransform: 'none',
+                borderRadius: '12px',
+                boxShadow: '0 3px 12px rgba(66, 124, 54, 0.25)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%) !important',
+                  transform: 'translateY(-1px)'
+                },
+                transition: 'all 0.2s'
+              }}
+            >
+              {profileIsExceeded ? 'Unlock Storage (Upgrade Plan)' : 'Upgrade Storage & Plans'}
+            </Button>
+          </Box>
+
           <Box className="w-full mt-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
             <Box className="flex items-center justify-between mb-2">
               <Typography variant="caption" className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
@@ -1128,7 +1340,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 </Typography>
               )}
             </Box>
-            
+
             <Box className="max-h-[140px] overflow-y-auto custom-scrollbar pr-2 mt-2 space-y-1">
               {groups && groups.length > 0 ? (
                 groups.map((g) => {
@@ -1155,7 +1367,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             </Box>
           </Box>
 
-          <Button 
+          <Button
             fullWidth
             variant="outlined"
             startIcon={<LogoutIcon />}
@@ -1163,8 +1375,8 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               setProfileDialogOpen(false);
               handleLogout();
             }}
-            className="mt-12 py-2.5 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
-            sx={{ 
+            className="mt-6 py-2.5 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
+            sx={{
               borderRadius: '12px',
               textTransform: 'none',
               fontWeight: 700,
@@ -1176,11 +1388,11 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         </Box>
       </Dialog>
 
-    {/* TELEGRAM-STYLE BOTTOM NAVBAR FOR MOBILE */}
+      {/* TELEGRAM-STYLE BOTTOM NAVBAR FOR MOBILE */}
       <Box className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center justify-around z-[100] pb-safe transition-all" sx={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
-        <Button 
+        <Button
           onClick={() => onToggleMobileView && onToggleMobileView('sidebar')}
-          sx={{ 
+          sx={{
             display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
             color: mobileView === 'sidebar' ? '#427c36' : '#9ca3af',
             '&:hover': { bgcolor: 'transparent' }
@@ -1189,12 +1401,12 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           <LibraryBooksIcon sx={{ fontSize: 22, mb: 0.2 }} />
           <Typography sx={{ fontSize: '0.6rem', fontWeight: mobileView === 'sidebar' ? 700 : 500, textTransform: 'none' }}>Library</Typography>
         </Button>
-        
-        <Button 
+
+        <Button
           onClick={() => {
             if (hasOpenDocuments) onToggleMobileView && onToggleMobileView('editor');
           }}
-          sx={{ 
+          sx={{
             display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
             color: hasOpenDocuments ? (mobileView === 'editor' ? '#427c36' : '#9ca3af') : '#d1d5db',
             '&:hover': { bgcolor: 'transparent' }
@@ -1204,30 +1416,33 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           <Typography sx={{ fontSize: '0.6rem', fontWeight: mobileView === 'editor' ? 700 : 500, textTransform: 'none' }}>Editor</Typography>
         </Button>
 
-                  <Button 
-            onClick={handleOpenAddDialog}
-            sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
-          >
-            <GroupAddIcon sx={{ fontSize: 22, mb: 0.2 }} />
-            <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Add</Typography>
-          </Button>
-          
-          <Button 
-            onClick={handleOpenJoinDialog}
-            sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
-          >
-            <GroupIcon sx={{ fontSize: 22, mb: 0.2 }} />
-            <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Join</Typography>
-          </Button>
+        <Button
+          onClick={handleOpenAddDialog}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
+        >
+          <GroupAddIcon sx={{ fontSize: 22, mb: 0.2 }} />
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Add</Typography>
+        </Button>
 
-          <Button 
-            onClick={() => setProfileDialogOpen(true)}
-            sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
-          >
-            <PersonIcon sx={{ fontSize: 22, mb: 0.2 }} />
-            <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Profile</Typography>
-          </Button>
+        <Button
+          onClick={handleOpenJoinDialog}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
+        >
+          <GroupIcon sx={{ fontSize: 22, mb: 0.2 }} />
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Join</Typography>
+        </Button>
+
+        <Button
+          onClick={() => setProfileDialogOpen(true)}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
+        >
+          <PersonIcon sx={{ fontSize: 22, mb: 0.2 }} />
+          <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Profile</Typography>
+        </Button>
       </Box>
+
+      {/* Subscription & Storage Upgrade Modal */}
+      <SubscriptionModal />
     </>
   );
 };

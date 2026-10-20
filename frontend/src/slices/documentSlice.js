@@ -25,12 +25,12 @@ export const fetchDocuments = createAsyncThunk(
 
 export const createDocument = createAsyncThunk(
   'documents/createDocument',
-  async ({ title, content, groupId }, { getState, dispatch, rejectWithValue }) => {
+  async ({ title, content, groupId, docType = 'doc', tags = [] }, { getState, dispatch, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
       const response = await axios.post(
         API_URL, 
-        { title, content, groupId }, 
+        { title, content, groupId, docType, tags }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
       return response.data;
@@ -85,12 +85,12 @@ export const uploadImageFile = createAsyncThunk(
 
 export const updateDocument = createAsyncThunk(
   'documents/updateDocument',
-  async ({ id, title, content, tags }, { getState, dispatch, rejectWithValue }) => {
+  async ({ id, title, content, tags, docType }, { getState, dispatch, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
       const response = await axios.put(
         `${API_URL}/${id}`, 
-        { title, content, tags }, 
+        { title, content, tags, docType }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
       return response.data;

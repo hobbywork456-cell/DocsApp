@@ -6,7 +6,7 @@ require('dotenv').config();
 const app = express();
 
 app.use(cors({
-  origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:3000'].filter(Boolean)
+  origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'].filter(Boolean)
 }));
 app.use(express.json());
 
@@ -24,11 +24,15 @@ const authRoutes = require('./routes/auth');
 const documentRoutes = require('./routes/documents');
 const groupRoutes = require('./routes/groups');
 const aiRoutes = require('./routes/ai');
+const subscriptionRoutes = require('./routes/subscription');
+const superadminRoutes = require('./routes/superadmin');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/superadmin', superadminRoutes);
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/docs_app';

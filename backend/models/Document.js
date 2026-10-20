@@ -6,6 +6,7 @@ const DocumentSchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   groupId: { type: String, required: true, index: true },
   tags: [{ type: String, trim: true }],
+  docType: { type: String, enum: ['doc', 'sheet', 'ppt'], default: 'doc' },
   history: [{
     editedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     editedAt: { type: Date, default: Date.now },
@@ -17,7 +18,11 @@ const DocumentSchema = new mongoose.Schema({
     type: { type: String },
     size: { type: Number },
     uploadedAt: { type: Date, default: Date.now }
-  }]
+  }],
+  sizeBytes: { type: Number, default: 0, index: true }
 }, { timestamps: true });
+
+DocumentSchema.index({ groupId: 1, updatedAt: -1 });
+DocumentSchema.index({ owner: 1 });
 
 module.exports = mongoose.model('Document', DocumentSchema);

@@ -5,7 +5,10 @@ import Navbar from '../Navbar/Navbar';
 import Sidebar from '../Sidebar/Sidebar';
 import DocumentEditor from '../DocumentEditor/DocumentEditor';
 import DocumentComparer from '../DocumentComparer/DocumentComparer';
+import SheetReadMode from '../DocumentEditor/sheet/SheetReadMode';
+import PptReadMode from '../DocumentEditor/ppt/PptReadMode';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import StorageWarningBanner from '../Subscription/StorageWarningBanner';
 import SEO from '../SEO/SEO';
 import './Dashboard.css';
 import { useDispatch, useSelector } from 'react-redux';
@@ -127,6 +130,54 @@ const Dashboard = () => {
 
   // Render Global Read Mode Portal
   if (globalReadMode && openDocuments.length > 0) {
+    const getDocType = (doc) => {
+      if (doc?.docType) return doc.docType;
+      if (doc?.content) {
+        try {
+          const parsed = JSON.parse(doc.content);
+          if (parsed?.sheets && Array.isArray(parsed.sheets)) return 'sheet';
+          if (parsed?.slides && Array.isArray(parsed.slides)) return 'ppt';
+        } catch {
+          // normal html doc
+        }
+      }
+      return 'doc';
+    };
+
+    // If a specific document is targeted or only 1 document is open:
+    const activeDocId = typeof globalReadMode === 'string' ? globalReadMode : (openDocuments.length === 1 ? openDocuments[0] : null);
+    const activeReadDoc = activeDocId ? documents.find((d) => d._id === activeDocId) : null;
+
+    if (activeReadDoc) {
+      const type = getDocType(activeReadDoc);
+      if (type === 'sheet') {
+        return createPortal(
+          <SheetReadMode
+            doc={activeReadDoc}
+            isDarkMode={isDarkMode}
+            onClose={() => {
+              dispatch(setGlobalReadMode(false));
+              setIsFullscreen(false);
+            }}
+          />,
+          document.body
+        );
+      }
+      if (type === 'ppt') {
+        return createPortal(
+          <PptReadMode
+            doc={activeReadDoc}
+            isDarkMode={isDarkMode}
+            onClose={() => {
+              dispatch(setGlobalReadMode(false));
+              setIsFullscreen(false);
+            }}
+          />,
+          document.body
+        );
+      }
+    }
+
     // Minimal sx: preserve all original formatting, but restore list markers
     // because ql-editor hides native bullets and uses CSS counters/::before pseudo-elements
     // that only work inside a .ql-snow wrapper (not in our portal).
@@ -254,17 +305,46 @@ const Dashboard = () => {
 
         {isFullscreen ? (
           /* Full Screen mode — normal reading layout */
-          openDocuments.map(docId => {
+          (activeDocId ? [activeDocId] : openDocuments).map(docId => {
             const doc = documents.find(d => d._id === docId);
             if (!doc) return null;
+            const type = getDocType(doc);
+            if (type === 'sheet') {
+              return (
+                <Box key={docId} sx={{ flex: 1, height: '100%', overflow: 'hidden' }}>
+                  <SheetReadMode
+                    doc={doc}
+                    isDarkMode={isDarkMode}
+                    onClose={() => {
+                      dispatch(setGlobalReadMode(false));
+                      setIsFullscreen(false);
+                    }}
+                  />
+                </Box>
+              );
+            }
+            if (type === 'ppt') {
+              return (
+                <Box key={docId} sx={{ flex: 1, height: '100%', overflow: 'hidden' }}>
+                  <PptReadMode
+                    doc={doc}
+                    isDarkMode={isDarkMode}
+                    onClose={() => {
+                      dispatch(setGlobalReadMode(false));
+                      setIsFullscreen(false);
+                    }}
+                  />
+                </Box>
+              );
+            }
             return renderFullscreenDoc(doc);
           })
         ) : (
-          /* A4 Paper mode */
+          /* Multi-doc layout */
           <Box sx={{
             display: 'flex',
-            flexDirection: { xs: 'column', md: openDocuments.length > 1 ? 'row' : 'column' },
-            alignItems: { xs: 'flex-start', md: openDocuments.length > 1 ? 'flex-start' : 'center' },
+            flexDirection: { xs: 'column', md: (activeDocId ? 1 : openDocuments.length) > 1 ? 'row' : 'column' },
+            alignItems: { xs: 'flex-start', md: (activeDocId ? 1 : openDocuments.length) > 1 ? 'flex-start' : 'center' },
             justifyContent: { xs: 'flex-start', md: 'center' },
             gap: { xs: 0, md: 5 },
             py: { xs: 0, md: 5 },
@@ -272,23 +352,39 @@ const Dashboard = () => {
             minHeight: '100%',
             width: '100%',
           }}>
-            {openDocuments.map(docId => {
+            {(activeDocId ? [activeDocId] : openDocuments).map(docId => {
               const doc = documents.find(d => d._id === docId);
               if (!doc) return null;
-              
-  const renderModernLoader = () => (
-    <Box className="flex-1 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
-      <CircularProgress size={48} thickness={4} sx={{ color: '#427c36', mb: 3 }} />
-      <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 mb-1">
-        Syncing Workspace
-      </Typography>
-      <Typography variant="body2" className="text-gray-500 dark:text-gray-400">
-        Loading documents and fetching the latest updates...
-      </Typography>
-    </Box>
-  );
-
-  return (
+              const type = getDocType(doc);
+              if (type === 'sheet') {
+                return (
+                  <Box key={docId} sx={{ width: { xs: '100%', md: '800px' }, height: '80vh', overflow: 'hidden', borderRadius: '12px', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }}>
+                    <SheetReadMode
+                      doc={doc}
+                      isDarkMode={isDarkMode}
+                      onClose={() => {
+                        dispatch(setGlobalReadMode(false));
+                        setIsFullscreen(false);
+                      }}
+                    />
+                  </Box>
+                );
+              }
+              if (type === 'ppt') {
+                return (
+                  <Box key={docId} sx={{ width: { xs: '100%', md: '880px' }, height: '80vh', overflow: 'hidden', borderRadius: '12px', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }}>
+                    <PptReadMode
+                      doc={doc}
+                      isDarkMode={isDarkMode}
+                      onClose={() => {
+                        dispatch(setGlobalReadMode(false));
+                        setIsFullscreen(false);
+                      }}
+                    />
+                  </Box>
+                );
+              }
+              return (
                 <Box key={docId} sx={{
                   overflowY: 'auto',
                   width: { xs: '100%', md: 'auto' },
@@ -332,6 +428,9 @@ const Dashboard = () => {
         onToggleMobileView={setMobileView}
         hasOpenDocuments={openDocuments.length > 0}
       />
+      
+      {/* Prominent Storage Warning and Read-Only Lockout Banner */}
+      <StorageWarningBanner />
       
       {/* Main Container: responsive padding and gap */}
       <Box className={`flex flex-1 overflow-hidden p-1 sm:p-2 relative animate-fade-in transition-all duration-300 ease-in-out ${isSidebarOpen ? 'gap-1 sm:gap-2' : 'gap-0'}`}>

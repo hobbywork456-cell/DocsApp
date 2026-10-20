@@ -1,22 +1,33 @@
-import React, { useState, useCallback } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Button, 
-  TextField, 
-  List, 
-  ListItem, 
-  IconButton, 
-  InputAdornment, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogContentText, 
+import React, { useState, useCallback, useRef } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  List,
+  ListItem,
+  IconButton,
+  InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
   DialogActions,
   Tooltip,
-  Skeleton, Chip } from '@mui/material';
+  Skeleton,
+  Chip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider
+} from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DescriptionIcon from '@mui/icons-material/Description';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import SlideshowIcon from '@mui/icons-material/Slideshow';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import GroupIcon from '@mui/icons-material/Group';
@@ -26,15 +37,19 @@ import PushPinIcon from '@mui/icons-material/PushPin';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import LockIcon from '@mui/icons-material/Lock';
 import { useSelector, useDispatch } from 'react-redux';
-import { 
-  createDocument, 
-  deleteDocument, 
+import {
+  createDocument,
+  deleteDocument,
   setOpenDocument,
-  addOpenDocument, 
-  setSearchQuery 
+  addOpenDocument,
+  setSearchQuery,
+  importDocumentContent
 } from '../../slices/documentSlice';
 import { setActiveGroupId } from '../../slices/groupSlice';
+import { setSubscriptionModalOpen } from '../../slices/subscriptionSlice';
+import StorageIndicator from '../Subscription/StorageIndicator';
 import './Sidebar.css';
 
 export const getTagColor = (tag) => {
@@ -44,8 +59,8 @@ export const getTagColor = (tag) => {
     hash = tag.charCodeAt(i) + ((hash << 5) - hash);
   }
   const colors = [
-    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#10b981', 
-    '#14b8a6', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', 
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#10b981',
+    '#14b8a6', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7',
     '#d946ef', '#ec4899', '#f43f5e'
   ];
   return colors[Math.abs(hash) % colors.length];
@@ -56,9 +71,11 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
   const dispatch = useDispatch();
   const { documents, openDocuments, searchQuery, status: docStatus } = useSelector((state) => state.documents);
   const { groups, activeGroupId } = useSelector((state) => state.groups);
+  const { groupStats, userStats } = useSelector((state) => state.subscription);
+  const isStorageExceeded = Boolean(groupStats?.isExceeded || userStats?.isExceeded);
 
   const activeGroup = groups.find((g) => g.groupId === activeGroupId);
-  
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState(null);
   const [confirmText, setConfirmText] = useState('');
@@ -99,48 +116,53 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
   const handleListDrop = (e, targetId) => {
     const sourceId = e.dataTransfer.getData('sidebarReorder');
     if (!sourceId || sourceId === targetId) { setDragOverId(null); setDraggingId(null); return; }
-    
+
     // Rely on current visual order so cross-boundary drags work predictably
     const currentVisualOrder = filteredDocuments.map(d => d._id);
     const fromIdx = currentVisualOrder.indexOf(sourceId);
     const toIdx = currentVisualOrder.indexOf(targetId);
-    
+
     if (fromIdx < 0 || toIdx < 0) { setDragOverId(null); setDraggingId(null); return; }
-    
+
     const isTargetPinned = pinnedDocs.includes(targetId);
     const isSourcePinned = pinnedDocs.includes(sourceId);
     let nextPinned = [...pinnedDocs];
-    
+
     // Automatically Pin or Unpin if dragged across boundaries
     if (isTargetPinned && !isSourcePinned) {
       nextPinned.push(sourceId);
     } else if (!isTargetPinned && isSourcePinned) {
       nextPinned = nextPinned.filter(id => id !== sourceId);
     }
-    
+
     setPinnedDocs(nextPinned);
     localStorage.setItem(storageKey, JSON.stringify(nextPinned));
-    
+
     const newOrder = [...currentVisualOrder];
     newOrder.splice(fromIdx, 1);
     newOrder.splice(toIdx, 0, sourceId);
-    
+
     setDocOrder(newOrder);
     localStorage.setItem(orderKey, JSON.stringify(newOrder));
-    
+
     setDragOverId(null);
     setDraggingId(null);
   };
 
-    const handleDuplicate = async (e, doc) => {
+  const handleDuplicate = async (e, doc) => {
     e.stopPropagation();
+    if (isStorageExceeded) {
+      dispatch(setSubscriptionModalOpen(true));
+      return;
+    }
     const actionResult = await dispatch(createDocument({
       title: `Copy of ${doc.title || 'Untitled'}`,
       content: doc.content,
       tags: doc.tags || [],
-      groupId: activeGroupId
+      groupId: activeGroupId,
+      docType: doc.docType || 'doc'
     }));
-    
+
     if (createDocument.fulfilled.match(actionResult)) {
       const newDocId = actionResult.payload._id;
       // Ensure the original doc is the first one opened
@@ -167,13 +189,13 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
   // Apply custom order, then put pinned docs first
   const orderedDocs = docOrder.length > 0
     ? [...rawFiltered].sort((a, b) => {
-        const ai = docOrder.indexOf(a._id);
-        const bi = docOrder.indexOf(b._id);
-        if (ai === -1 && bi === -1) return 0;
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
-      })
+      const ai = docOrder.indexOf(a._id);
+      const bi = docOrder.indexOf(b._id);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    })
     : rawFiltered;
 
   const filteredDocuments = [
@@ -181,15 +203,61 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
     ...orderedDocs.filter(d => !pinnedDocs.includes(d._id)),
   ];
 
-  const handleCreateNew = async () => {
+  const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
+  const sidebarFileInputRef = useRef(null);
+
+  const handleSidebarImport = async (e) => {
+    const file = e.target.files[0];
+    if (file && activeGroupId) {
+      if (isStorageExceeded) {
+        dispatch(setSubscriptionModalOpen(true));
+        return;
+      }
+      try {
+        const resultAction = await dispatch(importDocumentContent(file));
+        if (importDocumentContent.fulfilled.match(resultAction)) {
+          const payload = resultAction.payload;
+          const importedType = payload.docType || 'doc';
+          const importedContent = payload.content !== undefined ? payload.content : payload.html;
+          const importedTitle = payload.title || file.name;
+
+          const action = await dispatch(createDocument({
+            title: importedTitle,
+            content: importedContent,
+            groupId: activeGroupId,
+            docType: importedType
+          }));
+
+          if (onSelectDocument && action.payload?._id) {
+            onSelectDocument(action.payload._id);
+          }
+        }
+      } catch (err) {
+        console.error('Sidebar file import error:', err);
+      }
+    }
+    e.target.value = null;
+  };
+
+  const handleCreateNew = async (type = 'doc') => {
+    setCreateMenuAnchor(null);
+    if (isStorageExceeded) {
+      dispatch(setSubscriptionModalOpen(true));
+      return;
+    }
     if (!activeGroupId) {
       alert('Please join or create a group first before creating a document.');
       return;
     }
-    const action = await dispatch(createDocument({ 
-      title: 'Untitled Document', 
-      content: '', 
-      groupId: activeGroupId 
+    let defaultTitle = 'Untitled Document';
+    if (type === 'sheet') defaultTitle = 'Untitled Spreadsheet';
+    if (type === 'ppt') defaultTitle = 'Untitled Presentation';
+
+    const action = await dispatch(createDocument({
+      title: defaultTitle,
+      content: '',
+      groupId: activeGroupId,
+      docType: type
     }));
     if (onSelectDocument && action.payload?._id) {
       onSelectDocument(action.payload._id);
@@ -198,6 +266,10 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
 
   const openDeleteDialog = (e, doc) => {
     e.stopPropagation();
+    if (isStorageExceeded) {
+      alert('Workspace storage limit reached (100% capacity). The workspace is in Read-Only mode. Document removal is disabled.');
+      return;
+    }
     setDocToDelete(doc);
     setConfirmText('');
     setDeleteDialogOpen(true);
@@ -221,7 +293,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
     <Box component="aside" id="sidebar-panel" aria-label="Document Library" className="p-3.5 sm:p-5 h-full relative flex flex-col bg-white/30 backdrop-blur-sm">
       {/* Edge Tab Toggle (Close) */}
       {onToggle && (
-        <Box 
+        <Box
           onClick={onToggle}
           className="hidden md:flex absolute cursor-pointer items-center justify-center bg-[#427c36] text-white hover:bg-[#60a5fa] transition-colors"
           sx={{
@@ -265,39 +337,134 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
             </Box>
           </Box>
 
-          <Tooltip title={activeGroupId ? 'New Document' : 'Select a group first'}>
+          <Tooltip title={isStorageExceeded ? 'Workspace Storage Full (Read-Only Mode) — Click to upgrade' : (activeGroupId ? 'Create Document, Spreadsheet, or Presentation' : 'Select a group first')}>
             <span>
               <Button
                 id="sidebar-create-new-btn"
                 variant="contained"
-                startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                startIcon={isStorageExceeded ? <LockIcon sx={{ fontSize: 16 }} /> : <AddIcon sx={{ fontSize: 16 }} />}
+                endIcon={!isStorageExceeded && <ArrowDropDownIcon sx={{ fontSize: 16, ml: -0.5 }} />}
                 size="small"
-                onClick={handleCreateNew}
+                onClick={(e) => {
+                  if (isStorageExceeded) {
+                    dispatch(setSubscriptionModalOpen(true));
+                  } else {
+                    setCreateMenuAnchor(e.currentTarget);
+                  }
+                }}
                 disabled={!activeGroupId}
                 aria-label="Create new document"
                 sx={{
-                  background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
+                  background: isStorageExceeded
+                    ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important'
+                    : 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
                   color: 'white',
                   borderRadius: '8px',
                   textTransform: 'none',
                   fontWeight: 700,
                   fontSize: '0.78rem',
-                  px: 1.5,
+                  px: 1.2,
                   py: 0.6,
-                  boxShadow: '0 2px 8px rgba(66,124,54,0.35)',
+                  boxShadow: isStorageExceeded
+                    ? '0 2px 8px rgba(239,68,68,0.45)'
+                    : '0 2px 8px rgba(66,124,54,0.35)',
                   flexShrink: 0,
-                  '&:hover': { 
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)',
-                    boxShadow: '0 4px 14px rgba(66,124,54,0.45)',
+                  '&:hover': {
+                    background: isStorageExceeded
+                      ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important'
+                      : 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)',
+                    boxShadow: isStorageExceeded
+                      ? '0 4px 14px rgba(239,68,68,0.55)'
+                      : '0 4px 14px rgba(66,124,54,0.45)',
                     transform: 'translateY(-1px)'
                   },
                   '&.Mui-disabled': { background: '#d1d5db', color: '#9ca3af', boxShadow: 'none' }
                 }}
               >
-                New
+                {isStorageExceeded ? 'Locked' : 'New'}
               </Button>
             </span>
           </Tooltip>
+
+          {/* Create Document / Sheet / PPT Dropdown Menu */}
+          <Menu
+            anchorEl={createMenuAnchor}
+            open={Boolean(createMenuAnchor)}
+            onClose={() => setCreateMenuAnchor(null)}
+            slotProps={{
+              paper: {
+                sx: {
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
+                  minWidth: 190,
+                  border: '1px solid #e2e8f0',
+                  py: 0.5
+                }
+              }
+            }}
+          >
+            <MenuItem onClick={() => handleCreateNew('doc')} sx={{ py: 1 }}>
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <DescriptionIcon fontSize="small" sx={{ color: '#3b82f6' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="New Document"
+                secondary="Rich text & formatting"
+                primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }}
+                secondaryTypographyProps={{ fontSize: '0.7rem' }}
+              />
+            </MenuItem>
+            <MenuItem onClick={() => handleCreateNew('sheet')} sx={{ py: 1 }}>
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <TableChartIcon fontSize="small" sx={{ color: '#10b981' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="New Spreadsheet"
+                secondary="Grid, cells & formulas"
+                primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }}
+                secondaryTypographyProps={{ fontSize: '0.7rem' }}
+              />
+            </MenuItem>
+            <MenuItem onClick={() => handleCreateNew('ppt')} sx={{ py: 1 }}>
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <SlideshowIcon fontSize="small" sx={{ color: '#f59e0b' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="New Presentation"
+                secondary="Slide deck & slideshow"
+                primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }}
+                secondaryTypographyProps={{ fontSize: '0.7rem' }}
+              />
+            </MenuItem>
+
+            <Divider sx={{ my: 0.5 }} />
+
+            <MenuItem
+              onClick={() => {
+                setCreateMenuAnchor(null);
+                sidebarFileInputRef.current?.click();
+              }}
+              sx={{ py: 1 }}
+            >
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <UploadFileIcon fontSize="small" sx={{ color: '#8b5cf6' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Import File..."
+                secondary="Upload PPT, Sheet, Doc, or PDF"
+                primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }}
+                secondaryTypographyProps={{ fontSize: '0.7rem' }}
+              />
+            </MenuItem>
+          </Menu>
+
+          <input
+            type="file"
+            ref={sidebarFileInputRef}
+            hidden
+            onChange={handleSidebarImport}
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.json"
+          />
         </Box>
 
         {/* Row 2: Group switcher chips (only if multiple groups) */}
@@ -367,7 +534,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
           }}
         />
       </Box>
-      
+
       {/* Document List */}
       <List id="sidebar-doc-list" aria-label="List of documents" className="flex-1 overflow-y-auto px-0 space-y-2 pb-16 sm:pb-20 custom-scrollbar">
         {!activeGroupId ? (
@@ -406,8 +573,8 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
           filteredDocuments.map((doc) => {
             const isSelected = openDocuments?.includes(doc._id);
             return (
-              <ListItem 
-                key={doc._id} 
+              <ListItem
+                key={doc._id}
                 id={`sidebar-doc-${doc._id}`}
                 draggable={true}
                 onDragStart={(e) => handleListDragStart(e, doc._id)}
@@ -429,17 +596,17 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                 }}
               >
                 {doc.tags && doc.tags.length > 0 && (
-                  <Box 
+                  <Box
                     className="absolute z-20 pointer-events-none"
                     style={{ top: '2px', left: '2px', pointerEvents: 'none' }}
                   >
-                    <Box 
-                      sx={{ 
+                    <Box
+                      sx={{
                         position: 'relative',
-                        display: 'inline-flex', 
+                        display: 'inline-flex',
                         alignItems: 'center',
                         height: '16px',
-                        width:'60px',
+                        width: '60px',
                         padding: '0 6px 0 10px',
                         backgroundColor: getTagColor(doc.tags[0]),
                         color: '#fff',
@@ -461,14 +628,27 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                 )}
                 <Box className="flex items-center justify-between w-full">
                   {/* Drag Handle */}
-                  <DragIndicatorIcon 
-                      sx={{ fontSize: 16, color: '#d1d5db', mr: 0.5, cursor: 'grab', flexShrink: 0 }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    />
+                  <DragIndicatorIcon
+                    sx={{ fontSize: 16, color: '#d1d5db', mr: 0.5, cursor: 'grab', flexShrink: 0 }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  />
 
                   <Box className="flex items-center overflow-hidden flex-1 mr-1">
-                    <Box className={`p-2 rounded-lg mr-2.5 sm:mr-3 shrink-0 relative ${isSelected ? 'bg-green-100 dark:bg-green-900/60 text-[#427c36]' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
-                      <DescriptionIcon fontSize="small" />
+                    <Box className={`p-2 rounded-lg mr-2.5 sm:mr-3 shrink-0 relative ${isSelected
+                        ? doc.docType === 'sheet'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/60 text-[#326127]'
+                          : doc.docType === 'ppt'
+                            ? 'bg-amber-100 dark:bg-amber-900/60 text-[#ea580c]'
+                            : 'bg-green-100 dark:bg-green-900/60 text-[#427c36]'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
+                      }`}>
+                      {doc.docType === 'sheet' ? (
+                        <TableChartIcon fontSize="small" sx={{ color: isSelected ? '#326127' : '#10b981' }} />
+                      ) : doc.docType === 'ppt' ? (
+                        <SlideshowIcon fontSize="small" sx={{ color: isSelected ? '#ea580c' : '#f59e0b' }} />
+                      ) : (
+                        <DescriptionIcon fontSize="small" sx={{ color: isSelected ? '#427c36' : '#3b82f6' }} />
+                      )}
                       {/* Pin dot indicator */}
                       {pinnedDocs.includes(doc._id) && (
                         <Box sx={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', bgcolor: '#427c36' }} />
@@ -476,48 +656,58 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                     </Box>
                     <Box className="overflow-hidden min-w-0">
                       <Typography variant="body2" className={`font-bold truncate ${isSelected ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300'}`}>
-                          {pinnedDocs.includes(doc._id) && (
-                            <PushPinIcon sx={{ fontSize: 11, color: '#427c36', mr: 0.4, verticalAlign: 'middle', transform: 'rotate(45deg)' }} />
-                          )}
-                          {doc.title || 'Untitled'}
-                        </Typography>
-                        
-                      <Typography variant="caption" className={`block mt-0.5 ${isSelected ? 'text-[#326127] font-medium' : 'text-gray-500 dark:text-gray-400 dark:text-gray-500'}`}>
-                        {new Date(doc.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {pinnedDocs.includes(doc._id) && (
+                          <PushPinIcon sx={{ fontSize: 11, color: '#427c36', mr: 0.4, verticalAlign: 'middle', transform: 'rotate(45deg)' }} />
+                        )}
+                        {doc.title || 'Untitled'}
                       </Typography>
+
+                      <Box className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded ${doc.docType === 'sheet'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                            : doc.docType === 'ppt'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                              : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                          }`}>
+                          {doc.docType ? doc.docType.toUpperCase() : 'DOC'}
+                        </span>
+                        <Typography variant="caption" className={`block ${isSelected ? 'text-[#326127] font-medium' : 'text-gray-500 dark:text-gray-400 dark:text-gray-500'}`}>
+                          {new Date(doc.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </Typography>
+                      </Box>
 
                     </Box>
                   </Box>
-                  
+
                   {/* Pin + Delete Buttons */}
                   <Box className="flex items-center gap-0.5 shrink-0">
                     <Tooltip title="Duplicate Document">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleDuplicate(e, doc)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          sx={{ color: '#9ca3af', '&:hover': { bgcolor: '#eff6ff', color: '#3b82f6' }, p: '4px', mr: 0.5 }}
-                        >
-                          <ContentCopyOutlinedIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={pinnedDocs.includes(doc._id) ? 'Unpin' : 'Pin to top'}>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleDuplicate(e, doc)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        sx={{ color: '#9ca3af', '&:hover': { bgcolor: '#eff6ff', color: '#3b82f6' }, p: '4px', mr: 0.5 }}
+                      >
+                        <ContentCopyOutlinedIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={pinnedDocs.includes(doc._id) ? 'Unpin' : 'Pin to top'}>
                       <IconButton
                         size="small"
                         onClick={(e) => togglePin(e, doc._id)}
                         className={`transition-opacity ${pinnedDocs.includes(doc._id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                         sx={{ color: pinnedDocs.includes(doc._id) ? '#427c36' : '#9ca3af', '&:hover': { bgcolor: '#f0fdf4', color: '#427c36' }, p: '4px' }}
                       >
-                        {pinnedDocs.includes(doc._id) 
+                        {pinnedDocs.includes(doc._id)
                           ? <PushPinIcon sx={{ fontSize: 14, transform: 'rotate(45deg)' }} />
                           : <PushPinOutlinedIcon sx={{ fontSize: 14 }} />
                         }
                       </IconButton>
                     </Tooltip>
-                    <IconButton 
+                    <IconButton
                       id={`sidebar-delete-btn-${doc._id}`}
                       aria-label={`Delete document ${doc.title || 'Untitled'}`}
-                      size="small" 
+                      size="small"
                       onClick={(e) => openDeleteDialog(e, doc)}
                       className={`transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                       sx={{ color: '#ef4444', '&:hover': { backgroundColor: '#fee2e2' }, p: '4px' }}
@@ -532,10 +722,15 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
         )}
       </List>
 
+      {/* Storage Quota & Razorpay Upgrade Indicator */}
+      <Box className="px-2.5 py-1.5 border-t border-gray-100 dark:border-gray-800 bg-transparent">
+        <StorageIndicator groupId={activeGroupId} />
+      </Box>
+
       {/* Delete Confirmation Dialog */}
-      <Dialog 
+      <Dialog
         id="delete-doc-dialog"
-        open={deleteDialogOpen} 
+        open={deleteDialogOpen}
         onClose={closeDeleteDialog}
         fullWidth
         maxWidth="xs"
@@ -545,7 +740,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
         <DialogContent>
           <DialogContentText className="mb-4">
             Are you sure you want to delete "{docToDelete?.title}" from group <strong>{activeGroup?.name}</strong>? This action cannot be undone.
-            <br/><br/>
+            <br /><br />
             Please type <strong>confirm</strong> to delete.
           </DialogContentText>
           <TextField
@@ -565,11 +760,11 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
           <Button id="delete-cancel-btn" onClick={closeDeleteDialog} color="inherit" className="font-bold">
             Cancel
           </Button>
-          <Button 
+          <Button
             id="delete-submit-btn"
-            onClick={handleDeleteConfirm} 
-            color="error" 
-            variant="contained" 
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
             disabled={confirmText !== 'confirm'}
             className="font-bold shadow-none"
           >

@@ -1,0 +1,397 @@
+/* ==========================================================================
+   MICROSOFT EXCEL & GOOGLE SHEETS STYLE RIBBON TOOLBAR
+   Pixel-perfect replication of Excel Home Ribbon with complete functionality
+   ========================================================================== */
+
+.excel-ribbon-container {
+  display: flex;
+  align-items: stretch;
+  background: #f9fafb;
+  border-bottom: 1px solid #d1d5db;
+  color: #1f2937;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  user-select: none;
+  min-height: 94px;
+  max-height: 96px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  z-index: 20;
+}
+
+.dark .excel-ribbon-container {
+  background: #0f172a;
+  border-bottom-color: #1e293b;
+  color: #f1f5f9;
+}
+
+.excel-ribbon-container::-webkit-scrollbar {
+  height: 4px;
+}
+.excel-ribbon-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* ── Ribbon Functional Group ────────────────────────────────────────────── */
+.excel-ribbon-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px 6px 3px;
+  border-right: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.dark .excel-ribbon-group {
+  border-right-color: #1e293b;
+}
+
+.excel-ribbon-group-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 3px;
+}
+
+.excel-ribbon-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #6b7280;
+  padding-top: 2px;
+  letter-spacing: 0.01em;
+  cursor: default;
+}
+
+.dark .excel-ribbon-group-label {
+  color: #94a3b8;
+}
+
+.excel-launcher-icon {
+  font-size: 0.65rem;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.excel-launcher-icon:hover {
+  opacity: 1;
+  color: #107c41;
+}
+
+/* ── Big Buttons (e.g. Paste, Conditional Formatting, AutoSum, Insert, Delete) ── */
+.excel-btn-big {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 66px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.15;
+  flex-shrink: 0;
+}
+
+.dark .excel-btn-big {
+  color: #cbd5e1;
+}
+
+.excel-btn-big:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.dark .excel-btn-big:hover:not(:disabled) {
+  background: #1e293b;
+  border-color: #334155;
+  color: #ffffff;
+}
+
+.excel-btn-big:active:not(:disabled) {
+  background: #d1d5db;
+}
+
+.excel-btn-big.active {
+  background: #e8f5e9 !important;
+  border-color: #107c41 !important;
+  color: #107c41 !important;
+}
+
+.excel-btn-big-label {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-top: 2px;
+}
+
+/* ── Stacked Rows inside a group ────────────────────────────────────────── */
+.excel-group-row-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+}
+
+.excel-group-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ── Small Ribbon Buttons ───────────────────────────────────────────────── */
+.excel-btn-small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  font-size: 0.75rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.dark .excel-btn-small {
+  color: #cbd5e1;
+}
+
+.excel-btn-small:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.dark .excel-btn-small:hover:not(:disabled) {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.excel-btn-small:active:not(:disabled) {
+  background: #d1d5db;
+}
+
+.excel-btn-small.active {
+  background: #dcfce7 !important;
+  border-color: #107c41 !important;
+  color: #047857 !important;
+  box-shadow: inset 0 1px 2px rgba(16, 124, 65, 0.15);
+}
+
+.dark .excel-btn-small.active {
+  background: rgba(16, 124, 65, 0.3) !important;
+  border-color: #34d399 !important;
+  color: #6ee7b7 !important;
+}
+
+.excel-btn-small:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Split Dropdown Buttons ─────────────────────────────────────────────── */
+.excel-split-btn {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  overflow: hidden;
+  flex-shrink: 0;
+  height: 24px;
+}
+
+.excel-split-btn:hover {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.dark .excel-split-btn:hover {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.excel-split-btn-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.excel-split-btn-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+.excel-split-btn:hover .excel-split-btn-arrow {
+  border-left-color: rgba(0, 0, 0, 0.1);
+}
+
+.dark .excel-split-btn:hover .excel-split-btn-arrow {
+  border-left-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Color bar indicator below font/fill icons ─────────────────────────── */
+.excel-color-indicator-bar {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  margin-top: -1px;
+}
+
+/* ── Dropdown Selectors (Font family, size, number format) ──────────────── */
+.excel-dropdown-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  padding: 0 6px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dark .excel-dropdown-select {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+.excel-dropdown-select:hover {
+  border-color: #107c41;
+  background: #f9fafb;
+}
+
+.dark .excel-dropdown-select:hover {
+  border-color: #34d399;
+  background: #334155;
+}
+
+/* ── Cell Styles Horizontal Gallery (Classic Excel Styles) ──────────────── */
+.excel-cell-styles-gallery {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  max-width: 250px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.excel-cell-styles-gallery::-webkit-scrollbar {
+  display: none;
+}
+
+.excel-cell-style-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  flex-shrink: 0;
+  height: 22px;
+}
+
+.excel-cell-style-badge:hover {
+  transform: scale(1.04);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Preset Style Colorways matching Microsoft Excel */
+.style-normal {
+  background: #ffffff;
+  color: #000000;
+  border-color: #d1d5db;
+}
+.style-bad {
+  background: #ffc7ce;
+  color: #9c0006;
+  border-color: #fecaca;
+}
+.style-good {
+  background: #c6efce;
+  color: #006100;
+  border-color: #bbf7d0;
+}
+.style-neutral {
+  background: #ffeb9c;
+  color: #9c6500;
+  border-color: #fde68a;
+}
+.style-calculation {
+  background: #fde9d9;
+  color: #f79646;
+  border-color: #f79646;
+}
+.style-check {
+  background: #e2e8f0;
+  color: #1e293b;
+  border: 2px solid #595959;
+}
+
+/* ── Floating Find & Replace Toolbar (Excel Style) ───────────────────────── */
+.excel-find-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: #ffffff;
+  border-bottom: 2px solid #107c41;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 25;
+}
+
+.dark .excel-find-bar {
+  background: #1e293b;
+  border-bottom-color: #34d399;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* Format painter active copy cursor */
+body.excel-painter-active,
+body.excel-painter-active * {
+  cursor: copy !important;
+}

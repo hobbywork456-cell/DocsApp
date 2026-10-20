@@ -63,6 +63,8 @@ const Login = () => {
       if (pendingToken) {
         sessionStorage.removeItem('pendingInviteToken');
         navigate(`/invite/${pendingToken}`);
+      } else {
+        navigate('/home');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong');
@@ -94,10 +96,10 @@ const Login = () => {
         </Box>
       )}
       {isDesktop && (
-        <Typography variant="h4" className="font-extrabold text-gray-800 dark:text-white mb-2 text-center">Sign In</Typography>
+        <Typography variant="h4" className="font-extrabold text-gray-800 dark:text-white mb-4 text-center">Sign In</Typography>
       )}
       
-      <form onSubmit={(e) => handleSubmit(e, 0)} className="flex flex-col gap-4 mt-4 max-w-sm mx-auto w-full">
+      <form onSubmit={(e) => handleSubmit(e, 0)} className="flex flex-col gap-4 mt-2 max-w-sm mx-auto w-full">
         <TextField fullWidth label="Email Address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required {...sharedTextFieldProps} />
         
         <TextField fullWidth label="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required {...sharedTextFieldProps} 

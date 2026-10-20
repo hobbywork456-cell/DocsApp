@@ -4,13 +4,15 @@ const router = express.Router();
 const Group = require('../models/Group');
 const Document = require('../models/Document');
 const auth = require('../middleware/auth');
+const { getUserStorageStats, invalidateStorageCache } = require('../utils/storage');
 
 // Get all groups the logged-in user belongs to
 router.get('/my-groups', auth, async (req, res) => {
   try {
     const groups = await Group.find({ members: req.user.userId })
       .sort({ updatedAt: -1 })
-      .populate('createdBy', 'email');
+      .populate('createdBy', 'email')
+      .lean();
     res.json(groups);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -24,6 +26,16 @@ router.post('/', auth, async (req, res) => {
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Group name is required' });
+    }
+
+    // Check user's storage quota
+    const storageStats = await getUserStorageStats(req.user.userId);
+    if (storageStats.isExceeded) {
+      return res.status(403).json({
+        message: 'Storage quota exceeded (100% capacity reached). Please upgrade your subscription to create new groups.',
+        isStorageFull: true,
+        storageStats
+      });
     }
 
     if (!groupId || !groupId.trim()) {
@@ -48,6 +60,7 @@ router.post('/', auth, async (req, res) => {
     });
 
     const savedGroup = await group.save();
+    invalidateStorageCache(req.user.userId, groupId);
     await savedGroup.populate('createdBy', 'email');
     res.status(201).json(savedGroup);
   } catch (error) {
