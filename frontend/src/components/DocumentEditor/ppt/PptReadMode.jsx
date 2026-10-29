@@ -103,8 +103,8 @@ const PptReadMode = ({
         zIndex: 999999,
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: isDarkMode ? '#0b1120' : '#f1f5f9',
-        color: isDarkMode ? '#f8fafc' : '#1e293b',
+        bgcolor: isDarkMode ? '#0b1120' : 'var(--c-surface2)',
+        color: isDarkMode ? '#faf8f4' : '#232824',
         overflow: 'hidden',
         userSelect: 'none'
       }}
@@ -117,8 +117,8 @@ const PptReadMode = ({
           justifyContent: 'space-between',
           px: { xs: 2, sm: 3 },
           py: 1,
-          bgcolor: isDarkMode ? '#1e293b' : '#ffffff',
-          borderBottom: isDarkMode ? '1px solid #334155' : '1px solid #e2e8f0',
+          bgcolor: isDarkMode ? '#232824' : '#ffffff',
+          borderBottom: isDarkMode ? '1px solid #3a413b' : '1px solid #e6e0d6',
           boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
           zIndex: 10,
           flexShrink: 0
@@ -155,7 +155,7 @@ const PptReadMode = ({
             >
               {doc?.title || 'Presentation'}
             </Typography>
-            <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.72rem' }}>
+            <Typography variant="caption" sx={{ color: 'var(--c-muted)', fontSize: '0.72rem' }}>
               Slide Deck Viewer • Read Mode
             </Typography>
           </Box>
@@ -182,9 +182,9 @@ const PptReadMode = ({
                 onClick={handlePrevSlide}
                 disabled={activeSlideIndex === 0}
                 sx={{
-                  bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f8fafc',
+                  bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'var(--c-surface)',
                   border: '1px solid',
-                  borderColor: isDarkMode ? '#334155' : '#cbd5e1',
+                  borderColor: isDarkMode ? '#3a413b' : '#d4cbbf',
                   '&.Mui-disabled': { opacity: 0.3 }
                 }}
               >
@@ -199,8 +199,8 @@ const PptReadMode = ({
             sx={{
               fontWeight: 700,
               fontSize: '0.75rem',
-              bgcolor: isDarkMode ? '#334155' : '#e2e8f0',
-              color: isDarkMode ? '#f8fafc' : '#334155',
+              bgcolor: isDarkMode ? '#3a413b' : '#e6e0d6',
+              color: isDarkMode ? '#faf8f4' : '#3a413b',
               px: 0.5
             }}
           />
@@ -212,9 +212,9 @@ const PptReadMode = ({
                 onClick={handleNextSlide}
                 disabled={activeSlideIndex === deck.slides.length - 1}
                 sx={{
-                  bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f8fafc',
+                  bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'var(--c-surface)',
                   border: '1px solid',
-                  borderColor: isDarkMode ? '#334155' : '#cbd5e1',
+                  borderColor: isDarkMode ? '#3a413b' : '#d4cbbf',
                   '&.Mui-disabled': { opacity: 0.3 }
                 }}
               >
@@ -256,10 +256,10 @@ const PptReadMode = ({
               size="small"
               onClick={handleDownloadPdf}
               sx={{
-                bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f8fafc',
+                bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'var(--c-surface)',
                 color: '#ef4444',
                 border: '1px solid',
-                borderColor: isDarkMode ? '#334155' : '#cbd5e1'
+                borderColor: isDarkMode ? '#3a413b' : '#d4cbbf'
               }}
             >
               <PictureAsPdfIcon sx={{ fontSize: 18 }} />

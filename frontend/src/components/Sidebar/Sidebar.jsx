@@ -54,7 +54,7 @@ import StorageIndicator from '../Subscription/StorageIndicator';
 import './Sidebar.css';
 
 export const getTagColor = (tag) => {
-  if (!tag) return '#9ca3af';
+  if (!tag) return '#a59a8c';
   let hash = 0;
   for (let i = 0; i < tag.length; i++) {
     hash = tag.charCodeAt(i) + ((hash << 5) - hash);
@@ -363,7 +363,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
       {onToggle && (
         <Box
           onClick={onToggle}
-          className="hidden md:flex absolute cursor-pointer items-center justify-center bg-[#a8e6c3] text-[#0b1410] hover:bg-[#8fdab2] transition-colors"
+          className="hidden md:flex absolute cursor-pointer items-center justify-center bg-[#687f6e] text-white hover:bg-[#5a7060] transition-colors"
           sx={{
             top: '40px',
             right: 0,
@@ -389,16 +389,16 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
           <Box className="flex items-center gap-1.5 min-w-0">
             <Box sx={{
               width: 28, height: 28, borderRadius: '8px',
-              bgcolor: '#a8e6c3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+              bgcolor: '#687f6e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
             }}>
-              <GroupIcon sx={{ fontSize: 15, color: '#0b1410' }} />
+              <GroupIcon sx={{ fontSize: 15, color: '#ffffff' }} />
             </Box>
             <Box className="min-w-0">
-              <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#1f2937', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--c-ink)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {activeGroup ? activeGroup.name : 'No Group'}
               </Typography>
               {activeGroup && (
-                <Typography sx={{ fontSize: '0.62rem', color: '#6b7280', fontWeight: 500 }}>
+                <Typography sx={{ fontSize: '0.62rem', color: 'var(--c-muted)', fontWeight: 500 }}>
                   ID: {activeGroup.groupId}
                 </Typography>
               )}
@@ -425,8 +425,8 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                 sx={{
                   background: isStorageExceeded
                     ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important'
-                    : 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
-                  color: isStorageExceeded ? 'white' : '#0b1410',
+                    : 'linear-gradient(135deg, #718a77 0%, #61786a 100%)',
+                  color: isStorageExceeded ? 'white' : '#ffffff',
                   borderRadius: '8px',
                   textTransform: 'none',
                   fontWeight: 700,
@@ -435,18 +435,18 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                   py: 0.6,
                   boxShadow: isStorageExceeded
                     ? '0 2px 8px rgba(239,68,68,0.45)'
-                    : '0 2px 8px rgba(31, 138, 91, 0.35)',
+                    : '0 2px 8px rgba(104, 127, 110, 0.35)',
                   flexShrink: 0,
                   '&:hover': {
                     background: isStorageExceeded
                       ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important'
-                      : 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%)',
+                      : 'linear-gradient(135deg, #61786a 0%, #556a5d 100%)',
                     boxShadow: isStorageExceeded
                       ? '0 4px 14px rgba(239,68,68,0.55)'
-                      : '0 4px 14px rgba(31, 138, 91, 0.45)',
+                      : '0 4px 14px rgba(104, 127, 110, 0.45)',
                     transform: 'translateY(-1px)'
                   },
-                  '&.Mui-disabled': { background: '#d1d5db', color: '#9ca3af', boxShadow: 'none' }
+                  '&.Mui-disabled': { background: 'var(--c-surface2)', color: 'var(--c-muted)', boxShadow: 'none', border: '1px solid var(--c-line)' }
                 }}
               >
                 {isStorageExceeded ? 'Locked' : 'New'}
@@ -465,7 +465,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                   borderRadius: '12px',
                   boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
                   minWidth: 190,
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid #e6e0d6',
                   py: 0.5
                 }
               }
@@ -473,7 +473,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
           >
             <MenuItem onClick={() => handleCreateNew('doc')} sx={{ py: 1 }}>
               <ListItemIcon sx={{ minWidth: 32 }}>
-                <DescriptionIcon fontSize="small" sx={{ color: '#3b82f6' }} />
+                <DescriptionIcon fontSize="small" sx={{ color: '#6b7f94' }} />
               </ListItemIcon>
               <ListItemText
                 primary="New Document"
@@ -555,12 +555,12 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                     py: 0.3,
                     minWidth: 'auto',
                     whiteSpace: 'nowrap',
-                    bgcolor: isSelected ? '#a8e6c3' : 'rgba(255,255,255,0.8)',
-                    color: isSelected ? '#0b1410' : '#4b5563',
+                    bgcolor: isSelected ? '#687f6e' : 'var(--c-card-a)',
+                    color: isSelected ? '#ffffff' : 'var(--c-muted2)',
                     border: '1px solid',
-                    borderColor: isSelected ? '#1f8a5b' : '#e5e7eb',
-                    boxShadow: isSelected ? '0 1px 4px rgba(31, 138, 91, 0.25)' : 'none',
-                    '&:hover': { bgcolor: isSelected ? '#8fdab2' : '#f0fdf4', borderColor: '#1f8a5b' }
+                    borderColor: isSelected ? 'var(--c-accent)' : 'var(--c-line)',
+                    boxShadow: isSelected ? '0 1px 4px rgba(104, 127, 110, 0.25)' : 'none',
+                    '&:hover': { bgcolor: isSelected ? '#5a7060' : 'var(--c-tint)', borderColor: 'var(--c-accent)' }
                   }}
                 >
                   {group.name}
@@ -572,11 +572,11 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
 
         {/* Row 3: "Library" label */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pt: 0.5 }}>
-          <Box sx={{ flex: 1, height: '1px', bgcolor: '#e5e7eb' }} />
-          <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <Box sx={{ flex: 1, height: '1px', bgcolor: '#e6e0d6' }} />
+          <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#a59a8c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Library
           </Typography>
-          <Box sx={{ flex: 1, height: '1px', bgcolor: '#e5e7eb' }} />
+          <Box sx={{ flex: 1, height: '1px', bgcolor: '#e6e0d6' }} />
         </Box>
       </Box>
 
@@ -605,7 +605,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                     aria-label="Clear search"
                     sx={{ p: 0.5 }}
                   >
-                    <ClearIcon sx={{ fontSize: 16, color: '#9ca3af' }} />
+                    <ClearIcon sx={{ fontSize: 16, color: '#a59a8c' }} />
                   </IconButton>
                 </InputAdornment>
               ) : null,
@@ -653,7 +653,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
         {/* When searching, show concise results counter */}
         {isSearching && (
           <Box className="flex items-center justify-between px-1 pt-2 pb-0.5">
-            <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#1f8a5b' }}>
+            <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--c-accent)' }}>
               {filteredDocuments.length} {filteredDocuments.length === 1 ? 'document' : 'documents'} found
               {searchQuery && (
                 <span className="text-gray-500 font-normal ml-1">for "{searchQuery}"</span>
@@ -662,7 +662,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
             <Button
               size="small"
               onClick={() => dispatch(setSearchQuery(''))}
-              sx={{ fontSize: '0.65rem', textTransform: 'none', color: '#6b7280', p: 0, minWidth: 'auto', '&:hover': { color: '#ef4444' } }}
+              sx={{ fontSize: '0.65rem', textTransform: 'none', color: 'var(--c-muted)', p: 0, minWidth: 'auto', '&:hover': { color: '#ef4444' } }}
             >
               Clear
             </Button>
@@ -674,7 +674,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
       <List id="sidebar-doc-list" aria-label="List of documents" className="flex-1 overflow-y-auto px-0 space-y-2 pb-16 sm:pb-20 custom-scrollbar">
         {!activeGroupId ? (
           <Box className="flex flex-col items-center justify-center p-6 text-center bg-white/40 dark:bg-gray-800/40 rounded-2xl border border-green-100 dark:border-green-900 mt-4">
-            <GroupIcon sx={{ fontSize: 42, color: '#1f8a5b', mb: 1.5, opacity: 0.8 }} />
+            <GroupIcon sx={{ fontSize: 42, color: 'var(--c-accent)', mb: 1.5, opacity: 0.8 }} />
             <Typography variant="body2" className="font-bold text-gray-700 dark:text-gray-300 mb-1">
               No Group Selected
             </Typography>
@@ -696,7 +696,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
           </Box>
         ) : filteredDocuments.length === 0 ? (
           <Box className="flex flex-col items-center justify-center h-40 opacity-75">
-            <DescriptionIcon sx={{ fontSize: 40, color: '#1f8a5b', mb: 1 }} />
+            <DescriptionIcon sx={{ fontSize: 40, color: 'var(--c-accent)', mb: 1 }} />
             <Typography variant="body2" color="textSecondary" align="center" className="italic font-medium">
               {searchQuery ? `No documents matching "${searchQuery}"` : 'No documents found in this group.'}
             </Typography>
@@ -725,10 +725,10 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                     onSelectDocument(doc._id);
                   }
                 }}
-                className={`group cursor-pointer relative overflow-hidden transition-all duration-300 rounded-xl border p-2.5 sm:p-3 ${isSelected ? 'bg-white dark:bg-gray-900 shadow-md border-l-4 border-l-[#1f8a5b] border-white' : 'bg-white/70 dark:bg-gray-800/70 border-transparent shadow-sm dark:shadow-none hover:bg-white dark:bg-gray-900 hover:shadow'}`}
+                className={`group cursor-pointer relative overflow-hidden transition-all duration-300 rounded-xl border p-2.5 sm:p-3 ${isSelected ? 'bg-white dark:bg-gray-900 shadow-md border-l-4 border-l-[#5b7262] border-white' : 'bg-white/70 dark:bg-gray-800/70 border-transparent shadow-sm dark:shadow-none hover:bg-white dark:bg-gray-900 hover:shadow'}`}
                 sx={{
                   opacity: draggingId === doc._id ? 0.4 : 1,
-                  outline: dragOverId === doc._id ? '2px dashed #1f8a5b' : 'none',
+                  outline: dragOverId === doc._id ? '2px dashed #5b7262' : 'none',
                   outlineOffset: '2px',
                   transition: 'opacity 0.15s, outline 0.1s',
                 }}
@@ -759,7 +759,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                         filter: 'drop-shadow(1px 2px 2px rgba(0,0,0,0.3))'
                       }}
                     >
-                      <Box sx={{ position: 'absolute', left: '2px', top: '50%', transform: 'translateY(-50%)', width: '2.5px', height: '2.5px', backgroundColor: '#fff', borderRadius: '50%' }} />
+                      <Box sx={{ position: 'absolute', left: '2px', top: '50%', transform: 'translateY(-50%)', width: '2.5px', height: '2.5px', backgroundColor: 'var(--c-card)', borderRadius: '50%' }} />
                       {doc.tags[0]}
                     </Box>
                   </Box>
@@ -767,35 +767,35 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                 <Box className="flex items-center justify-between w-full">
                   {/* Drag Handle */}
                   <DragIndicatorIcon
-                    sx={{ fontSize: 16, color: '#d1d5db', mr: 0.5, cursor: 'grab', flexShrink: 0 }}
+                    sx={{ fontSize: 16, color: '#d4cbbf', mr: 0.5, cursor: 'grab', flexShrink: 0 }}
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                   />
 
                   <Box className="flex items-center overflow-hidden flex-1 mr-1">
                     <Box className={`p-2 rounded-lg mr-2.5 sm:mr-3 shrink-0 relative ${isSelected
                         ? doc.docType === 'sheet'
-                          ? 'bg-emerald-100 dark:bg-emerald-900/60 text-[#0f2e1f]'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/60 text-[var(--c-ink2)]'
                           : doc.docType === 'ppt'
                             ? 'bg-amber-100 dark:bg-amber-900/60 text-[#ea580c]'
-                            : 'bg-green-100 dark:bg-green-900/60 text-[#1f8a5b]'
+                            : 'bg-green-100 dark:bg-green-900/60 text-[var(--c-accent)]'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                       }`}>
                       {doc.docType === 'sheet' ? (
-                        <TableChartIcon fontSize="small" sx={{ color: isSelected ? '#0f2e1f' : '#10b981' }} />
+                        <TableChartIcon fontSize="small" sx={{ color: isSelected ? 'var(--c-ink2)' : '#10b981' }} />
                       ) : doc.docType === 'ppt' ? (
                         <SlideshowIcon fontSize="small" sx={{ color: isSelected ? '#ea580c' : '#f59e0b' }} />
                       ) : (
-                        <DescriptionIcon fontSize="small" sx={{ color: isSelected ? '#1f8a5b' : '#3b82f6' }} />
+                        <DescriptionIcon fontSize="small" sx={{ color: isSelected ? 'var(--c-accent)' : '#6b7f94' }} />
                       )}
                       {/* Pin dot indicator */}
                       {pinnedDocs.includes(doc._id) && (
-                        <Box sx={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', bgcolor: '#a8e6c3' }} />
+                        <Box sx={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', bgcolor: '#687f6e' }} />
                       )}
                     </Box>
                     <Box className="overflow-hidden min-w-0">
                       <Typography variant="body2" className={`font-bold truncate ${isSelected ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300'}`}>
                         {pinnedDocs.includes(doc._id) && (
-                          <PushPinIcon sx={{ fontSize: 11, color: '#1f8a5b', mr: 0.4, verticalAlign: 'middle', transform: 'rotate(45deg)' }} />
+                          <PushPinIcon sx={{ fontSize: 11, color: 'var(--c-accent)', mr: 0.4, verticalAlign: 'middle', transform: 'rotate(45deg)' }} />
                         )}
                         {doc.title || 'Untitled'}
                       </Typography>
@@ -816,7 +816,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                           </span>
                         )}
 
-                        <Typography variant="caption" className={`block ${isSelected ? 'text-[#0f2e1f] font-medium' : 'text-gray-500 dark:text-gray-400 dark:text-gray-500'}`}>
+                        <Typography variant="caption" className={`block ${isSelected ? 'text-[var(--c-ink2)] font-medium' : 'text-gray-500 dark:text-gray-400 dark:text-gray-500'}`}>
                           {new Date(doc.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                         </Typography>
                       </Box>
@@ -878,7 +878,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                         size="small"
                         onClick={(e) => handleDuplicate(e, doc)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        sx={{ color: '#9ca3af', '&:hover': { bgcolor: '#eff6ff', color: '#3b82f6' }, p: '4px', mr: 0.5 }}
+                        sx={{ color: '#a59a8c', '&:hover': { bgcolor: '#eff6ff', color: '#6b7f94' }, p: '4px', mr: 0.5 }}
                       >
                         <ContentCopyOutlinedIcon sx={{ fontSize: 14 }} />
                       </IconButton>
@@ -888,7 +888,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                         size="small"
                         onClick={(e) => togglePin(e, doc._id)}
                         className={`transition-opacity ${pinnedDocs.includes(doc._id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                        sx={{ color: pinnedDocs.includes(doc._id) ? '#1f8a5b' : '#9ca3af', '&:hover': { bgcolor: '#f0fdf4', color: '#1f8a5b' }, p: '4px' }}
+                        sx={{ color: pinnedDocs.includes(doc._id) ? 'var(--c-accent)' : '#a59a8c', '&:hover': { bgcolor: 'var(--c-tint)', color: 'var(--c-accent)' }, p: '4px' }}
                       >
                         {pinnedDocs.includes(doc._id)
                           ? <PushPinIcon sx={{ fontSize: 14, transform: 'rotate(45deg)' }} />

@@ -41,7 +41,7 @@ const InviteHandler = () => {
           <Typography variant="body2" className="text-gray-600 mb-6">
             {error}
           </Typography>
-          <Button variant="contained" onClick={() => navigate('/home')} sx={{ bgcolor: '#a8e6c3', '&:hover': { bgcolor: '#8fdab2' }, borderRadius: '12px', textTransform: 'none', fontWeight: 'bold' }}>
+          <Button variant="contained" onClick={() => navigate('/home')} sx={{ bgcolor: '#687f6e', '&:hover': { bgcolor: '#5a7060' }, borderRadius: '12px', textTransform: 'none', fontWeight: 'bold' }}>
             Go to Dashboard
           </Button>
         </Box>
@@ -51,7 +51,7 @@ const InviteHandler = () => {
 
   return (
     <Box className="flex flex-col items-center justify-center min-h-[100dvh] bg-green-50">
-      <CircularProgress sx={{ color: '#1f8a5b', mb: 3 }} size={40} />
+      <CircularProgress sx={{ color: 'var(--c-accent)', mb: 3 }} size={40} />
       <Typography variant="h6" className="font-bold text-gray-700">
         Processing Invite...
       </Typography>

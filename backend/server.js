@@ -57,6 +57,12 @@ process.on('unhandledRejection', (reason) => {
 mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
+    // One-time: wipe old/demo subscription data and put every user on the 25 MB free plan
+    try {
+      await require('./scripts/resetSubscriptions').runOnce();
+    } catch (err) {
+      console.error('[Subscription reset] failed:', err.message);
+    }
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });

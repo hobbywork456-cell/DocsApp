@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
 import { loginSuccess } from '../../slices/authSlice';
 import { Box, Button, TextField, Typography, Container, Paper, Tabs, Tab, IconButton, InputAdornment, Divider, useMediaQuery, useTheme } from '@mui/material';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import GoogleIcon from '@mui/icons-material/Google';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import SEO from '../SEO/SEO';
@@ -15,7 +16,9 @@ import './Login.css';
 const API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
 const Login = () => {
-  const [tab, setTab] = useState(0); // 0 = login, 1 = register
+  const [searchParams] = useSearchParams();
+  // /login?mode=signup opens straight on the Register form (used by the landing page)
+  const [tab, setTab] = useState(searchParams.get('mode') === 'signup' ? 1 : 0); // 0 = login, 1 = register
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -94,8 +97,8 @@ const Login = () => {
   const sharedTextFieldProps = {
     sx: {
       '& .MuiOutlinedInput-root': {
-        '&:hover fieldset': { borderColor: '#1f8a5b' },
-        '&.Mui-focused fieldset': { borderColor: '#1f8a5b', borderWidth: '2px' }
+        '&:hover fieldset': { borderColor: 'var(--c-accent)' },
+        '&.Mui-focused fieldset': { borderColor: 'var(--c-accent)', borderWidth: '2px' }
       }
     },
     slotProps: { 
@@ -107,7 +110,7 @@ const Login = () => {
     <Box className="w-full h-full flex flex-col justify-center px-6 sm:px-14 py-8">
       {!isDesktop && (
         <Box className="flex flex-col items-center mb-6">
-          <MenuBookIcon className="text-[#1f8a5b] dark:text-green-400 mb-2" sx={{ fontSize: 40 }} />
+          <MenuBookIcon className="text-[var(--c-accent)] dark:text-green-400 mb-2" sx={{ fontSize: 40 }} />
           <Typography variant="h5" className="font-extrabold text-gray-800 dark:text-white">Welcome Back</Typography>
         </Box>
       )}
@@ -129,7 +132,7 @@ const Login = () => {
         />
         
         <Box className="flex justify-end -mt-2">
-          <Button variant="text" size="small" sx={{ textTransform: 'none', color: '#1f8a5b', fontWeight: 600 }} onClick={() => alert("Forgot password flow goes here")}>
+          <Button variant="text" size="small" sx={{ textTransform: 'none', color: 'var(--c-accent)', fontWeight: 600 }} onClick={() => alert("Forgot password flow goes here")}>
             Forgot password?
           </Button>
         </Box>
@@ -140,7 +143,7 @@ const Login = () => {
           </Box>
         )}
         
-        <Button fullWidth variant="contained" size="large" type="submit" className="mt-2 py-3.5 bg-gradient-to-r from-[#c8f1da] to-[#93ddb6] text-[#0b1410] font-bold tracking-wide hover:opacity-90 shadow-md" style={{ borderRadius: '12px' }} sx={{ textTransform: 'none', fontSize: '1.1rem' }}>
+        <Button fullWidth variant="contained" size="large" type="submit" className="mt-2 py-3.5 bg-gradient-to-r from-[#718a77] to-[#61786a] text-white font-bold tracking-wide hover:opacity-90 shadow-md" style={{ borderRadius: '12px' }} sx={{ textTransform: 'none', fontSize: '1.1rem' }}>
           Sign In
         </Button>
         
@@ -161,7 +164,7 @@ const Login = () => {
     <Box className="w-full h-full flex flex-col justify-center px-6 sm:px-14 py-8">
       {!isDesktop && (
         <Box className="flex flex-col items-center mb-6">
-          <MenuBookIcon className="text-[#1f8a5b] dark:text-green-400 mb-2" sx={{ fontSize: 40 }} />
+          <MenuBookIcon className="text-[var(--c-accent)] dark:text-green-400 mb-2" sx={{ fontSize: 40 }} />
           <Typography variant="h5" className="font-extrabold text-gray-800 dark:text-white">Create Account</Typography>
         </Box>
       )}
@@ -194,7 +197,7 @@ const Login = () => {
           </Box>
         )}
         
-        <Button fullWidth variant="contained" size="large" type="submit" className="mt-2 py-3.5 bg-gradient-to-r from-[#c8f1da] to-[#93ddb6] text-[#0b1410] font-bold tracking-wide hover:opacity-90 shadow-md" style={{ borderRadius: '12px' }} sx={{ textTransform: 'none', fontSize: '1.1rem' }}>
+        <Button fullWidth variant="contained" size="large" type="submit" className="mt-2 py-3.5 bg-gradient-to-r from-[#718a77] to-[#61786a] text-white font-bold tracking-wide hover:opacity-90 shadow-md" style={{ borderRadius: '12px' }} sx={{ textTransform: 'none', fontSize: '1.1rem' }}>
           Register
         </Button>
       </form>
@@ -205,15 +208,26 @@ const Login = () => {
     <Box component="main" className="min-h-screen relative flex items-center justify-center p-4 bg-transparent dark:bg-gray-900 transition-colors duration-300 overflow-hidden">
       <SEO title={tab === 0 ? 'Sign In' : 'Create Free Account'} description="Authenticate to DocsApp" />
       
+      {/* Back to the public landing page */}
+      <Button
+        component={RouterLink}
+        to="/"
+        startIcon={<ArrowBackIcon />}
+        size="small"
+        sx={{ position: 'absolute', top: 16, left: 16, zIndex: 30, color: 'var(--c-accent)', fontWeight: 700 }}
+      >
+        Home
+      </Button>
+
       {/* Background Orbs */}
-      <Box className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob dark:opacity-20" style={{ background: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)' }} />
-      <Box className="absolute bottom-[-15%] right-[-10%] w-[700px] h-[700px] rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 dark:opacity-20" style={{ background: 'linear-gradient(135deg, #a7f3d0 0%, #1f8a5b 100%)' }} />
+      <Box className="absolute top-[-15%] left-[-10%] w-[600px] h-[600px] rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob dark:opacity-20" style={{ background: 'linear-gradient(135deg, #718a77 0%, #61786a 100%)' }} />
+      <Box className="absolute bottom-[-15%] right-[-10%] w-[700px] h-[700px] rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 dark:opacity-20" style={{ background: 'linear-gradient(135deg, #cfd9cf 0%, #5b7262 100%)' }} />
 
       {/* MOBILE LAYOUT */}
       {isMobile ? (
         <Container maxWidth="sm" className="relative z-10 w-full">
           <Paper elevation={0} className="w-full shadow-2xl border border-white/80 dark:border-gray-800 rounded-3xl bg-white/60 dark:bg-gray-800/90 backdrop-blur-xl overflow-hidden">
-            <Tabs value={tab} onChange={handleTabChange} variant="fullWidth" sx={{ '& .MuiTab-root': { textTransform: 'none', fontSize: '1rem', fontWeight: 600, color: 'text.secondary' }, '& .Mui-selected': { color: '#1f8a5b' } }} slotProps={{ indicator: { style: { backgroundColor: '#a8e6c3' } } }}>
+            <Tabs value={tab} onChange={handleTabChange} variant="fullWidth" sx={{ '& .MuiTab-root': { textTransform: 'none', fontSize: '1rem', fontWeight: 600, color: 'text.secondary' }, '& .Mui-selected': { color: 'var(--c-accent)' } }} slotProps={{ indicator: { style: { backgroundColor: '#687f6e' } } }}>
               <Tab label="Login" />
               <Tab label="Register" />
             </Tabs>
@@ -242,7 +256,7 @@ const Login = () => {
 
           {/* Sliding Overlay Panel */}
           <motion.div 
-            className="absolute top-0 left-0 w-1/2 h-full z-20 shadow-[0_0_40px_rgba(31,138,91,0.25)] bg-gradient-to-br from-[#c8f1da] to-[#93ddb6] flex items-center justify-center overflow-hidden"
+            className="absolute top-0 left-0 w-1/2 h-full z-20 shadow-[0_0_40px_rgba(31,138,91,0.25)] bg-gradient-to-br from-[#718a77] to-[#61786a] flex items-center justify-center overflow-hidden"
             animate={{ x: tab === 1 ? "0%" : "100%" }}
             transition={{ type: "spring", stiffness: 60, damping: 14 }}
             style={{ 
@@ -256,7 +270,7 @@ const Login = () => {
             
             {/* Overlay Welcome Content (Visible when tab=1, panel on left) */}
             <motion.div 
-              className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center text-[#0b1410]"
+              className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center text-white"
               animate={{ 
                 x: tab === 1 ? 0 : -80,
                 opacity: tab === 1 ? 1 : 0,
@@ -269,14 +283,14 @@ const Login = () => {
               <Typography variant="body1" className="mb-8 opacity-90 max-w-[300px]">
                 To keep connected with your workspace, please login with your personal info.
               </Typography>
-              <Button variant="outlined" size="large" onClick={() => switchTab(0)} sx={{ borderColor: '#0b1410', color: '#0b1410', '&:hover': { borderColor: '#0b1410', bgcolor: 'rgba(255,255,255,0.45)' }, borderRadius: '30px', px: 6, py: 1.5, textTransform: 'none', fontSize: '1.1rem', fontWeight: 700 }}>
+              <Button variant="outlined" size="large" onClick={() => switchTab(0)} sx={{ borderColor: '#ffffff', color: '#ffffff', '&:hover': { borderColor: '#ffffff', bgcolor: 'rgba(255,255,255,0.15)' }, borderRadius: '30px', px: 6, py: 1.5, textTransform: 'none', fontSize: '1.1rem', fontWeight: 700 }}>
                 Sign In
               </Button>
             </motion.div>
 
             {/* Overlay Hello Content (Visible when tab=0, panel on right) */}
             <motion.div 
-              className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center text-[#0b1410]"
+              className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center text-white"
               animate={{ 
                 x: tab === 0 ? 0 : 80,
                 opacity: tab === 0 ? 1 : 0,
@@ -289,7 +303,7 @@ const Login = () => {
               <Typography variant="body1" className="mb-8 opacity-90 max-w-[300px]">
                 Enter your personal details and start your journey with DocsApp today.
               </Typography>
-              <Button variant="outlined" size="large" onClick={() => switchTab(1)} sx={{ borderColor: '#0b1410', color: '#0b1410', '&:hover': { borderColor: '#0b1410', bgcolor: 'rgba(255,255,255,0.45)' }, borderRadius: '30px', px: 6, py: 1.5, textTransform: 'none', fontSize: '1.1rem', fontWeight: 700 }}>
+              <Button variant="outlined" size="large" onClick={() => switchTab(1)} sx={{ borderColor: '#ffffff', color: '#ffffff', '&:hover': { borderColor: '#ffffff', bgcolor: 'rgba(255,255,255,0.15)' }, borderRadius: '30px', px: 6, py: 1.5, textTransform: 'none', fontSize: '1.1rem', fontWeight: 700 }}>
                 Sign Up
               </Button>
             </motion.div>

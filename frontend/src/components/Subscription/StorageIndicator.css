@@ -11,28 +11,28 @@
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 150px;
-  color: #374151;
+  color: #48463f;
   font-family: inherit;
 }
 
 .dark .storage-indicator-container {
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #f1f5f9;
+  color: #f1ece4;
 }
 
 .storage-indicator-container:hover {
   background: rgba(0, 0, 0, 0.02) !important;
-  border-color: rgba(31, 138, 91, 0.3);
+  border-color: rgba(104, 127, 110, 0.3);
   transform: translateY(-1px);
 }
 
 .dark .storage-indicator-container:hover {
   background: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(168, 230, 195, 0.3);
+  border-color: rgba(167, 184, 167, 0.3);
 }
 
 .storage-bar-normal {
-  border-left: 2.5px solid var(--color-theme-main, #1f8a5b);
+  border-left: 2.5px solid var(--color-theme-main, #5b7262);
 }
 
 .storage-bar-warning {
@@ -119,21 +119,21 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%) !important;
-  color: #0b1410 !important;
-  box-shadow: 0 1px 5px rgba(31, 138, 91, 0.3) !important;
+  background: linear-gradient(135deg, #61786a 0%, #556a5d 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 5px rgba(104, 127, 110, 0.3) !important;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #a8e6c3 0%, #6fcb9a 100%) !important;
+  background: linear-gradient(135deg, #61786a 0%, #556a5d 100%) !important;
   filter: brightness(1.06);
-  box-shadow: 0 2px 8px rgba(31, 138, 91, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(104, 127, 110, 0.45) !important;
   transform: translateY(-0.5px);
 }
 
 .btn-warning {
   background: linear-gradient(135deg, #f59e0b, #d97706) !important;
-  color: #111827 !important;
+  color: #1a1e1b !important;
   box-shadow: 0 1px 4px rgba(245, 158, 11, 0.2) !important;
 }
 

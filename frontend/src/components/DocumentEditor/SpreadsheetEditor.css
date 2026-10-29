@@ -33,11 +33,11 @@
 .dark .spreadsheet-container {
   --sheet-grid-line: #2a3342;
   --sheet-header-bg: #161e2b;
-  --sheet-header-text: #94a3b8;
+  --sheet-header-text: #a59a8c;
   --sheet-header-active-bg: #12402a;
   --sheet-header-active-text: #a7f3c9;
   --sheet-cell-bg: #0f1623;
-  --sheet-text: #e5e7eb;
+  --sheet-text: #e6e0d6;
   --sheet-chrome-bg: #111a27;
   --sheet-chrome-border: #243042;
   --sheet-accent-soft: rgba(52, 211, 153, 0.12);
@@ -304,14 +304,14 @@
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid #dadce0;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 8px 24px rgba(22, 26, 23, 0.16);
   z-index: 30;
   font-size: 12.5px;
 }
 
 .dark .formula-suggest {
   background: #1b2433;
-  border-color: #334155;
+  border-color: #3a413b;
 }
 
 .formula-suggest-item {

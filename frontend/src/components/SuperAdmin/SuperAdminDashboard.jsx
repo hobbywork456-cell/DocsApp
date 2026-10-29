@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,983 +9,1109 @@ import {
   updateSuperAdminTariff,
   updateUserRole,
   updateUserQuota,
-  fetchSuperAdminSubscriptions,
-  clearSuperAdminMessages
+  fetchSuperAdminSubscriptions
 } from '../../slices/superadminSlice';
 import { downloadInvoice } from '../../slices/subscriptionSlice';
 import { logout } from '../../slices/authSlice';
+import PlanCard from '../Subscription/PlanCard';
+import { formatPrice, formatMB, formatDate, subscriptionStatus, periodInfo } from '../../utils/subscriptionFormat';
 import './SuperAdminDashboard.css';
+
+// Razorpay settles in the currency code; the symbol is only for display
+const CURRENCIES = [
+  { code: 'INR', symbol: '₹', label: 'Indian rupee (₹ INR)' },
+  { code: 'USD', symbol: '$', label: 'US dollar ($ USD)' },
+  { code: 'EUR', symbol: '€', label: 'Euro (€ EUR)' },
+  { code: 'GBP', symbol: '£', label: 'British pound (£ GBP)' },
+  { code: 'AED', symbol: 'AED ', label: 'UAE dirham (AED)' },
+  { code: 'SGD', symbol: 'S$', label: 'Singapore dollar (S$ SGD)' }
+];
+
+const SECTIONS = [
+  { id: 'overview', label: 'Overview', icon: 'space_dashboard', title: 'Overview', blurb: 'How the workspace is doing today: people, storage and revenue.' },
+  { id: 'users', label: 'Users', icon: 'group', title: 'Users', blurb: 'Everyone with an account, their plan and how much storage they use.' },
+  { id: 'groups', label: 'Workspaces', icon: 'workspaces', title: 'Workspaces', blurb: 'Every group created in the app. Storage counts against the creator.' },
+  { id: 'tariff', label: 'Plans & pricing', icon: 'sell', title: 'Plans & pricing', blurb: 'Free storage, payment currency and the paid plans people can buy.' },
+  { id: 'subscriptions', label: 'Payments', icon: 'receipt_long', title: 'Payments', blurb: 'Every confirmed Razorpay payment and the storage it added.' }
+];
+
+const Icon = ({ name, size = 20, className = '' }) => (
+  <span className={`material-symbols-outlined sa-icon ${className}`} style={{ fontSize: size }} aria-hidden="true">{name}</span>
+);
+
+const initials = (nameOrEmail = '') => {
+  const parts = String(nameOrEmail || '').replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] || 'U') + (parts[1]?.[0] || '')).toUpperCase();
+};
+
+const Meter = ({ percent = 0, tone }) => {
+  const p = Math.max(0, Math.min(100, Number(percent) || 0));
+  const t = tone || (p >= 100 ? 'danger' : p >= 80 ? 'warn' : 'ok');
+  return (
+    <div className={`sa-meter is-${t}`} role="progressbar" aria-valuenow={Math.round(p)} aria-valuemin={0} aria-valuemax={100}>
+      <span style={{ width: `${p > 0 ? Math.max(p, 2) : 0}%` }} />
+    </div>
+  );
+};
+
+const Pill = ({ tone = 'neutral', children, icon }) => (
+  <span className={`sa-pill is-${tone}`}>
+    {icon && <Icon name={icon} size={14} />}
+    {children}
+  </span>
+);
+
+const Empty = ({ icon, title, children, action }) => (
+  <div className="sa-empty">
+    <Icon name={icon} size={30} />
+    <strong>{title}</strong>
+    {children && <p>{children}</p>}
+    {action}
+  </div>
+);
+
+const Panel = ({ title, subtitle, actions, children, className = '', flush = false }) => (
+  <section className={`sa-panel ${className}`}>
+    {(title || actions) && (
+      <header className="sa-panel-head">
+        <div>
+          {title && <h2>{title}</h2>}
+          {subtitle && <p>{subtitle}</p>}
+        </div>
+        {actions && <div className="sa-panel-actions">{actions}</div>}
+      </header>
+    )}
+    <div className={flush ? 'sa-panel-body is-flush' : 'sa-panel-body'}>{children}</div>
+  </section>
+);
+
+const Segmented = ({ value, onChange, options }) => (
+  <div className="sa-seg" role="tablist">
+    {options.map((o) => (
+      <button
+        key={o.value}
+        type="button"
+        role="tab"
+        aria-selected={value === o.value}
+        className={value === o.value ? 'is-on' : ''}
+        onClick={() => onChange(o.value)}
+      >
+        {o.label}
+        {typeof o.count === 'number' && <span className="sa-seg-count">{o.count}</span>}
+      </button>
+    ))}
+  </div>
+);
+
+const SearchBox = ({ value, onChange, placeholder }) => (
+  <label className="sa-search">
+    <Icon name="search" size={18} />
+    <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
+  </label>
+);
 
 const SuperAdminDashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const currentUser = useSelector((state) => state.auth.user);
-  const {
-    stats,
-    users,
-    groups,
-    tariff,
-    subscriptions,
-    loading,
-    tariffUpdating,
-    tariffSuccessMsg,
-    error
-  } = useSelector((state) => state.superadmin);
+  const { stats, users, groups, tariff, subscriptions, loading, tariffUpdating } = useSelector((state) => state.superadmin);
 
-  // Active navigation tab
   const [activeTab, setActiveTab] = useState('overview');
+  const [lastSync, setLastSync] = useState(null);
+  const [syncing, setSyncing] = useState(false);
 
-  // Search & Filter state
+  // Filters
   const [userSearch, setUserSearch] = useState('');
   const [userFilter, setUserFilter] = useState('all');
   const [groupSearch, setGroupSearch] = useState('');
+  const [paySearch, setPaySearch] = useState('');
+  const [payFilter, setPayFilter] = useState('all');
 
-  // Tariff Form State (Loaded from DB)
+  // Plans & pricing form (loaded from DB)
   const [freeStorageMB, setFreeStorageMB] = useState(25);
-  const [pricePer50MB, setPricePer50MB] = useState(5);
   const [warningThreshold, setWarningThreshold] = useState(80);
-  const [currencySymbol, setCurrencySymbol] = useState('$');
+  const [currencySymbol, setCurrencySymbol] = useState('₹');
+  const [currencyCode, setCurrencyCode] = useState('INR');
   const [tiers, setTiers] = useState([]);
+  const [tariffDirty, setTariffDirty] = useState(false);
+  const [openTierId, setOpenTierId] = useState(null);
 
-  // Quota Override Modal
-  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
-  const [selectedUserForQuota, setSelectedUserForQuota] = useState(null);
-  const [customQuotaInput, setCustomQuotaInput] = useState('');
+  // Dialogs
+  const [quotaUser, setQuotaUser] = useState(null);
+  const [quotaInput, setQuotaInput] = useState('');
+  const [roleUser, setRoleUser] = useState(null);
 
-  // Notifications
-  const [toastMessage, setToastMessage] = useState('');
-
-  // Initial Load from DB
-  const loadAllData = () => {
-    dispatch(fetchSuperAdminStats());
-    dispatch(fetchSuperAdminUsers());
-    dispatch(fetchSuperAdminGroups());
-    dispatch(fetchSuperAdminTariff());
-    dispatch(fetchSuperAdminSubscriptions());
-  };
-
+  const [toast, setToast] = useState(null);
+  const notify = useCallback((message, tone = 'ok') => {
+    setToast({ message, tone, id: Date.now() });
+  }, []);
   useEffect(() => {
-    loadAllData();
+    if (!toast) return undefined;
+    const t = setTimeout(() => setToast(null), 4200);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const loadAllData = useCallback(async () => {
+    setSyncing(true);
+    await Promise.all([
+      dispatch(fetchSuperAdminStats()),
+      dispatch(fetchSuperAdminUsers()),
+      dispatch(fetchSuperAdminGroups()),
+      dispatch(fetchSuperAdminTariff()),
+      dispatch(fetchSuperAdminSubscriptions())
+    ]);
+    setLastSync(new Date());
+    setSyncing(false);
   }, [dispatch]);
 
-  // Synchronize Tariff state when backend tariff loads
-  useEffect(() => {
-    if (tariff) {
-      setFreeStorageMB(tariff.freeStorageMB ?? 25);
-      setPricePer50MB(tariff.pricePer50MB ?? 5);
-      setWarningThreshold(tariff.warningThresholdPercent ?? 80);
-      setCurrencySymbol(tariff.currencySymbol ?? '$');
-      setTiers(tariff.tiers && tariff.tiers.length > 0 ? tariff.tiers : [
-        {
-          id: 'tier-50mb',
-          name: 'Starter Booster (+50 MB)',
-          storageMB: 50,
-          price: 5,
-          period: 'monthly',
-          badge: 'Most Affordable',
-          description: '+50 MB additional storage for your workspace'
-        },
-        {
-          id: 'tier-100mb',
-          name: 'Pro Expansion (+100 MB)',
-          storageMB: 100,
-          price: 9,
-          period: 'monthly',
-          badge: 'Popular Choice',
-          description: '+100 MB for active collaboration teams'
-        },
-        {
-          id: 'tier-250mb',
-          name: 'Business Team (+250 MB)',
-          storageMB: 250,
-          price: 20,
-          period: 'monthly',
-          badge: 'Best Value',
-          description: '+250 MB high capacity workspace storage'
-        }
-      ]);
-    }
-  }, [tariff]);
+  useEffect(() => { loadAllData(); }, [loadAllData]);
 
-  // Save Tariff to MongoDB (Applies to all application users)
+  const applyTariffToForm = useCallback((t) => {
+    if (!t) return;
+    setFreeStorageMB(t.freeStorageMB ?? 25);
+    setWarningThreshold(t.warningThresholdPercent ?? 80);
+    setCurrencySymbol(t.currencySymbol ?? '₹');
+    setCurrencyCode(t.currency ?? 'INR');
+    setTiers((t.tiers || []).map((x) => ({ ...x, features: x.features || [] })));
+    setTariffDirty(false);
+  }, []);
+
+  // Load the saved tariff into the editor
+  useEffect(() => { applyTariffToForm(tariff); }, [tariff, applyTariffToForm]);
+
+  // Warn before leaving with unsaved plan edits
+  useEffect(() => {
+    if (!tariffDirty) return undefined;
+    const h = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [tariffDirty]);
+
+  // ── Plans & pricing actions ──
   const handleSaveTariff = async () => {
     const result = await dispatch(updateSuperAdminTariff({
       freeStorageMB: Number(freeStorageMB),
-      pricePer50MB: Number(pricePer50MB),
       warningThresholdPercent: Number(warningThreshold),
+      currency: currencyCode,
       currencySymbol,
-      tiers
+      tiers: tiers.map((t) => ({
+        ...t,
+        storageMB: Number(t.storageMB),
+        price: Number(t.price),
+        features: (Array.isArray(t.features) ? t.features : String(t.features || '').split('\n')).filter((f) => f && f.trim())
+      }))
     }));
-
     if (!result.error) {
       dispatch(fetchSuperAdminStats());
-      setToastMessage('✓ Tariff & pricing successfully updated in DB! All users now see these updated rates.');
-      setTimeout(() => setToastMessage(''), 4500);
+      setTariffDirty(false);
+      notify('Plans published. The landing page, profiles and subscription window now show them.');
+    } else {
+      notify(result.payload || 'Could not publish the plans.', 'error');
     }
   };
 
-  // Tier Editor helpers
-  const handleTierChange = (index, field, value) => {
-    const updated = [...tiers];
-    updated[index] = { ...updated[index], [field]: value };
-    setTiers(updated);
+  const handleCurrencyChange = (code) => {
+    const c = CURRENCIES.find((x) => x.code === code) || CURRENCIES[0];
+    setCurrencyCode(c.code);
+    setCurrencySymbol(c.symbol);
+    setTariffDirty(true);
   };
 
-  const handleAddTier = () => {
-    const newTier = {
-      id: `tier-${Date.now()}`,
-      name: 'Custom Storage Pack',
-      storageMB: 50,
-      price: 5,
-      period: 'monthly',
-      badge: 'New',
-      description: '+50 MB additional cloud storage'
-    };
-    setTiers([...tiers, newTier]);
+  const updateTier = (index, field, value) => {
+    setTiers((prev) => prev.map((t, i) => (i === index ? { ...t, [field]: value } : t)));
+    setTariffDirty(true);
   };
 
-  const handleRemoveTier = (index) => {
-    const updated = [...tiers];
-    updated.splice(index, 1);
-    setTiers(updated);
+  const addTier = () => {
+    const id = `tier-${Date.now()}`;
+    setTiers((prev) => [...prev, { id, name: '', storageMB: 100, price: '', period: 'monthly', badge: '', description: '', features: [], isPopular: false }]);
+    setOpenTierId(id);
+    setTariffDirty(true);
   };
 
-  // Quota Override
-  const handleOpenQuotaModal = (user) => {
-    setSelectedUserForQuota(user);
-    setCustomQuotaInput(user.totalQuotaMB || 25);
-    setQuotaModalOpen(true);
+  const moveTier = (index, dir) => {
+    setTiers((prev) => {
+      const j = index + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[j]] = [next[j], next[index]];
+      return next;
+    });
+    setTariffDirty(true);
   };
 
-  const handleSaveQuotaOverride = async () => {
-    if (!selectedUserForQuota) return;
-    const quotaVal = customQuotaInput === '' ? null : Number(customQuotaInput);
-    await dispatch(updateUserQuota({
-      userId: selectedUserForQuota.userId,
-      customStorageLimitMB: quotaVal
-    }));
+  const removeTier = (index) => {
+    setTiers((prev) => prev.filter((_, i) => i !== index));
+    setTariffDirty(true);
+  };
+
+  // ── Users actions ──
+  const openQuota = (u) => {
+    setQuotaUser(u);
+    setQuotaInput(u.hasCustomQuota ? String(u.totalQuotaMB) : '');
+  };
+
+  const saveQuota = async (reset = false) => {
+    if (!quotaUser) return;
+    const value = reset || quotaInput === '' ? null : Number(quotaInput);
+    if (value !== null && !(value > 0)) {
+      notify('Enter a storage limit above 0 MB, or reset to the plan.', 'error');
+      return;
+    }
+    const res = await dispatch(updateUserQuota({ userId: quotaUser.userId, customStorageLimitMB: value }));
+    if (res.error) {
+      notify(res.payload || 'Could not update the storage limit.', 'error');
+      return;
+    }
     dispatch(fetchSuperAdminUsers());
     dispatch(fetchSuperAdminStats());
-    setQuotaModalOpen(false);
-    setSelectedUserForQuota(null);
-    setToastMessage(`✓ Quota updated for ${selectedUserForQuota.userEmail}!`);
-    setTimeout(() => setToastMessage(''), 3500);
+    notify(value === null
+      ? `${quotaUser.userEmail} is back on their plan's storage.`
+      : `${quotaUser.userEmail} now has a ${formatMB(value)} limit.`);
+    setQuotaUser(null);
   };
 
-  // Role Toggle
-  const handleToggleUserRole = async (user) => {
-    const newRole = user.role === 'superadmin' ? 'user' : 'superadmin';
-    await dispatch(updateUserRole({ userId: user.userId, role: newRole }));
+  const confirmRoleChange = async () => {
+    const u = roleUser;
+    if (!u) return;
+    const newRole = u.role === 'superadmin' ? 'user' : 'superadmin';
+    const res = await dispatch(updateUserRole({ userId: u.userId, role: newRole }));
+    setRoleUser(null);
+    if (res.error) {
+      notify(res.payload || 'Could not change the role.', 'error');
+      return;
+    }
     dispatch(fetchSuperAdminUsers());
     dispatch(fetchSuperAdminStats());
-    setToastMessage(`✓ Role for ${user.userEmail} updated to ${newRole}!`);
-    setTimeout(() => setToastMessage(''), 3500);
+    notify(newRole === 'superadmin' ? `${u.userEmail} is now a super admin.` : `${u.userEmail} is now a regular user.`);
   };
 
-  // Sign out
+  // Close dialogs with Escape
+  useEffect(() => {
+    if (!quotaUser && !roleUser) return undefined;
+    const h = (e) => { if (e.key === 'Escape') { setQuotaUser(null); setRoleUser(null); } };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [quotaUser, roleUser]);
+
   const handleLogout = () => {
     dispatch(logout());
     navigate('/login');
   };
 
-  // Filter users
-  const filteredUsers = users.filter((u) => {
-    const matchEmail = (u.userEmail || '').toLowerCase().includes(userSearch.toLowerCase());
-    if (!matchEmail) return false;
-    if (userFilter === 'subscribed') return u.isSubscribed;
-    if (userFilter === 'free') return !u.isSubscribed;
-    if (userFilter === 'exceeded') return u.isExceeded;
-    return true;
-  });
-
-  // Filter groups
-  const filteredGroups = groups.filter((g) => {
-    const query = groupSearch.toLowerCase();
-    return (
-      (g.name || '').toLowerCase().includes(query) ||
-      (g.groupId || '').toLowerCase().includes(query) ||
-      (g.createdBy?.email || '').toLowerCase().includes(query)
-    );
-  });
-
-  // Stats
-  const totalMBUsed = stats?.totalApplicationMB || 0;
+  // ── Derived data ──
   const freeMB = tariff?.freeStorageMB || 25;
+  const symbol = tariff?.currencySymbol || currencySymbol;
+  const isSelf = (u) => Boolean(currentUser?.email && u.userEmail === currentUser.email);
+
+  const userCounts = useMemo(() => ({
+    all: users.length,
+    paid: users.filter((u) => u.isSubscribed).length,
+    free: users.filter((u) => !u.isSubscribed).length,
+    full: users.filter((u) => u.isExceeded).length
+  }), [users]);
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    return users.filter((u) => {
+      if (q && !`${u.userEmail || ''} ${u.userName || ''}`.toLowerCase().includes(q)) return false;
+      if (userFilter === 'paid') return u.isSubscribed;
+      if (userFilter === 'free') return !u.isSubscribed;
+      if (userFilter === 'full') return u.isExceeded;
+      return true;
+    });
+  }, [users, userSearch, userFilter]);
+
+  const filteredGroups = useMemo(() => {
+    const q = groupSearch.trim().toLowerCase();
+    return groups.filter((g) => !q || `${g.name} ${g.groupId} ${g.createdBy?.email || ''}`.toLowerCase().includes(q));
+  }, [groups, groupSearch]);
+
+  const decoratedPayments = useMemo(() => subscriptions.map((s) => ({ ...s, _st: subscriptionStatus(s) })), [subscriptions]);
+  const payCounts = useMemo(() => ({
+    all: decoratedPayments.length,
+    active: decoratedPayments.filter((s) => s._st.key === 'active').length,
+    expired: decoratedPayments.filter((s) => s._st.key !== 'active').length
+  }), [decoratedPayments]);
+  const filteredPayments = useMemo(() => {
+    const q = paySearch.trim().toLowerCase();
+    return decoratedPayments.filter((s) => {
+      if (payFilter === 'active' && s._st.key !== 'active') return false;
+      if (payFilter === 'expired' && s._st.key === 'active') return false;
+      if (q && !`${s.user?.email || ''} ${s.planName || ''} ${s.transactionId || ''} ${s.razorpayOrderId || ''}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [decoratedPayments, paySearch, payFilter]);
+
   const totalRevenue = stats?.totalRevenue || 0;
+  const allocatedMB = users.reduce((sum, u) => sum + (Number(u.totalQuotaMB) || 0), 0);
+  const usedMB = stats?.totalApplicationMB || 0;
+  const platformPercent = allocatedMB > 0 ? (usedMB / allocatedMB) * 100 : 0;
+  const warnAt = tariff?.warningThresholdPercent || 80;
+  const nearLimit = [...users]
+    .filter((u) => (u.percentUsed || 0) >= warnAt)
+    .sort((a, b) => (b.percentUsed || 0) - (a.percentUsed || 0))
+    .slice(0, 5);
+  const recentPayments = decoratedPayments.slice(0, 5);
+  const revenue30 = decoratedPayments
+    .filter((s) => Date.now() - new Date(s.createdAt).getTime() <= 30 * 86400000)
+    .reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+  const paymentCount = stats?.totalSubscriptions ?? subscriptions.length;
+
+  // Revenue for the last 6 calendar months (for the overview chart)
+  const monthly = useMemo(() => {
+    const now = new Date();
+    const buckets = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('en-IN', { month: 'short' }), total: 0, count: 0 });
+    }
+    decoratedPayments.forEach((p) => {
+      const d = new Date(p.createdAt);
+      const b = buckets.find((x) => x.key === `${d.getFullYear()}-${d.getMonth()}`);
+      if (b) { b.total += Number(p.price) || 0; b.count += 1; }
+    });
+    return buckets;
+  }, [decoratedPayments]);
+  const monthlyMax = Math.max(1, ...monthly.map((m) => m.total));
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const section = SECTIONS.find((s) => s.id === activeTab) || SECTIONS[0];
+  const adminName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ') || currentUser?.email?.split('@')[0] || 'Admin';
 
   return (
-    <div className="superadmin-console-wrapper font-sans antialiased overflow-x-hidden min-h-screen relative selection:bg-[#5cc28f]/20 selection:text-[#0f2e1f]">
-
-      {/* Floating Status Notification */}
-      {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 px-5 py-3 rounded-2xl bg-white border border-[#1f8a5b]/40 shadow-xl shadow-[#5cc28f]/15 flex items-center gap-3 text-xs font-bold text-slate-900 animate-in fade-in duration-200">
-          <span className="material-symbols-outlined text-[#1f8a5b] text-[20px]">check_circle</span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* SIDEBAR NAVIGATION */}
-      <aside className="fixed top-0 left-0 h-screen w-64 flex flex-col justify-between py-5 px-4 z-40 glass-card bg-white border-r border-slate-200 shadow-sm">
-        <div className="flex flex-col gap-5">
-          {/* Brand Header */}
-          <div className="flex items-center gap-3 px-2 py-1">
-            <div className="w-10 h-10 rounded-xl bg-gradient-sig flex items-center justify-center shadow-sm text-[#0b1410] font-bold">
-              <span className="material-symbols-outlined text-[22px]">admin_panel_settings</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-                DocuSphere
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#5cc28f]/10 text-[#1f8a5b] border border-[#1f8a5b]/20">ADMIN</span>
-              </span>
-              <span className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
-                <span className="w-2 h-2 rounded-full bg-[#a8e6c3] animate-pulse"></span>
-                Super Admin Role
-              </span>
-            </div>
+    <div className="sa-shell">
+      {/* ── Side rail ── */}
+      <aside className="sa-rail" aria-label="Admin navigation">
+        <div className="sa-brand">
+          <span className="sa-brand-mark"><Icon name="menu_book" size={20} /></span>
+          <div>
+            <strong>DocsApp</strong>
+            <span>Admin console</span>
           </div>
-
-          {/* SuperAdmin Authority Pill */}
-          <div className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#1f8a5b] text-[18px]">verified_user</span>
-              <span className="text-xs font-semibold text-slate-700">Full System Control</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-mono text-[10px] font-bold border border-emerald-200">
-              Active
-            </span>
-          </div>
-
-          {/* Navigation Items */}
-          <nav className="flex flex-col gap-1.5">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all text-left w-full ${
-                activeTab === 'overview'
-                  ? 'text-[#0b1410] font-semibold bg-gradient-sig shadow-sm shadow-[#5cc28f]/25'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px]">dashboard</span>
-              <span>Overview &amp; Metrics</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('tariff')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all text-left w-full ${
-                activeTab === 'tariff'
-                  ? 'text-[#0b1410] font-semibold bg-gradient-sig shadow-sm shadow-[#5cc28f]/25'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px]">tune</span>
-              <span>Traffic &amp; Tariff Pricing</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all text-left w-full ${
-                activeTab === 'users'
-                  ? 'text-[#0b1410] font-semibold bg-gradient-sig shadow-sm shadow-[#5cc28f]/25'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px]">groups</span>
-              <span>Users &amp; Storage Quotas</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('groups')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all text-left w-full ${
-                activeTab === 'groups'
-                  ? 'text-[#0b1410] font-semibold bg-gradient-sig shadow-sm shadow-[#5cc28f]/25'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px]">corporate_fare</span>
-              <span>Workspace Groups</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('subscriptions')}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all text-left w-full ${
-                activeTab === 'subscriptions'
-                  ? 'text-[#0b1410] font-semibold bg-gradient-sig shadow-sm shadow-[#5cc28f]/25'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-              <span>Subscription Ledger</span>
-            </button>
-          </nav>
         </div>
 
-        {/* Sidebar Footer Actions - Superadmin Only (Sign Out) */}
-        <div className="flex flex-col gap-2 border-t border-slate-200 pt-3">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 py-2 px-3 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors text-xs font-semibold text-left"
-          >
-            <span className="material-symbols-outlined text-[18px]">logout</span>
-            <span>Sign Out</span>
+        <nav className="sa-nav">
+          {SECTIONS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={activeTab === s.id ? 'is-active' : ''}
+              aria-current={activeTab === s.id ? 'page' : undefined}
+              onClick={() => setActiveTab(s.id)}
+            >
+              <Icon name={s.icon} size={20} />
+              <span>{s.label}</span>
+              {s.id === 'users' && userCounts.full > 0 && <span className="sa-nav-badge" title="People with full storage">{userCounts.full}</span>}
+              {s.id === 'tariff' && tariffDirty && <span className="sa-nav-dot" title="Unpublished changes" />}
+            </button>
+          ))}
+        </nav>
+
+        <div className="sa-rail-foot">
+          <div className="sa-me">
+            <span className="sa-avatar is-rail">{initials(adminName)}</span>
+            <div>
+              <strong>{adminName}</strong>
+              <span>{currentUser?.email}</span>
+            </div>
+          </div>
+          <button type="button" className="sa-signout" onClick={handleLogout}>
+            <Icon name="logout" size={18} />
+            Sign out
           </button>
         </div>
       </aside>
 
-      {/* MAIN CONTENT WRAPPER */}
-      <div className="pl-64 flex flex-col min-h-screen">
-
-        {/* TOP BAR */}
-        <header className="sticky top-0 z-30 flex justify-between items-center w-full px-8 h-16 glass-bar bg-white border-b border-slate-200 shadow-xs">
-          <div className="flex items-center gap-4">
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight">Super Admin Command Center</h1>
-            <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#a8e6c3] animate-pulse"></span>
-              Live Connected to MongoDB
-            </span>
+      {/* ── Main ── */}
+      <div className="sa-main">
+        <header className="sa-topbar">
+          <div className="sa-topbar-title">
+            {activeTab === 'overview' ? (
+              <>
+                <span className="sa-topbar-kicker">{todayLabel}</span>
+                <h1>{greeting}, {currentUser?.firstName || adminName}</h1>
+              </>
+            ) : (
+              <>
+                <h1>{section.title}</h1>
+                <p>{section.blurb}</p>
+              </>
+            )}
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={loadAllData}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-300 hover:border-[#1f8a5b] text-slate-700 hover:text-[#1f8a5b] text-xs font-semibold transition-all shadow-xs"
-            >
-              <span className="material-symbols-outlined text-[16px]">refresh</span>
-              Refresh Data
+          <div className="sa-topbar-actions">
+            <span className="sa-sync">
+              {syncing || loading ? 'Updating…' : lastSync ? `Updated ${lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+            </span>
+            <button type="button" className="sa-btn is-ghost" onClick={loadAllData} disabled={syncing}>
+              <Icon name="refresh" size={18} className={syncing ? 'is-spinning' : ''} />
+              Refresh
             </button>
-
-            <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
-              <div className="w-8 h-8 rounded-xl bg-gradient-sig flex items-center justify-center text-[#0b1410] font-bold text-xs shadow-xs">
-                SA
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-slate-900">{currentUser?.email || 'super@gmail.com'}</span>
-                <span className="text-xs text-slate-500">Super Admin</span>
-              </div>
-            </div>
           </div>
         </header>
 
-        {/* TAB CONTENTS */}
-        <main className="flex-1 p-8 space-y-7 relative z-10">
-
-          {/* TAB 1: OVERVIEW & REAL METRICS */}
+        <main className="sa-content">
+          {/* ═════════ OVERVIEW ═════════ */}
           {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* 5 Bento KPI Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                {/* Total Users */}
-                <div className="glass-card rounded-2xl p-5 bg-white border border-slate-200 shadow-sm hover:border-[#1f8a5b]/40 transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Total Users</span>
-                    <div className="w-9 h-9 rounded-xl bg-[#5cc28f]/10 text-[#1f8a5b] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[20px]">groups</span>
-                    </div>
-                  </div>
-                  <div className="text-3xl font-extrabold text-slate-900 mb-1">{stats?.totalUsers ?? users.length}</div>
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span>Free: <strong className="text-slate-800">{stats?.freeUsersCount ?? 0}</strong></span>
-                    <span>Paid: <strong className="text-[#1f8a5b]">{stats?.subscribedCount ?? 0}</strong></span>
-                  </div>
+            <>
+              <section className="sa-hero">
+                <div className="sa-hero-revenue">
+                  <span className="sa-hero-label">Total revenue</span>
+                  <div className="sa-hero-figure">{formatPrice(symbol, totalRevenue)}</div>
+                  <p>{formatPrice(symbol, revenue30)} in the last 30 days, from {paymentCount} payment{paymentCount === 1 ? '' : 's'} in total.</p>
+                  <button type="button" className="sa-link is-light" onClick={() => setActiveTab('subscriptions')}>View payments</button>
                 </div>
 
-                {/* Total Groups */}
-                <div className="glass-card rounded-2xl p-5 bg-white border border-slate-200 shadow-sm hover:border-[#1f8a5b]/40 transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Workspaces</span>
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[20px]">corporate_fare</span>
-                    </div>
-                  </div>
-                  <div className="text-3xl font-extrabold text-slate-900 mb-1">{stats?.totalGroups ?? groups.length}</div>
-                  <div className="text-xs text-slate-500">Active Groups</div>
-                </div>
-
-                {/* Total Documents */}
-                <div className="glass-card rounded-2xl p-5 bg-white border border-slate-200 shadow-sm hover:border-[#1f8a5b]/40 transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Documents</span>
-                    <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[20px]">description</span>
-                    </div>
-                  </div>
-                  <div className="text-3xl font-extrabold text-slate-900 mb-1">{stats?.totalDocuments ?? 0}</div>
-                  <div className="text-xs text-slate-500">Across all groups</div>
-                </div>
-
-                {/* Platform Storage Used */}
-                <div className="glass-card rounded-2xl p-5 bg-white border border-slate-200 shadow-sm hover:border-[#1f8a5b]/40 transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Storage Used</span>
-                    <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#1f8a5b] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[20px]">database</span>
-                    </div>
-                  </div>
-                  <div className="text-3xl font-extrabold text-slate-900 mb-1">{totalMBUsed} <span className="text-sm font-normal text-slate-500">MB</span></div>
-                  <div className="text-xs text-slate-500">Base: {freeMB} MB / user</div>
-                </div>
-
-                {/* Total Revenue */}
-                <div className="rounded-2xl p-5 bg-gradient-sig text-[#0b1410] shadow-sm hover:opacity-95 transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-[#0f2e1f]/70 uppercase tracking-wider">Total Revenue</span>
-                    <div className="w-9 h-9 rounded-xl bg-white/50 text-[#0b1410] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[20px]">payments</span>
-                    </div>
-                  </div>
-                  <div className="text-3xl font-extrabold text-[#0b1410] mb-1">{currencySymbol}{totalRevenue.toFixed(2)}</div>
-                  <div className="text-xs text-[#0f2e1f]/70">{stats?.totalSubscriptions ?? subscriptions.length} transactions total</div>
-                </div>
-              </div>
-
-              {/* Application Rules & Storage Policy Explainer Card */}
-              <div className="glass-card rounded-2xl p-6 bg-white border border-slate-200 shadow-sm space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#1f8a5b] text-[22px]">info</span>
-                  <h3 className="text-base font-bold text-slate-900">Application Storage &amp; Subscription Rules</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-600">
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5 text-sm">
-                      <span className="material-symbols-outlined text-[#1f8a5b] text-[18px]">verified</span>
-                      Primary {freeMB} MB Free Quota
-                    </div>
-                    Every user or organization creator starts with a default free {freeMB} MB allowance configured in the system.
-                  </div>
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5 text-sm">
-                      <span className="material-symbols-outlined text-[#1f8a5b] text-[18px]">group_work</span>
-                      Creator Storage Accounting
-                    </div>
-                    Only the group creator's subscription space is consumed. Invited members do not consume their quota when working inside the group.
-                  </div>
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5 text-sm">
-                      <span className="material-symbols-outlined text-rose-500 text-[18px]">lock</span>
-                      Read-Only Mode Lockout
-                    </div>
-                    When storage reaches 100%, workspace documents lock into Read-Only mode. Adding, editing, and deleting are disabled until upgraded.
-                  </div>
-                </div>
-
-                <div className="pt-2 flex gap-3">
-                  <button
-                    onClick={() => setActiveTab('tariff')}
-                    className="px-4 py-2 rounded-xl bg-gradient-sig text-[#0b1410] text-xs font-bold shadow-sm shadow-[#5cc28f]/20 hover:opacity-95 transition-all flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">tune</span>
-                    Manage Tariff Rates &amp; Tiers
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('users')}
-                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-all flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">manage_accounts</span>
-                    Manage Users &amp; Quotas
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: TRAFFIC & TARIFF MANAGEMENT */}
-          {activeTab === 'tariff' && (
-            <div className="space-y-6">
-              <div className="glass-card rounded-2xl p-7 bg-white border border-slate-200 shadow-sm space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-200">
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900">Traffic &amp; Tariff Rate Management</h3>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Configure base storage allowances, price per 50 MB, and active subscription tiers. Changes immediately apply to all application users.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleSaveTariff}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-sig text-[#0b1410] text-xs font-bold shadow-sm shadow-[#5cc28f]/25 hover:opacity-95 transition-all flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">save</span>
-                    Save Tariff Configuration
-                  </button>
-                </div>
-
-                {/* Base Parameters Form */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Base Free Storage (MB):</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={freeStorageMB}
-                      onChange={(e) => setFreeStorageMB(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-sm font-bold text-slate-900 bg-white outline-none focus:border-[#1f8a5b] focus:ring-1 focus:ring-[#1f8a5b]"
-                    />
-                    <span className="text-xs text-slate-500 mt-1 block">Default: 25 MB free</span>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Price per 50 MB Pack ($):</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="1"
-                      value={pricePer50MB}
-                      onChange={(e) => setPricePer50MB(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-sm font-bold text-slate-900 bg-white outline-none focus:border-[#1f8a5b] focus:ring-1 focus:ring-[#1f8a5b]"
-                    />
-                    <span className="text-xs text-slate-500 mt-1 block">Default: $5.00</span>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Warning Threshold (%):</label>
-                    <input
-                      type="number"
-                      min="50"
-                      max="99"
-                      value={warningThreshold}
-                      onChange={(e) => setWarningThreshold(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-sm font-bold text-slate-900 bg-white outline-none focus:border-[#1f8a5b] focus:ring-1 focus:ring-[#1f8a5b]"
-                    />
-                    <span className="text-xs text-slate-500 mt-1 block">Triggers warning banner</span>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Currency Symbol:</label>
-                    <input
-                      type="text"
-                      value={currencySymbol}
-                      onChange={(e) => setCurrencySymbol(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-sm font-bold text-slate-900 bg-white outline-none focus:border-[#1f8a5b] focus:ring-1 focus:ring-[#1f8a5b]"
-                    />
-                    <span className="text-xs text-slate-500 mt-1 block">e.g. $, €, ₹</span>
-                  </div>
-                </div>
-
-                {/* Subscription Plan Tiers Editor */}
-                <div className="pt-4 border-t border-slate-200 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-base font-bold text-slate-900">Active Subscription Plan Tiers</h4>
-                      <p className="text-xs text-slate-500">These tiers appear directly in the user subscription modal for purchase.</p>
-                    </div>
-                    <button
-                      onClick={handleAddTier}
-                      className="px-3.5 py-1.5 rounded-xl bg-slate-50 border border-slate-300 hover:border-[#1f8a5b] text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
-                    >
-                      <span className="material-symbols-outlined text-[16px] text-[#1f8a5b]">add</span>
-                      Add Tier
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {tiers.map((tier, idx) => (
-                      <div key={tier.id || idx} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 relative group">
-                        <button
-                          onClick={() => handleRemoveTier(idx)}
-                          className="absolute top-3 right-3 text-slate-400 hover:text-rose-500 transition-colors p-1"
-                          title="Remove tier"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">delete</span>
-                        </button>
-
-                        <div>
-                          <label className="text-xs font-bold text-slate-600 block mb-1">Plan Name</label>
-                          <input
-                            type="text"
-                            value={tier.name}
-                            onChange={(e) => handleTierChange(idx, 'name', e.target.value)}
-                            className="w-full px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:border-[#1f8a5b] outline-none"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Bonus MB</label>
-                            <input
-                              type="number"
-                              value={tier.storageMB}
-                              onChange={(e) => handleTierChange(idx, 'storageMB', Number(e.target.value))}
-                              className="w-full px-3 py-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:border-[#1f8a5b] outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs font-bold text-slate-600 block mb-1">Price ($)</label>
-                            <input
-                              type="number"
-                              value={tier.price}
-                              onChange={(e) => handleTierChange(idx, 'price', Number(e.target.value))}
-                              className="w-full px-3 py-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:border-[#1f8a5b] outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-bold text-slate-600 block mb-1">Badge Tag</label>
-                          <input
-                            type="text"
-                            value={tier.badge || ''}
-                            onChange={(e) => handleTierChange(idx, 'badge', e.target.value)}
-                            placeholder="e.g. Popular, Best Value"
-                            className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 focus:border-[#1f8a5b] outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-bold text-slate-600 block mb-1">Description</label>
-                          <input
-                            type="text"
-                            value={tier.description || ''}
-                            onChange={(e) => handleTierChange(idx, 'description', e.target.value)}
-                            className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 focus:border-[#1f8a5b] outline-none"
-                          />
-                        </div>
+                <div className="sa-hero-chart" aria-label="Revenue in the last six months">
+                  <span className="sa-hero-label">Last six months</span>
+                  <div className="sa-bars">
+                    {monthly.map((m, i) => (
+                      <div key={m.key} className={`sa-bar ${i === monthly.length - 1 ? 'is-current' : ''}`} title={`${m.label}: ${formatPrice(symbol, m.total)} from ${m.count} payment${m.count === 1 ? '' : 's'}`}>
+                        <span className="sa-bar-value">{m.total ? formatPrice(symbol, m.total) : ''}</span>
+                        <span className="sa-bar-fill" style={{ height: `${m.total ? Math.max(6, (m.total / monthlyMax) * 100) : 2}%` }} />
+                        <span className="sa-bar-label">{m.label}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="pt-4 flex justify-end">
-                  <button
-                    onClick={handleSaveTariff}
-                    className="px-6 py-2.5 rounded-xl bg-gradient-sig text-[#0b1410] text-xs font-bold shadow-sm shadow-[#5cc28f]/25 hover:opacity-95 transition-all flex items-center gap-2"
+                <div className="sa-hero-storage">
+                  <span className="sa-hero-label">Platform storage</span>
+                  <div className="sa-ring-wrap">
+                    <svg className="sa-ring" viewBox="0 0 120 120" aria-hidden="true">
+                      <circle cx="60" cy="60" r="52" className="sa-ring-track" />
+                      <circle
+                        cx="60" cy="60" r="52" className="sa-ring-fill"
+                        strokeDasharray={`${(Math.min(100, platformPercent) / 100) * 2 * Math.PI * 52} ${2 * Math.PI * 52}`}
+                      />
+                    </svg>
+                    <div className="sa-ring-center">
+                      <strong>{Math.round(platformPercent)}%</strong>
+                      <span>in use</span>
+                    </div>
+                  </div>
+                  <p><strong>{formatMB(usedMB)}</strong> of {formatMB(allocatedMB)} given to people. Every account starts with {freeMB} MB free.</p>
+                </div>
+              </section>
+
+              <section className="sa-strip" aria-label="Key numbers">
+                <button type="button" onClick={() => { setUserFilter('all'); setActiveTab('users'); }}>
+                  <span>People</span>
+                  <strong>{stats?.totalUsers ?? users.length}</strong>
+                  <em>{stats?.subscribedCount ?? userCounts.paid} paying, {stats?.freeUsersCount ?? userCounts.free} free</em>
+                </button>
+                <button type="button" onClick={() => { setPayFilter('active'); setActiveTab('subscriptions'); }}>
+                  <span>Active plans</span>
+                  <strong>{payCounts.active}</strong>
+                  <em>{payCounts.expired} expired</em>
+                </button>
+                <button type="button" onClick={() => setActiveTab('groups')}>
+                  <span>Workspaces</span>
+                  <strong>{stats?.totalGroups ?? groups.length}</strong>
+                  <em>{stats?.totalDocuments ?? 0} documents</em>
+                </button>
+                <button type="button" onClick={() => { setUserFilter('full'); setActiveTab('users'); }}>
+                  <span>Storage full</span>
+                  <strong className={userCounts.full ? 'is-danger' : ''}>{userCounts.full}</strong>
+                  <em>{userCounts.full ? 'editing is locked for them' : 'nobody is locked out'}</em>
+                </button>
+              </section>
+
+              <div className="sa-grid-3">
+                <Panel
+                  title="Close to their limit"
+                  subtitle={`People using ${warnAt}% or more of their storage`}
+                  actions={<button type="button" className="sa-link" onClick={() => setActiveTab('users')}>All users</button>}
+                  flush
+                >
+                  {nearLimit.length === 0 ? (
+                    <Empty icon="sentiment_satisfied" title="Everyone has room to work">No one is near their storage limit.</Empty>
+                  ) : (
+                    <ul className="sa-list">
+                      {nearLimit.map((u) => (
+                        <li key={u.userId}>
+                          <span className="sa-avatar">{initials(u.userName || u.userEmail)}</span>
+                          <div className="sa-list-main">
+                            <strong>{u.userName || u.userEmail}</strong>
+                            <Meter percent={u.percentUsed} />
+                          </div>
+                          <div className="sa-list-side">
+                            <strong className={u.isExceeded ? 'is-danger' : 'is-warn'}>{Math.round(u.percentUsed || 0)}%</strong>
+                            <span>{u.totalUsedMB} of {u.totalQuotaMB} MB</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Panel>
+
+                <Panel
+                  title="Recent payments"
+                  subtitle="Latest confirmed Razorpay payments"
+                  actions={<button type="button" className="sa-link" onClick={() => { setPayFilter('all'); setActiveTab('subscriptions'); }}>All payments</button>}
+                  flush
+                >
+                  {recentPayments.length === 0 ? (
+                    <Empty icon="payments" title="No payments yet">Payments appear here as soon as Razorpay confirms them.</Empty>
+                  ) : (
+                    <ul className="sa-list">
+                      {recentPayments.map((p) => (
+                        <li key={p._id}>
+                          <span className="sa-avatar">{initials(p.user?.firstName ? `${p.user.firstName} ${p.user.lastName || ''}` : p.user?.email)}</span>
+                          <div className="sa-list-main">
+                            <strong>{p.user?.email || 'Deleted user'}</strong>
+                            <span>{p.planName}, +{formatMB(p.bonusStorageMB)}, {formatDate(p.createdAt)}</span>
+                          </div>
+                          <div className="sa-list-side">
+                            <strong>{formatPrice(p.currency || symbol, p.price)}</strong>
+                            <Pill tone={p._st.key === 'active' ? 'ok' : 'neutral'}>{p._st.label}</Pill>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Panel>
+
+                <Panel
+                  title="Plans on sale"
+                  subtitle="What people see on the landing page, in their profile and in the subscription window"
+                  actions={<button type="button" className="sa-btn is-quiet" onClick={() => setActiveTab('tariff')}><Icon name="edit" size={16} />Edit plans</button>}
+                  flush
+                >
+                  {(tariff?.tiers || []).length === 0 ? (
+                    <Empty
+                      icon="sell"
+                      title="No paid plans yet"
+                      action={<button type="button" className="sa-btn is-primary" onClick={() => setActiveTab('tariff')}>Create a plan</button>}
+                    >
+                      Everyone stays on the free {freeMB} MB until you publish a plan.
+                    </Empty>
+                  ) : (
+                    <div className="sa-plan-rows">
+                      {(tariff.tiers || []).map((t) => {
+                        const buyers = decoratedPayments.filter((p) => p.planId === t.id && p._st.key === 'active').length;
+                        return (
+                          <div key={t.id} className="sa-plan-row">
+                            <div className="sa-stack">
+                              <strong>{t.name}{t.isPopular && <Pill tone="ok">Recommended</Pill>}</strong>
+                              <span>+{formatMB(t.storageMB)}, {periodInfo(t.period).long.toLowerCase()}</span>
+                            </div>
+                            <span className="sa-plan-price">{formatPrice(symbol, t.price)}<em>{periodInfo(t.period).short}</em></span>
+                            <span className="sa-plan-buyers">{buyers} active</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Panel>
+              </div>
+
+              <Panel title="How storage works">
+                <dl className="sa-rules">
+                  <div>
+                    <dt><Icon name="redeem" size={18} />Free storage</dt>
+                    <dd>Every new and existing account gets {freeMB} MB at no cost.</dd>
+                  </div>
+                  <div>
+                    <dt><Icon name="workspaces" size={18} />Who pays for a workspace</dt>
+                    <dd>Files in a workspace count against the person who created it, not the members they invite.</dd>
+                  </div>
+                  <div>
+                    <dt><Icon name="lock" size={18} />When storage is full</dt>
+                    <dd>Their workspaces become read-only until they free up space or buy a plan.</dd>
+                  </div>
+                </dl>
+              </Panel>
+            </>
+          )}
+
+          {/* ═════════ USERS ═════════ */}
+          {activeTab === 'users' && (
+            <Panel
+              flush
+              title={`${filteredUsers.length} of ${users.length} people`}
+              actions={(
+                <>
+                  <Segmented
+                    value={userFilter}
+                    onChange={setUserFilter}
+                    options={[
+                      { value: 'all', label: 'All', count: userCounts.all },
+                      { value: 'paid', label: 'Paying', count: userCounts.paid },
+                      { value: 'free', label: 'Free', count: userCounts.free },
+                      { value: 'full', label: 'Storage full', count: userCounts.full }
+                    ]}
+                  />
+                  <SearchBox value={userSearch} onChange={setUserSearch} placeholder="Search name or email" />
+                </>
+              )}
+            >
+              {filteredUsers.length === 0 ? (
+                <Empty icon="person_search" title="No one matches">Try another name, or switch the filter to All.</Empty>
+              ) : (
+                <div className="sa-table-wrap">
+                  <table className="sa-table">
+                    <thead>
+                      <tr>
+                        <th>Person</th>
+                        <th>Plan</th>
+                        <th>Storage</th>
+                        <th className="is-num">Workspaces</th>
+                        <th>Role</th>
+                        <th className="is-right"><span className="sr-only">Actions</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((u) => {
+                        const isSuper = u.role === 'superadmin';
+                        const pct = Math.round(u.percentUsed || 0);
+                        return (
+                          <tr key={u.userId}>
+                            <td>
+                              <div className="sa-person">
+                                <span className={`sa-avatar ${isSuper ? 'is-dark' : ''}`}>{initials(u.userName || u.userEmail)}</span>
+                                <div>
+                                  <strong>{u.userName || u.userEmail?.split('@')[0]}{isSelf(u) && <em className="sa-you">You</em>}</strong>
+                                  <span>{u.userEmail}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              {u.isSubscribed
+                                ? <Pill tone="ok" icon="workspace_premium">{u.currentPlan}</Pill>
+                                : <Pill tone="neutral">Free</Pill>}
+                              {u.planExpiresAt && <div className="sa-sub">until {formatDate(u.planExpiresAt)}</div>}
+                            </td>
+                            <td className="sa-col-storage">
+                              <div className="sa-storage-line">
+                                <span>{u.totalUsedMB || 0} of {u.totalQuotaMB || freeMB} MB</span>
+                                <strong className={u.isExceeded ? 'is-danger' : pct >= warnAt ? 'is-warn' : ''}>{pct}%</strong>
+                              </div>
+                              <Meter percent={u.percentUsed} />
+                              {u.hasCustomQuota && <div className="sa-sub">Custom limit set by an admin</div>}
+                            </td>
+                            <td className="is-num">{u.groupsCount || 0}</td>
+                            <td>
+                              {isSuper ? <Pill tone="dark" icon="shield_person">Super admin</Pill> : <Pill tone="neutral">User</Pill>}
+                            </td>
+                            <td className="is-right">
+                              <div className="sa-row-actions">
+                                <button type="button" className="sa-btn is-quiet is-sm" onClick={() => openQuota(u)}>Storage limit</button>
+                                <button
+                                  type="button"
+                                  className="sa-btn is-quiet is-sm"
+                                  onClick={() => setRoleUser(u)}
+                                  disabled={isSelf(u)}
+                                  title={isSelf(u) ? 'You can’t change your own role' : undefined}
+                                >
+                                  {isSuper ? 'Make user' : 'Make admin'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          )}
+
+          {/* ═════════ WORKSPACES ═════════ */}
+          {activeTab === 'groups' && (
+            <Panel
+              flush
+              title={`${filteredGroups.length} of ${groups.length} workspaces`}
+              actions={<SearchBox value={groupSearch} onChange={setGroupSearch} placeholder="Search name, ID or owner" />}
+            >
+              {filteredGroups.length === 0 ? (
+                <Empty icon="workspaces" title={groups.length ? 'No workspace matches' : 'No workspaces yet'}>
+                  {groups.length ? 'Try another name, ID or owner email.' : 'Workspaces appear here when people create them.'}
+                </Empty>
+              ) : (
+                <div className="sa-table-wrap">
+                  <table className="sa-table">
+                    <thead>
+                      <tr>
+                        <th>Workspace</th>
+                        <th>Owner</th>
+                        <th className="is-num">Members</th>
+                        <th className="is-num">Documents</th>
+                        <th className="is-num">Storage</th>
+                        <th>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredGroups.map((g) => (
+                        <tr key={g._id}>
+                          <td>
+                            <div className="sa-person">
+                              <span className="sa-avatar is-square">{initials(g.name)}</span>
+                              <div>
+                                <strong>{g.name}</strong>
+                                <span className="sa-code">{g.groupId}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="sa-stack">
+                              <strong>{[g.createdBy?.firstName, g.createdBy?.lastName].filter(Boolean).join(' ') || g.createdBy?.email?.split('@')[0] || 'Unknown'}</strong>
+                              <span>{g.createdBy?.email || '—'}</span>
+                            </div>
+                          </td>
+                          <td className="is-num">{g.memberCount}</td>
+                          <td className="is-num">{g.docCount}</td>
+                          <td className="is-num">{g.storageUsedMB} MB</td>
+                          <td className="sa-muted">{formatDate(g.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          )}
+
+          {/* ═════════ PLANS & PRICING ═════════ */}
+          {activeTab === 'tariff' && (
+            <>
+              {tariff?.isSampleTiers && !tariffDirty && (
+                <div className="sa-notice is-warn">
+                  <Icon name="info" size={20} />
+                  <span>These are the sample plans that came with the app. Set your real names, prices and currency, then publish. People see exactly what you publish here.</span>
+                </div>
+              )}
+
+              <div className="sa-pricing">
+                <div className="sa-pricing-editor">
+                  <Panel title="Basics" subtitle="Applies to every account">
+                    <div className="sa-fields-3">
+                      <label className="sa-field">
+                        <span>Free storage per account</span>
+                        <div className="sa-input-unit">
+                          <input type="number" min="1" value={freeStorageMB} onChange={(e) => { setFreeStorageMB(e.target.value); setTariffDirty(true); }} />
+                          <em>MB</em>
+                        </div>
+                      </label>
+                      <label className="sa-field">
+                        <span>Warn people at</span>
+                        <div className="sa-input-unit">
+                          <input type="number" min="50" max="99" value={warningThreshold} onChange={(e) => { setWarningThreshold(e.target.value); setTariffDirty(true); }} />
+                          <em>% used</em>
+                        </div>
+                      </label>
+                      <label className="sa-field">
+                        <span>Payment currency</span>
+                        <select value={currencyCode} onChange={(e) => handleCurrencyChange(e.target.value)}>
+                          {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+                          {!CURRENCIES.some((c) => c.code === currencyCode) && <option value={currencyCode}>{currencyCode}</option>}
+                        </select>
+                      </label>
+                    </div>
+                    <p className="sa-hint">Razorpay charges in the payment currency. Storage is added only after a payment is confirmed.</p>
+                  </Panel>
+
+                  <Panel
+                    title="Paid plans"
+                    subtitle={tiers.length ? `${tiers.length} plan${tiers.length === 1 ? '' : 's'}, shown to people in this order` : 'Nothing on sale yet'}
+                    actions={<button type="button" className="sa-btn is-quiet" onClick={addTier}><Icon name="add" size={18} />Add plan</button>}
+                    flush
                   >
-                    <span className="material-symbols-outlined text-[18px]">publish</span>
-                    Save Tariff &amp; Rates (Applies to All Users Immediately)
+                    {tiers.length === 0 ? (
+                      <Empty icon="sell" title="No paid plans" action={<button type="button" className="sa-btn is-primary" onClick={addTier}>Add your first plan</button>}>
+                        People only get the free {freeStorageMB} MB until you add and publish a plan.
+                      </Empty>
+                    ) : (
+                      <ul className="sa-tiers">
+                        {tiers.map((t, idx) => {
+                          const open = openTierId === t.id;
+                          return (
+                            <li key={t.id} className={open ? 'is-open' : ''}>
+                              <div className="sa-tier-head">
+                                <button type="button" className="sa-tier-toggle" onClick={() => setOpenTierId(open ? null : t.id)} aria-expanded={open}>
+                                  <Icon name={open ? 'expand_less' : 'expand_more'} size={20} />
+                                  <div>
+                                    <strong>{t.name || 'Untitled plan'}</strong>
+                                    <span>
+                                      +{formatMB(t.storageMB)}, {t.price === '' ? 'no price yet' : `${formatPrice(currencySymbol, t.price)} ${periodInfo(t.period).short}`}
+                                      {t.isPopular ? ', recommended' : ''}
+                                    </span>
+                                  </div>
+                                </button>
+                                <div className="sa-tier-tools">
+                                  <button type="button" className="sa-icon-btn" onClick={() => moveTier(idx, -1)} disabled={idx === 0} aria-label="Move plan up"><Icon name="arrow_upward" size={18} /></button>
+                                  <button type="button" className="sa-icon-btn" onClick={() => moveTier(idx, 1)} disabled={idx === tiers.length - 1} aria-label="Move plan down"><Icon name="arrow_downward" size={18} /></button>
+                                  <button type="button" className="sa-icon-btn is-danger" onClick={() => removeTier(idx)} aria-label="Remove plan"><Icon name="delete" size={18} /></button>
+                                </div>
+                              </div>
+                              {open && (
+                                <div className="sa-tier-body">
+                                  <label className="sa-field is-wide">
+                                    <span>Plan name</span>
+                                    <input type="text" value={t.name} placeholder="e.g. Pro storage" onChange={(e) => updateTier(idx, 'name', e.target.value)} />
+                                  </label>
+                                  <label className="sa-field">
+                                    <span>Extra storage</span>
+                                    <div className="sa-input-unit">
+                                      <input type="number" min="1" value={t.storageMB} onChange={(e) => updateTier(idx, 'storageMB', e.target.value)} />
+                                      <em>MB</em>
+                                    </div>
+                                  </label>
+                                  <label className="sa-field">
+                                    <span>Price</span>
+                                    <div className="sa-input-unit is-prefix">
+                                      <em>{currencySymbol.trim()}</em>
+                                      <input type="number" min="1" value={t.price} onChange={(e) => updateTier(idx, 'price', e.target.value === '' ? '' : Number(e.target.value))} />
+                                    </div>
+                                  </label>
+                                  <label className="sa-field">
+                                    <span>Billing</span>
+                                    <select value={t.period || 'monthly'} onChange={(e) => updateTier(idx, 'period', e.target.value)}>
+                                      <option value="monthly">Monthly (30 days)</option>
+                                      <option value="yearly">Yearly (365 days)</option>
+                                      <option value="one-time">One-time (no expiry)</option>
+                                    </select>
+                                  </label>
+                                  <label className="sa-field">
+                                    <span>Badge</span>
+                                    <input type="text" value={t.badge || ''} placeholder="e.g. Best value" onChange={(e) => updateTier(idx, 'badge', e.target.value)} />
+                                  </label>
+                                  <label className="sa-field is-wide">
+                                    <span>Short description</span>
+                                    <input type="text" value={t.description || ''} placeholder="Who this plan is for" onChange={(e) => updateTier(idx, 'description', e.target.value)} />
+                                  </label>
+                                  <label className="sa-field is-wide">
+                                    <span>Features, one per line</span>
+                                    <textarea
+                                      rows={4}
+                                      value={Array.isArray(t.features) ? t.features.join('\n') : (t.features || '')}
+                                      placeholder={'Priority support\nLarger attachments'}
+                                      onChange={(e) => updateTier(idx, 'features', e.target.value.split('\n'))}
+                                    />
+                                  </label>
+                                  <label className="sa-check is-wide">
+                                    <input type="checkbox" checked={Boolean(t.isPopular)} onChange={(e) => updateTier(idx, 'isPopular', e.target.checked)} />
+                                    <span>Highlight this plan as the recommended choice</span>
+                                  </label>
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </Panel>
+                </div>
+
+                <aside className="sa-pricing-preview" aria-label="Preview">
+                  <div className="sa-preview-head">
+                    <strong>Preview</strong>
+                    <span className={tariffDirty ? 'is-draft' : 'is-live'}>{tariffDirty ? 'Unpublished changes' : 'Live'}</span>
+                  </div>
+                  <div className="sa-preview-cards">
+                    <PlanCard free freeStorageMB={Number(freeStorageMB) || 25} currencySymbol={currencySymbol} compact />
+                    {tiers.filter((t) => t.name).map((t) => (
+                      <PlanCard
+                        key={t.id}
+                        plan={{ ...t, features: (Array.isArray(t.features) ? t.features : []).filter((f) => f && f.trim()) }}
+                        currencySymbol={currencySymbol}
+                        actionLabel={`Pay ${formatPrice(currencySymbol, t.price || 0)}`}
+                        actionDisabled
+                      />
+                    ))}
+                  </div>
+                </aside>
+              </div>
+
+              {/* Publish bar — appears only with unsaved edits */}
+              <div className={`sa-savebar ${tariffDirty ? 'is-visible' : ''}`} aria-hidden={!tariffDirty}>
+                <span><Icon name="edit_note" size={20} />You have unpublished changes to plans and pricing.</span>
+                <div>
+                  <button type="button" className="sa-btn is-on-dark" onClick={() => applyTariffToForm(tariff)} tabIndex={tariffDirty ? 0 : -1}>Discard</button>
+                  <button type="button" className="sa-btn is-light" onClick={handleSaveTariff} disabled={tariffUpdating} tabIndex={tariffDirty ? 0 : -1}>
+                    {tariffUpdating ? 'Publishing…' : 'Publish changes'}
                   </button>
                 </div>
               </div>
-            </div>
+            </>
           )}
 
-          {/* TAB 3: USERS & STORAGE GOVERNANCE */}
-          {activeTab === 'users' && (
-            <div className="glass-card rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden space-y-4 p-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Users &amp; Storage Quotas</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Manage user roles, monitor storage consumption, and assign custom storage overrides.</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="relative">
-                    <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-slate-400 text-[18px]">search</span>
-                    <input
-                      type="text"
-                      value={userSearch}
-                      onChange={(e) => setUserSearch(e.target.value)}
-                      placeholder="Search by email..."
-                      className="pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 outline-none w-64 focus:border-[#1f8a5b]"
-                    />
-                  </div>
-
-                  <select
-                    value={userFilter}
-                    onChange={(e) => setUserFilter(e.target.value)}
-                    className="py-2 px-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-700 outline-none focus:border-[#1f8a5b]"
-                  >
-                    <option value="all">All Users</option>
-                    <option value="subscribed">Subscribed Only</option>
-                    <option value="free">Free Users Only</option>
-                    <option value="exceeded">Exceeded / Locked</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Users Table */}
-              <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      <th className="py-3 px-4">User Email</th>
-                      <th className="py-3 px-4">Role</th>
-                      <th className="py-3 px-4">Subscription Plan</th>
-                      <th className="py-3 px-4 text-center">Groups Owned</th>
-                      <th className="py-3 px-4">Storage Used</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {filteredUsers.map((u) => {
-                      const isSuper = u.role === 'superadmin';
-                      const isSub = u.isSubscribed;
-                      const percent = u.percentUsed || 0;
-                      const isLocked = u.isExceeded || percent >= 100;
-
-                      return (
-                        <tr key={u.userId} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="py-3.5 px-4 font-semibold text-slate-900">
-                            <div className="flex items-center gap-2.5">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[#0b1410] text-xs ${isSuper ? 'bg-gradient-sig' : 'bg-slate-500'}`}>
-                                {(u.userEmail || 'U').slice(0, 2).toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="text-sm font-semibold text-slate-900">{u.userEmail}</div>
-                                {isLocked && (
-                                  <span className="text-xs text-rose-600 font-bold">100% Full (Read-Only)</span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <button
-                              onClick={() => handleToggleUserRole(u)}
-                              className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
-                                isSuper
-                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
-                                  : 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200'
-                              }`}
-                              title="Click to toggle role"
-                            >
-                              {isSuper ? '👑 SUPERADMIN' : 'USER'}
-                            </button>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <span className={`px-2.5 py-1 rounded text-xs font-semibold ${
-                              isSub ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-700'
-                            }`}>
-                              {u.currentPlan || (isSub ? 'Subscribed' : `Free (${freeMB} MB)`)}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-700">
-                            {u.groupsCount || 0}
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <div className="w-48">
-                              <div className="flex justify-between items-center text-xs mb-1 font-mono">
-                                <span className="text-slate-700">{u.totalUsedMB || 0} / {u.totalQuotaMB || freeMB} MB</span>
-                                <span className={isLocked ? 'text-rose-600 font-bold' : 'text-[#1f8a5b] font-bold'}>{percent}%</span>
-                              </div>
-                              <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full ${isLocked ? 'bg-rose-500' : 'bg-gradient-sig'}`}
-                                  style={{ width: `${Math.min(100, Math.max(2, percent))}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="py-3.5 px-4 text-right">
-                            <button
-                              onClick={() => handleOpenQuotaModal(u)}
-                              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-[#a8e6c3] hover:text-[#0b1410] text-slate-700 font-semibold text-xs border border-slate-200 transition-all"
-                            >
-                              Edit Quota
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: WORKSPACE GROUPS OVERVIEW */}
-          {activeTab === 'groups' && (
-            <div className="glass-card rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden space-y-4 p-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Workspace Groups ({groups.length})</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">All collaboration groups created across the entire application.</p>
-                </div>
-
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-slate-400 text-[18px]">search</span>
-                  <input
-                    type="text"
-                    value={groupSearch}
-                    onChange={(e) => setGroupSearch(e.target.value)}
-                    placeholder="Search group name or ID..."
-                    className="pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 outline-none w-64 focus:border-[#1f8a5b]"
-                  />
-                </div>
-              </div>
-
-              <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      <th className="py-3 px-4">Group Name</th>
-                      <th className="py-3 px-4">Group ID</th>
-                      <th className="py-3 px-4">Creator Email</th>
-                      <th className="py-3 px-4 text-center">Members</th>
-                      <th className="py-3 px-4 text-center">Documents</th>
-                      <th className="py-3 px-4 text-right">Storage Used (MB)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {filteredGroups.map((g) => (
-                      <tr key={g._id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3.5 px-4 font-bold text-slate-900 text-sm">{g.name}</td>
-                        <td className="py-3.5 px-4 font-mono text-xs text-[#1f8a5b] font-bold">{g.groupId}</td>
-                        <td className="py-3.5 px-4 text-slate-600 text-xs">{g.createdBy?.email || 'N/A'}</td>
-                        <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-700 text-xs">{g.memberCount || 1}</td>
-                        <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-700 text-xs">{g.docCount || 0}</td>
-                        <td className="py-3.5 px-4 text-right font-mono font-bold text-[#1f8a5b] text-xs">{g.storageUsedMB || 0} MB</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: SUBSCRIPTION LEDGER */}
+          {/* ═════════ PAYMENTS ═════════ */}
           {activeTab === 'subscriptions' && (
-            <div className="glass-card rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden space-y-4 p-6">
-              <div className="pb-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Subscription Transactions ({subscriptions.length})</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Real-time ledger of Razorpay payments and paid storage upgrades from MongoDB.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[16px] text-[#1f8a5b]">payments</span>
-                    Total Received: {currencySymbol}{totalRevenue.toFixed(2)}
-                  </span>
-                </div>
-              </div>
+            <>
+              <section className="sa-strip is-static" aria-label="Payment totals">
+                <div><span>Total received</span><strong>{formatPrice(symbol, totalRevenue)}</strong><em>all time</em></div>
+                <div><span>Last 30 days</span><strong>{formatPrice(symbol, revenue30)}</strong><em>new revenue</em></div>
+                <div><span>Active plans</span><strong>{payCounts.active}</strong><em>storage in use</em></div>
+                <div><span>Expired</span><strong>{payCounts.expired}</strong><em>storage removed</em></div>
+              </section>
 
-              <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                      <th className="py-3 px-4">Payment &amp; Transaction ID</th>
-                      <th className="py-3 px-4">Subscriber</th>
-                      <th className="py-3 px-4">Plan Purchased</th>
-                      <th className="py-3 px-4">Gateway</th>
-                      <th className="py-3 px-4">Amount</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Date</th>
-                      <th className="py-3 px-4 text-center">Invoice</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {subscriptions.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="py-10 text-center text-slate-500 text-xs">
-                          <span className="material-symbols-outlined text-slate-300 text-[36px] block mb-1">receipt_long</span>
-                          No subscription transactions recorded yet. Once users purchase storage via Razorpay, transactions appear here live.
-                        </td>
-                      </tr>
-                    ) : (
-                      subscriptions.map((sub) => (
-                        <tr key={sub._id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="py-3.5 px-4">
-                            <div className="font-mono font-bold text-slate-800 text-xs">{sub.transactionId || sub._id}</div>
-                            {sub.razorpayOrderId && (
-                              <div className="font-mono text-[10px] text-slate-400 mt-0.5">Order: {sub.razorpayOrderId}</div>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 font-semibold text-slate-900 text-xs">
-                            <div>{sub.user?.email || 'N/A'}</div>
-                            {(sub.user?.firstName || sub.user?.lastName) && (
-                              <div className="text-[10px] text-slate-400">{sub.user.firstName || ''} {sub.user.lastName || ''}</div>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="font-bold text-[#1f8a5b] text-xs block">{sub.planName}</span>
-                            <span className="text-[10px] font-semibold text-slate-500">+{sub.bonusStorageMB} MB Quota Added</span>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[12px]">credit_card</span>
-                              {sub.paymentMethod || 'Razorpay'}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 font-mono font-bold text-slate-900 text-xs">
-                            {sub.currency || currencySymbol}{Number(sub.price || 0).toFixed(2)}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              {sub.status || 'active'}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-slate-500 text-xs">
-                            {new Date(sub.createdAt).toLocaleDateString('en-IN', {
-                              day: '2-digit', month: 'short', year: 'numeric'
-                            })}
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <button
-                              onClick={() => dispatch(downloadInvoice(sub._id))}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#1f8a5b] font-bold text-xs border border-emerald-200 inline-flex items-center gap-1 transition-all shadow-xs"
-                              title="View & Print Official Tax Invoice"
-                            >
-                              <span className="material-symbols-outlined text-[14px]">receipt_long</span>
-                              Invoice
-                            </button>
-                          </td>
+              <Panel
+                flush
+                title={`${filteredPayments.length} payment${filteredPayments.length === 1 ? '' : 's'}`}
+                actions={(
+                  <>
+                    <Segmented
+                      value={payFilter}
+                      onChange={setPayFilter}
+                      options={[
+                        { value: 'all', label: 'All', count: payCounts.all },
+                        { value: 'active', label: 'Active', count: payCounts.active },
+                        { value: 'expired', label: 'Expired', count: payCounts.expired }
+                      ]}
+                    />
+                    <SearchBox value={paySearch} onChange={setPaySearch} placeholder="Search email, plan or payment ID" />
+                  </>
+                )}
+              >
+                {filteredPayments.length === 0 ? (
+                  <Empty icon="receipt_long" title={subscriptions.length ? 'No payment matches' : 'No payments yet'}>
+                    {subscriptions.length ? 'Try another search or filter.' : 'Payments appear here as soon as Razorpay confirms them.'}
+                  </Empty>
+                ) : (
+                  <div className="sa-table-wrap">
+                    <table className="sa-table">
+                      <thead>
+                        <tr>
+                          <th>Customer</th>
+                          <th>Plan</th>
+                          <th className="is-num">Amount</th>
+                          <th>Status</th>
+                          <th>Paid on</th>
+                          <th>Valid till</th>
+                          <th>Payment ID</th>
+                          <th className="is-right"><span className="sr-only">Invoice</span></th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                      </thead>
+                      <tbody>
+                        {filteredPayments.map((p) => (
+                          <tr key={p._id}>
+                            <td>
+                              <div className="sa-stack">
+                                <strong>{[p.user?.firstName, p.user?.lastName].filter(Boolean).join(' ') || p.user?.email?.split('@')[0] || 'Deleted user'}</strong>
+                                <span>{p.user?.email || '—'}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="sa-stack">
+                                <strong>{p.planName}</strong>
+                                <span>+{formatMB(p.bonusStorageMB)}</span>
+                              </div>
+                            </td>
+                            <td className="is-num sa-strong">{formatPrice(p.currency || symbol, p.price)}</td>
+                            <td><Pill tone={p._st.key === 'active' ? 'ok' : 'neutral'}>{p._st.label}</Pill></td>
+                            <td className="sa-muted">{formatDate(p.createdAt)}</td>
+                            <td>
+                              <div className="sa-stack">
+                                <span className="sa-ink">{p.expiresAt ? formatDate(p.expiresAt) : 'No expiry'}</span>
+                                {p._st.daysLeft !== null && <span>{p._st.daysLeft} days left</span>}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="sa-stack">
+                                <span className="sa-code">{p.razorpayPaymentId || p.transactionId}</span>
+                                {p.razorpayOrderId && <span className="sa-code is-faint">{p.razorpayOrderId}</span>}
+                              </div>
+                            </td>
+                            <td className="is-right">
+                              <button type="button" className="sa-btn is-quiet is-sm" onClick={() => dispatch(downloadInvoice(p._id))}>
+                                <Icon name="description" size={16} />Invoice
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Panel>
+            </>
           )}
-
         </main>
+      </div>
 
-        {/* CUSTOM QUOTA OVERRIDE MODAL */}
-        {quotaModalOpen && selectedUserForQuota && (
-          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#1f8a5b] text-[20px]">tune</span>
-                  <h4 className="font-bold text-slate-900 text-base">Custom Storage Quota Override</h4>
-                </div>
-                <button onClick={() => setQuotaModalOpen(false)} className="text-slate-400 hover:text-slate-800">
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                </button>
-              </div>
-
-              <div className="text-xs text-slate-600 space-y-2">
-                <p>Override storage limit for: <strong className="text-slate-900">{selectedUserForQuota.userEmail}</strong></p>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center font-mono">
-                  <span>Current Space Used:</span>
-                  <span className="font-bold text-slate-900">{selectedUserForQuota.totalUsedMB || 0} MB</span>
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">New Quota Limit (MB):</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={customQuotaInput}
-                    onChange={(e) => setCustomQuotaInput(e.target.value)}
-                    placeholder="Leave empty for plan default"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-sm font-bold text-slate-900 outline-none focus:border-[#1f8a5b] focus:ring-1 focus:ring-[#1f8a5b]"
-                  />
-                  <span className="text-xs text-slate-500 mt-1 block">
-                    (Tip: Setting to 0.001 MB instantly triggers Read-Only lockout for testing)
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
-                <button
-                  onClick={() => setQuotaModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveQuotaOverride}
-                  className="px-5 py-2 rounded-xl bg-gradient-sig text-[#0b1410] text-xs font-bold shadow-sm shadow-[#5cc28f]/25 hover:opacity-95"
-                >
-                  Save Quota Override
-                </button>
+      {/* ── Storage limit dialog ── */}
+      {quotaUser && (
+        <div className="sa-overlay" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setQuotaUser(null); }}>
+          <div className="sa-dialog" role="dialog" aria-modal="true" aria-labelledby="sa-quota-title">
+            <header>
+              <h3 id="sa-quota-title">Storage limit</h3>
+              <button type="button" className="sa-icon-btn" onClick={() => setQuotaUser(null)} aria-label="Close"><Icon name="close" size={20} /></button>
+            </header>
+            <div className="sa-person is-lg">
+              <span className="sa-avatar">{initials(quotaUser.userName || quotaUser.userEmail)}</span>
+              <div>
+                <strong>{quotaUser.userName || quotaUser.userEmail}</strong>
+                <span>{quotaUser.userEmail}</span>
               </div>
             </div>
+            <dl className="sa-dialog-facts">
+              <div><dt>Using</dt><dd>{quotaUser.totalUsedMB || 0} MB</dd></div>
+              <div><dt>Plan gives</dt><dd>{(quotaUser.freeStorageMB || freeMB) + (quotaUser.bonusStorageMB || 0)} MB</dd></div>
+              <div><dt>Current limit</dt><dd>{quotaUser.totalQuotaMB} MB</dd></div>
+            </dl>
+            <label className="sa-field">
+              <span>Custom limit</span>
+              <div className="sa-input-unit">
+                <input
+                  type="number"
+                  min="1"
+                  autoFocus
+                  value={quotaInput}
+                  onChange={(e) => setQuotaInput(e.target.value)}
+                  placeholder="Use the plan's storage"
+                />
+                <em>MB</em>
+              </div>
+            </label>
+            <p className="sa-hint">A custom limit replaces this person's free and paid storage until you reset it.</p>
+            <footer>
+              {quotaUser.hasCustomQuota && (
+                <button type="button" className="sa-btn is-quiet" onClick={() => saveQuota(true)}>Reset to plan</button>
+              )}
+              <span className="sa-flex" />
+              <button type="button" className="sa-btn is-ghost" onClick={() => setQuotaUser(null)}>Cancel</button>
+              <button type="button" className="sa-btn is-primary" onClick={() => saveQuota(false)}>Save limit</button>
+            </footer>
           </div>
-        )}
+        </div>
+      )}
 
-      </div>
+      {/* ── Role change confirmation ── */}
+      {roleUser && (
+        <div className="sa-overlay" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setRoleUser(null); }}>
+          <div className="sa-dialog is-narrow" role="alertdialog" aria-modal="true" aria-labelledby="sa-role-title">
+            <header>
+              <h3 id="sa-role-title">{roleUser.role === 'superadmin' ? 'Remove admin access?' : 'Make this person a super admin?'}</h3>
+            </header>
+            <p className="sa-dialog-text">
+              {roleUser.role === 'superadmin'
+                ? `${roleUser.userEmail} will lose access to this console and go back to the normal workspace.`
+                : `${roleUser.userEmail} will get full access to this console, including plans, prices and everyone's storage.`}
+            </p>
+            <footer>
+              <span className="sa-flex" />
+              <button type="button" className="sa-btn is-ghost" onClick={() => setRoleUser(null)}>Cancel</button>
+              <button type="button" className={`sa-btn ${roleUser.role === 'superadmin' ? 'is-danger' : 'is-primary'}`} onClick={confirmRoleChange}>
+                {roleUser.role === 'superadmin' ? 'Remove admin access' : 'Make super admin'}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div key={toast.id} className={`sa-toast is-${toast.tone}`} role="status" aria-live="polite">
+          <Icon name={toast.tone === 'error' ? 'error' : 'check_circle'} size={20} />
+          <span>{toast.message}</span>
+          <button type="button" onClick={() => setToast(null)} aria-label="Dismiss"><Icon name="close" size={18} /></button>
+        </div>
+      )}
     </div>
   );
 };

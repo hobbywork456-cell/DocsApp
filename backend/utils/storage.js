@@ -3,6 +3,7 @@ const Document = require('../models/Document');
 const User = require('../models/User');
 const SystemSettings = require('../models/SystemSettings');
 const Subscription = require('../models/Subscription');
+const { decorateSubscription } = require('./subscriptionView');
 
 // High-speed In-Memory Cache with TTL to reduce DB round-trips & eliminate delay
 const userStatsCache = new Map();
@@ -77,7 +78,7 @@ async function getUserStorageStats(userId, forceRefresh = false) {
     User.findById(userId).lean(),
     Group.find({ createdBy: userId }).select('_id groupId name members').lean(),
     // Expired monthly packs no longer add storage
-    Subscription.find({ user: userId, status: 'active', $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gt: new Date() } }] }).lean()
+    Subscription.find({ user: userId, status: 'active', razorpayPaymentId: { $exists: true, $ne: null }, $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gt: new Date() } }] }).lean()
   ]);
 
   if (!user) {
@@ -146,12 +147,24 @@ async function getUserStorageStats(userId, forceRefresh = false) {
   const isWarning = percentUsed >= warningThreshold;
   const isExceeded = totalUsedMB >= totalQuotaMB;
 
+  const decoratedActive = activeSubscriptions.map((sub) => decorateSubscription(sub, now));
+  // When the paid storage runs out: the latest expiry among active plans (null = no paid plan / never expires)
+  const expiringPlans = decoratedActive.filter((s) => s.expiresAt);
+  const planExpiresAt = expiringPlans.length
+    ? new Date(Math.max(...expiringPlans.map((s) => new Date(s.expiresAt).getTime())))
+    : null;
+
   const stats = {
     userId: user._id,
     userEmail: user.email,
+    userName: [user.firstName, user.lastName].filter(Boolean).join(' '),
+    joinedAt: user.createdAt,
     role: user.role,
-    isSubscribed: user.isSubscribed || activeSubscriptions.length > 0,
-    currentPlan: user.currentPlan || (activeSubscriptions.length > 0 ? activeSubscriptions[0].planName : 'Free'),
+    // Only a paid, still-valid subscription counts — an expired pack falls back to the free plan
+    isSubscribed: activeSubscriptions.length > 0,
+    currentPlan: activeSubscriptions.length > 0
+      ? activeSubscriptions.map((s) => s.planName).join(' + ')
+      : 'Free',
     freeStorageMB,
     bonusStorageMB,
     totalQuotaMB,
@@ -165,7 +178,9 @@ async function getUserStorageStats(userId, forceRefresh = false) {
     groupsCount: groups.length,
     documentsCount: documents.length,
     groupsBreakdown,
-    activeSubscriptions
+    activeSubscriptions: decoratedActive,
+    planExpiresAt,
+    hasCustomQuota: typeof user.customStorageLimitMB === 'number' && user.customStorageLimitMB > 0
   };
 
   // Cache stats for immediate subsequent lookups

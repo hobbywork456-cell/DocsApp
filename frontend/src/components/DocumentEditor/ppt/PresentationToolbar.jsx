@@ -676,7 +676,7 @@ const PresentationToolbar = ({
                 onClick={(e) => setLayoutMenuAnchor(e.currentTarget)}
                 disabled={readOnly}
               >
-                <ViewAgendaIcon sx={{ fontSize: 13, color: '#2563eb' }} />
+                <ViewAgendaIcon sx={{ fontSize: 13, color: '#6b7f94' }} />
                 <span>Layout</span>
                 <ArrowDropDownIcon sx={{ fontSize: 12, ml: -0.5 }} />
               </button>
@@ -1083,7 +1083,7 @@ const PresentationToolbar = ({
                   onClick={(e) => setQuickStylesAnchor(e.currentTarget)}
                   disabled={readOnly}
                 >
-                  <AutoAwesomeIcon sx={{ fontSize: 12, color: '#3b82f6' }} />
+                  <AutoAwesomeIcon sx={{ fontSize: 12, color: '#6b7f94' }} />
                   <span>Quick Styles</span>
                   <ArrowDropDownIcon sx={{ fontSize: 11, ml: -0.5 }} />
                 </button>
@@ -1142,7 +1142,7 @@ const PresentationToolbar = ({
                 className="ppt-btn-stacked"
                 onClick={() => setFindReplaceOpen(true)}
               >
-                <SearchIcon sx={{ fontSize: 13, color: '#2563eb' }} />
+                <SearchIcon sx={{ fontSize: 13, color: '#6b7f94' }} />
                 <span>Find & Replace</span>
               </button>
             </Tooltip>
@@ -1184,7 +1184,7 @@ const PresentationToolbar = ({
                 {isListening ? (
                   <MicIcon sx={{ fontSize: 26, color: '#dc2626' }} />
                 ) : (
-                  <MicIcon sx={{ fontSize: 26, color: '#2563eb' }} />
+                  <MicIcon sx={{ fontSize: 26, color: '#6b7f94' }} />
                 )}
               </Box>
               <Box className="ppt-btn-big-label">
@@ -1269,7 +1269,7 @@ const PresentationToolbar = ({
                 onClick={(e) => setLayoutMenuAnchor(e.currentTarget)}
                 style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 4, height: 21 }}
               >
-                <ViewAgendaIcon sx={{ fontSize: 13, color: '#2563eb' }} />
+                <ViewAgendaIcon sx={{ fontSize: 13, color: '#6b7f94' }} />
                 <span>
                   {SLIDE_LAYOUTS.find((l) => l.id === activeSlide?.layout)?.name || 'Layout'}
                 </span>
@@ -1326,7 +1326,7 @@ const PresentationToolbar = ({
         </MenuItem>
         <Divider />
         <MenuItem onClick={() => { if (onDuplicateSlide) onDuplicateSlide(); setPasteMenuAnchor(null); }}>
-          <ContentCopyIcon sx={{ fontSize: 16, mr: 1, color: '#2563eb' }} />
+          <ContentCopyIcon sx={{ fontSize: 16, mr: 1, color: '#6b7f94' }} />
           Duplicate Current Slide
         </MenuItem>
       </Menu>
@@ -1401,7 +1401,7 @@ const PresentationToolbar = ({
                   {layout.description}
                 </Typography>
               </Box>
-              {activeSlide?.layout === layout.id && <CheckIcon sx={{ fontSize: 16, color: '#2563eb' }} />}
+              {activeSlide?.layout === layout.id && <CheckIcon sx={{ fontSize: 16, color: '#6b7f94' }} />}
             </Box>
           </MenuItem>
         ))}
@@ -1412,7 +1412,7 @@ const PresentationToolbar = ({
             setLayoutMenuAnchor(null);
           }}
         >
-          <LaunchIcon sx={{ fontSize: 16, mr: 1, color: '#2563eb' }} />
+          <LaunchIcon sx={{ fontSize: 16, mr: 1, color: '#6b7f94' }} />
           Open Visual Layout Dialog...
         </MenuItem>
       </Menu>
@@ -1688,7 +1688,7 @@ const PresentationToolbar = ({
         onClose={() => setQuickStylesAnchor(null)}
       >
         <Box sx={{ px: 2, py: 0.5, borderBottom: '1px solid #e5e7eb' }}>
-          <Typography variant="caption" sx={{ fontWeight: 700, color: '#3b82f6' }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: '#6b7f94' }}>
             PRESET SHAPE STYLES
           </Typography>
         </Box>

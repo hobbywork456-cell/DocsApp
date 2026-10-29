@@ -4,8 +4,8 @@
   "description": "Fast, distraction-free document editor and workspace with rich text editing, side-by-side view, and instant PDF download.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fff0f6",
-  "theme_color": "#ff84ba",
+  "background_color": "#f4efe8",
+  "theme_color": "#687f6e",
   "icons": [
     {
       "src": "/favicon.svg",

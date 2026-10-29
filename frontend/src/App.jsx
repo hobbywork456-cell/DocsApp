@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { useSelector, useDispatch } from 'react-redux';
 import { initTheme } from './slices/themeSlice';
 import Login from './components/Login/Login';
+import LandingPage from './components/Landing/LandingPage';
+import DemoWorkspace from './components/Demo/DemoWorkspace';
 import Dashboard from './components/Dashboard/Dashboard';
 import InviteHandler from './components/Invite/InviteHandler';
 import SuperAdminDashboard from './components/SuperAdmin/SuperAdminDashboard';
@@ -24,6 +26,13 @@ function SuperAdminRoute({ children }) {
   return children;
 }
 
+// Signed-in users skip the landing page and go straight to their workspace
+function PublicOnlyRoute({ children }) {
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  if (isAuthenticated) return <Navigate to={user?.role === 'superadmin' ? '/superadmin' : '/home'} replace />;
+  return children;
+}
+
 function AppContent() {
   const dispatch = useDispatch();
   const location = useLocation();
@@ -40,8 +49,11 @@ function AppContent() {
 
   return (
     <Routes>
-      {/* Default click URL: Always opens the login page */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Public landing page: app overview, free demo workspace, sign in / sign up */}
+      <Route path="/" element={<PublicOnlyRoute><LandingPage /></PublicOnlyRoute>} />
+
+      {/* No-signup demo: 1 document + 1 sheet + 1 presentation, kept only in this browser tab */}
+      <Route path="/demo" element={<DemoWorkspace />} />
       
       {/* Login page: If super admin logs in, goes to /superadmin; if normal user logs in, goes to /home */}
       <Route path="/login" element={<Login />} />
@@ -67,7 +79,7 @@ function AppContent() {
       } />
 
       {/* Fallback for any other unmatched URL */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

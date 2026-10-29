@@ -3,16 +3,16 @@ import { createSlice } from '@reduxjs/toolkit';
 export const PALETTES = {
   forest: {
     id: 'forest',
-    name: 'Pastel Mint & White',
-    badge: 'DocuSphere Standard',
-    primary: '#1f8a5b',
-    primaryDark: '#0f2e1f',
-    primaryLight: '#a8e6c3',
-    accent: '#5cc28f',
-    gradient: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
-    borderGlow: 'rgba(92, 194, 143, 0.3)',
-    cardBg: 'rgba(255, 255, 255, 0.7)',
-    bodyBg: '#f6fbf8'
+    name: 'Calm Sage & Ivory',
+    badge: 'DocsApp Standard',
+    primary: '#687f6e',
+    primaryDark: '#566a5b',
+    primaryLight: '#a7b8a7',
+    accent: '#c9bdaf',
+    gradient: 'linear-gradient(135deg, #718a77 0%, #61786a 100%)',
+    borderGlow: 'rgba(104, 127, 110, 0.3)',
+    cardBg: 'rgba(250, 248, 244, 0.72)',
+    bodyBg: '#f4efe8'
   },
   royal: {
     id: 'royal',
@@ -93,8 +93,8 @@ export const applyPaletteToDom = (paletteId, isSuperAdmin = false) => {
   root.style.setProperty('--theme-palette-accent', p.accent);
   root.style.setProperty('--theme-palette-gradient', p.gradient);
   root.style.setProperty('--theme-palette-glow', p.borderGlow);
-  root.style.setProperty('--color-theme-main', '#1f8a5b');
-  root.style.setProperty('--color-theme-main-dark', '#0f2e1f');
+  root.style.setProperty('--color-theme-main', '#687f6e');
+  root.style.setProperty('--color-theme-main-dark', '#566a5b');
 
   if (isSuperAdmin) {
     root.classList.add('superadmin-theme');

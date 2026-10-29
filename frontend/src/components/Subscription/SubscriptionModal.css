@@ -5,18 +5,18 @@
 
 .subscription-modal-paper {
   background: #ffffff !important;
-  color: #0f172a !important;
+  color: #161a17 !important;
   border-radius: 20px !important;
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+  border: 1px solid #e6e0d6 !important;
+  box-shadow: 0 25px 50px -12px rgba(22, 26, 23, 0.25) !important;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
 }
 
 .dark .subscription-modal-paper {
-  background: #0f172a !important;
-  color: #f8fafc !important;
-  border-color: #1e293b !important;
+  background: #161a17 !important;
+  color: #faf8f4 !important;
+  border-color: #232824 !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
 }
 
@@ -31,7 +31,7 @@
 }
 
 .dark .subscription-modal-header {
-  background: #0f172a;
+  background: #161a17;
 }
 
 .subscription-header-icon {
@@ -42,15 +42,15 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e6e0d6;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   flex-shrink: 0;
 }
 
 .dark .subscription-header-icon {
-  background: #1e293b;
-  border-color: #334155;
+  background: #232824;
+  border-color: #3a413b;
 }
 
 .subscription-header-icon-dot {
@@ -65,12 +65,12 @@
 }
 
 .dark .subscription-header-icon-dot {
-  border-color: #0f172a;
+  border-color: #161a17;
 }
 
 /* Dark Overview Stats Card */
 .overview-stats-card {
-  background: #111827;
+  background: #1a1e1b;
   border-radius: 14px;
   padding: 16px 24px;
   color: #ffffff;
@@ -83,7 +83,7 @@
 
 .dark .overview-stats-card {
   background: #090e17;
-  border: 1px solid #1e293b;
+  border: 1px solid #232824;
 }
 
 @media (max-width: 640px) {
@@ -102,7 +102,7 @@
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #9ca3af;
+  color: #a59a8c;
   text-transform: uppercase;
   margin-bottom: 2px;
 }
@@ -124,7 +124,7 @@
 .overview-stat-unit {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #9ca3af;
+  color: #a59a8c;
 }
 
 .overview-stat-green {
@@ -133,8 +133,8 @@
 
 /* Payment Verified Alert Banner */
 .verified-alert-banner {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: #eef2ec;
+  border: 1px solid #d3dcd2;
   border-radius: 12px;
   padding: 12px 18px;
   margin-bottom: 16px;
@@ -170,17 +170,17 @@
 
 .verified-alert-text {
   font-size: 0.82rem;
-  color: #14532d;
+  color: #44544a;
   line-height: 1.4;
 }
 
 .dark .verified-alert-text {
-  color: #86efac;
+  color: #a7b8a7;
 }
 
 .verified-alert-btn {
   background: #ffffff;
-  border: 1px solid #bbf7d0;
+  border: 1px solid #d3dcd2;
   color: #15803d;
   font-size: 0.74rem;
   font-weight: 700;
@@ -193,13 +193,13 @@
 }
 
 .verified-alert-btn:hover {
-  background: #dcfce7;
+  background: #e3e9e1;
 }
 
 .dark .verified-alert-btn {
-  background: #1e293b;
+  background: #232824;
   border-color: rgba(16, 185, 129, 0.4);
-  color: #86efac;
+  color: #a7b8a7;
 }
 
 /* Clean Custom Navigation Tabs */
@@ -207,13 +207,13 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1ece4;
   padding-bottom: 10px;
   margin-bottom: 18px;
 }
 
 .dark .sub-custom-tabs {
-  border-bottom-color: #1e293b;
+  border-bottom-color: #232824;
 }
 
 .sub-tab-item {
@@ -222,7 +222,7 @@
   gap: 6px;
   font-size: 0.86rem;
   font-weight: 600;
-  color: #64748b;
+  color: #7a756c;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -232,19 +232,19 @@
 }
 
 .dark .sub-tab-item {
-  color: #94a3b8;
+  color: #a59a8c;
 }
 
 .sub-tab-item:hover {
-  color: #0f172a;
+  color: #161a17;
 }
 
 .dark .sub-tab-item:hover {
-  color: #f1f5f9;
+  color: #f1ece4;
 }
 
 .sub-tab-item.active {
-  color: #0f172a;
+  color: #161a17;
   font-weight: 800;
 }
 
@@ -256,7 +256,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #5cc28f;
+  background: #687f6e;
   display: inline-block;
 }
 
@@ -276,7 +276,7 @@
 .sub-pricing-card {
   position: relative;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e6e0d6;
   border-radius: 16px;
   padding: 22px 20px;
   display: flex;
@@ -286,12 +286,12 @@
 
 .dark .sub-pricing-card {
   background: #131d31;
-  border-color: #1e293b;
+  border-color: #232824;
 }
 
 .sub-pricing-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 24px -4px rgba(22, 26, 23, 0.08);
 }
 
 .dark .sub-pricing-card:hover {
@@ -300,13 +300,13 @@
 
 /* Current Plan / Featured Elevated Card */
 .sub-pricing-card.is-current-plan {
-  border: 2px solid #5cc28f !important;
-  box-shadow: 0 12px 30px -4px rgba(92, 194, 143, 0.22), 0 4px 10px rgba(0, 0, 0, 0.04) !important;
+  border: 2px solid #687f6e !important;
+  box-shadow: 0 12px 30px -4px rgba(104, 127, 110, 0.22), 0 4px 10px rgba(0, 0, 0, 0.04) !important;
 }
 
 .dark .sub-pricing-card.is-current-plan {
-  border-color: #5cc28f !important;
-  box-shadow: 0 12px 30px -4px rgba(92, 194, 143, 0.35) !important;
+  border-color: #687f6e !important;
+  box-shadow: 0 12px 30px -4px rgba(104, 127, 110, 0.35) !important;
 }
 
 .plan-top-badge {
@@ -322,29 +322,29 @@
 }
 
 .badge-gray {
-  background: #f1f5f9;
-  color: #475569;
+  background: #f1ece4;
+  color: #5d5a52;
 }
 
 .dark .badge-gray {
-  background: #1e293b;
-  color: #cbd5e1;
+  background: #232824;
+  color: #d4cbbf;
 }
 
 .badge-blue {
-  background: #eefaf3;
-  color: #1f8a5b;
+  background: #eef2ec;
+  color: #5b7262;
 }
 
 .dark .badge-blue {
-  background: rgba(92, 194, 143, 0.2);
-  color: #86efac;
+  background: rgba(104, 127, 110, 0.2);
+  color: #a7b8a7;
 }
 
 .plan-current-tag {
-  border: 1px solid #86efac;
-  background: #eefaf3;
-  color: #1f8a5b;
+  border: 1px solid #a7b8a7;
+  background: #eef2ec;
+  color: #5b7262;
   font-size: 0.7rem;
   font-weight: 700;
   padding: 2px 10px;
@@ -353,15 +353,15 @@
 }
 
 .dark .plan-current-tag {
-  background: rgba(92, 194, 143, 0.2);
-  border-color: #5cc28f;
-  color: #86efac;
+  background: rgba(104, 127, 110, 0.2);
+  border-color: #687f6e;
+  color: #a7b8a7;
 }
 
 .plan-card-title {
   font-size: 1.15rem;
   font-weight: 900;
-  color: #0f172a;
+  color: #161a17;
   margin: 0;
   line-height: 1.2;
 }
@@ -382,9 +382,9 @@
 }
 
 .subpill-green {
-  background: #ecfdf5;
+  background: #eef2ec;
   color: #059669;
-  border: 1px solid #a7f3d0;
+  border: 1px solid #cfd9cf;
 }
 
 .dark .subpill-green {
@@ -394,27 +394,27 @@
 }
 
 .subpill-blue {
-  background: #eefaf3;
-  color: #1f8a5b;
-  border: 1px solid #bfe9d2;
+  background: #eef2ec;
+  color: #5b7262;
+  border: 1px solid #cfd9cf;
 }
 
 .dark .subpill-blue {
-  background: rgba(92, 194, 143, 0.15);
-  color: #86efac;
-  border-color: rgba(92, 194, 143, 0.3);
+  background: rgba(104, 127, 110, 0.15);
+  color: #a7b8a7;
+  border-color: rgba(104, 127, 110, 0.3);
 }
 
 .plan-card-desc {
   font-size: 0.75rem;
-  color: #64748b;
+  color: #7a756c;
   line-height: 1.45;
   min-height: 34px;
   margin-bottom: 12px;
 }
 
 .dark .plan-card-desc {
-  color: #94a3b8;
+  color: #a59a8c;
 }
 
 .plan-card-price-row {
@@ -427,7 +427,7 @@
 .plan-card-price {
   font-size: 2.1rem;
   font-weight: 900;
-  color: #0f172a;
+  color: #161a17;
   letter-spacing: -0.03em;
   line-height: 1;
 }
@@ -439,7 +439,7 @@
 .plan-card-period {
   font-size: 0.76rem;
   font-weight: 500;
-  color: #64748b;
+  color: #7a756c;
   margin-left: 2px;
 }
 
@@ -450,31 +450,31 @@
   justify-content: center;
   gap: 6px;
   padding: 7px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #faf8f4;
+  border: 1px solid #e6e0d6;
   border-radius: 10px;
   font-size: 0.76rem;
   font-weight: 700;
-  color: #334155;
+  color: #3a413b;
   margin-bottom: 16px;
 }
 
 .dark .plan-storage-capsule {
-  background: #1e293b;
-  border-color: #334155;
-  color: #cbd5e1;
+  background: #232824;
+  border-color: #3a413b;
+  color: #d4cbbf;
 }
 
 .is-current-plan .plan-storage-capsule {
-  background: #f0fdf4;
-  border-color: #bfe9d2;
+  background: #eef2ec;
+  border-color: #cfd9cf;
   color: #0284c7;
 }
 
 .dark .is-current-plan .plan-storage-capsule {
   background: rgba(2, 132, 199, 0.15);
   border-color: rgba(2, 132, 199, 0.4);
-  color: #86efac;
+  color: #a7b8a7;
 }
 
 /* Features List */
@@ -491,12 +491,12 @@
   align-items: center;
   gap: 7px;
   font-size: 0.76rem;
-  color: #475569;
+  color: #5d5a52;
   font-weight: 500;
 }
 
 .dark .plan-feature-row {
-  color: #cbd5e1;
+  color: #d4cbbf;
 }
 
 .plan-check-icon {
@@ -511,12 +511,12 @@
 }
 
 .plan-check-blue {
-  color: #5cc28f !important;
+  color: #687f6e !important;
 }
 
 /* Plan Action Buttons */
 .plan-navy-btn {
-  background: #0f172a;
+  background: #161a17;
   color: #ffffff;
   border-radius: 10px;
   padding: 10px 14px;
@@ -530,11 +530,11 @@
   justify-content: center;
   gap: 8px;
   transition: all 0.15s ease;
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 2px 4px rgba(22, 26, 23, 0.15);
 }
 
 .plan-navy-btn:hover:not(:disabled) {
-  background: #1e293b;
+  background: #232824;
 }
 
 .plan-navy-btn:disabled {
@@ -543,9 +543,9 @@
 }
 
 .plan-current-btn {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: #f1ece4;
+  color: #5d5a52;
+  border: 1px solid #d4cbbf;
   border-radius: 10px;
   padding: 10px 14px;
   font-weight: 700;
@@ -560,14 +560,14 @@
 }
 
 .dark .plan-current-btn {
-  background: #1e293b;
-  border-color: #334155;
-  color: #94a3b8;
+  background: #232824;
+  border-color: #3a413b;
+  color: #a59a8c;
 }
 
 .plan-current-btn:hover:not(:disabled) {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: #e6e0d6;
+  color: #161a17;
 }
 
 /* Footer Section */
@@ -576,13 +576,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 24px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #f1ece4;
   background: #ffffff;
 }
 
 .dark .subscription-modal-footer {
-  border-top-color: #1e293b;
-  background: #0f172a;
+  border-top-color: #232824;
+  background: #161a17;
 }
 
 .footer-secured-badge {
@@ -590,18 +590,18 @@
   align-items: center;
   gap: 6px;
   font-size: 0.76rem;
-  color: #64748b;
+  color: #7a756c;
   font-weight: 600;
 }
 
 .dark .footer-secured-badge {
-  color: #94a3b8;
+  color: #a59a8c;
 }
 
 .footer-close-btn {
   background: transparent;
   border: none;
-  color: #475569;
+  color: #5d5a52;
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
@@ -611,23 +611,23 @@
 }
 
 .footer-close-btn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: #f1ece4;
+  color: #161a17;
 }
 
 .dark .footer-close-btn {
-  color: #cbd5e1;
+  color: #d4cbbf;
 }
 
 .dark .footer-close-btn:hover {
-  background: #1e293b;
+  background: #232824;
   color: #ffffff;
 }
 
 /* Table Styling for other tabs */
 .groups-table-paper {
   background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
+  border: 1px solid #e6e0d6 !important;
   border-radius: 12px !important;
   box-shadow: none !important;
   overflow: hidden;
@@ -635,32 +635,32 @@
 
 .dark .groups-table-paper {
   background: #131d31 !important;
-  border-color: #1e293b !important;
+  border-color: #232824 !important;
 }
 
 .groups-table-paper .MuiTableCell-head {
-  background: #f8fafc !important;
+  background: #faf8f4 !important;
   font-weight: 700 !important;
-  color: #475569 !important;
+  color: #5d5a52 !important;
   font-size: 0.75rem !important;
-  border-bottom: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid #e6e0d6 !important;
 }
 
 .dark .groups-table-paper .MuiTableCell-head {
   background: #090e17 !important;
-  color: #94a3b8 !important;
-  border-bottom-color: #1e293b !important;
+  color: #a59a8c !important;
+  border-bottom-color: #232824 !important;
 }
 
 .groups-table-paper .MuiTableCell-body {
-  border-bottom: 1px solid #f1f5f9 !important;
+  border-bottom: 1px solid #f1ece4 !important;
   font-size: 0.8rem !important;
-  color: #334155 !important;
+  color: #3a413b !important;
 }
 
 .dark .groups-table-paper .MuiTableCell-body {
-  border-bottom-color: #1e293b !important;
-  color: #cbd5e1 !important;
+  border-bottom-color: #232824 !important;
+  color: #d4cbbf !important;
 }
 
 @keyframes fadeIn {

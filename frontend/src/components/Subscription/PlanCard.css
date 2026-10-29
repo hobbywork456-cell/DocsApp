@@ -1,0 +1,56 @@
+/* Shared plan card — landing page, subscription window, super admin preview */
+.pcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 18px 18px;
+  border-radius: 18px;
+  background: var(--c-card, #fff);
+  border: 1px solid var(--c-line, #e6e0d6);
+  color: var(--c-ink, #262b27);
+  min-width: 0;
+}
+.pcard.is-free { background: linear-gradient(180deg, var(--c-tint, #eef2ec), var(--c-card, #fff)); }
+.pcard.is-popular { border-color: var(--c-accent, #5b7262); box-shadow: 0 0 0 3px var(--c-tint, #eef2ec); }
+.pcard.is-active { border-color: var(--c-accent, #5b7262); }
+.pcard-tags { position: absolute; top: -11px; left: 16px; display: flex; gap: 6px; }
+.pcard-badge {
+  font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 3px 10px; border-radius: 999px; color: #fff; background: var(--c-accent, #5b7262);
+}
+.pcard-badge.is-active { background: #2f3a33; }
+.pcard-name { font-size: 0.98rem; font-weight: 800; line-height: 1.3; margin: 2px 0 0; }
+.pcard-price { display: flex; align-items: baseline; gap: 4px; }
+.pcard-amount { font-size: 1.85rem; font-weight: 800; letter-spacing: -0.03em; }
+.pcard-period { font-size: 0.82rem; font-weight: 600; color: var(--c-muted, #7a756c); }
+.pcard-storage {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+  font-size: 0.82rem; font-weight: 700; color: var(--c-accent, #5b7262);
+}
+.pcard-validity { font-weight: 600; color: var(--c-muted, #7a756c); }
+.pcard-desc { font-size: 0.82rem; line-height: 1.5; color: var(--c-muted, #7a756c); margin: 0; }
+.pcard-features { list-style: none; padding: 0; margin: 4px 0 6px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.pcard-features li { display: flex; gap: 6px; align-items: flex-start; font-size: 0.82rem; color: var(--c-muted, #7a756c); }
+.pcard-features li svg { color: var(--c-accent, #5b7262); margin-top: 2px; flex-shrink: 0; }
+.pcard-btn {
+  margin-top: auto;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+.pcard-btn.is-primary { border: 0; color: #fff; background: var(--c-accent, #5b7262); }
+.pcard-btn.is-primary:hover:not(:disabled) { opacity: 0.92; }
+.pcard-btn.is-outline { border: 1px solid var(--c-line, #e6e0d6); color: var(--c-ink, #262b27); background: transparent; }
+.pcard-btn.is-outline:hover:not(:disabled) { border-color: var(--c-accent, #5b7262); }
+.pcard-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pcard-foot { font-size: 0.72rem; color: var(--c-muted, #7a756c); margin: 0; text-align: center; }
+.pcard.is-compact { padding: 18px 14px 14px; gap: 6px; }
+.pcard.is-compact .pcard-amount { font-size: 1.45rem; }
+
+.pcard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px; padding-top: 10px; }

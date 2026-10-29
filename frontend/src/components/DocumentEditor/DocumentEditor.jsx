@@ -164,7 +164,7 @@ import WordRibbonToolbar from './WordRibbonToolbar';
 import './DocumentEditor.css';
 
 export const getTagColor = (tag) => {
-  if (!tag) return '#9ca3af';
+  if (!tag) return '#a59a8c';
   let hash = 0;
   for (let i = 0; i < tag.length; i++) {
     hash = tag.charCodeAt(i) + ((hash << 5) - hash);
@@ -449,8 +449,8 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const getAttachmentIcon = (type, filename, size = 16) => {
     const sx = { fontSize: size };
     if (type === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) return <PictureAsPdfIcon sx={{ ...sx, color: '#ef4444' }} />;
-    if (type.includes('spreadsheet') || type.includes('excel') || filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls')) return <TableChartIcon sx={{ ...sx, color: '#0f2e1f' }} />;
-    return <DescriptionIcon sx={{ ...sx, color: '#3b82f6' }} />;
+    if (type.includes('spreadsheet') || type.includes('excel') || filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls')) return <TableChartIcon sx={{ ...sx, color: 'var(--c-ink2)' }} />;
+    return <DescriptionIcon sx={{ ...sx, color: '#6b7f94' }} />;
   };
 
   const handleFileImport = async (e) => {
@@ -914,7 +914,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           elevation={0} 
           sx={{ backgroundColor: 'transparent' }}
           onClickCapture={handleEditorClick}
-          className={`flex-1 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-900/80 shadow-sm dark:shadow-none flex flex-col relative ${isEditing ? 'border-2 border-[#1f8a5b]' : 'border border-green-100 dark:border-green-900'} ${!isEditing ? 'editor-readonly' : ''}`}
+          className={`flex-1 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-900/80 shadow-sm dark:shadow-none flex flex-col relative ${isEditing ? 'border-2 border-[var(--c-accent)]' : 'border border-green-100 dark:border-green-900'} ${!isEditing ? 'editor-readonly' : ''}`}
         >
           {docType === 'sheet' ? (
             <SpreadsheetEditor
@@ -1029,21 +1029,21 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                       px: 1,
                       py: 0.5,
                       borderRadius: '8px',
-                      bgcolor: 'white'
+                      bgcolor: 'var(--c-card)'
                     }}
                   >
                     <Tooltip title="Align Left">
-                      <IconButton size="small" onClick={() => alignMedia('left')} sx={{ color: '#64748b', p: 0.5, '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' } }}>
+                      <IconButton size="small" onClick={() => alignMedia('left')} sx={{ color: 'var(--c-muted)', p: 0.5, '&:hover': { bgcolor: 'var(--c-surface2)', color: 'var(--c-ink)' } }}>
                         <FormatAlignLeftIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Align Center">
-                      <IconButton size="small" onClick={() => alignMedia('center')} sx={{ color: '#64748b', p: 0.5, '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' } }}>
+                      <IconButton size="small" onClick={() => alignMedia('center')} sx={{ color: 'var(--c-muted)', p: 0.5, '&:hover': { bgcolor: 'var(--c-surface2)', color: 'var(--c-ink)' } }}>
                         <FormatAlignCenterIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Align Right">
-                      <IconButton size="small" onClick={() => alignMedia('right')} sx={{ color: '#64748b', p: 0.5, '&:hover': { bgcolor: '#f1f5f9', color: '#0f172a' } }}>
+                      <IconButton size="small" onClick={() => alignMedia('right')} sx={{ color: 'var(--c-muted)', p: 0.5, '&:hover': { bgcolor: 'var(--c-surface2)', color: 'var(--c-ink)' } }}>
                         <FormatAlignRightIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -1086,7 +1086,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         {(isEditing || (selectedDocument.attachments && selectedDocument.attachments.length > 0) || pendingAttachments.length > 0) && (
           <Box className="w-full flex items-center gap-1.5 px-2 py-1 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md rounded-xl border border-gray-200/80 dark:border-gray-800 shadow-2xs shrink-0 overflow-x-auto min-h-[32px]">
             <Box className="flex items-center gap-1 shrink-0 text-gray-500 dark:text-gray-400 mr-0.5">
-              <AttachFileIcon sx={{ fontSize: 12, color: '#1f8a5b' }} />
+              <AttachFileIcon sx={{ fontSize: 12, color: 'var(--c-accent)' }} />
               <Typography variant="caption" sx={{ fontWeight: '700', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Attachments
               </Typography>
@@ -1138,7 +1138,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                       <IconButton 
                         size="small" 
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteAttachment(att._id); }} 
-                        sx={{ p: '1px', ml: 0.2, color: '#9ca3af', '&:hover': { color: '#ef4444', bgcolor: 'rgba(239,68,68,0.1)' } }}
+                        sx={{ p: '1px', ml: 0.2, color: '#a59a8c', '&:hover': { color: '#ef4444', bgcolor: 'rgba(239,68,68,0.1)' } }}
                       >
                         <CloseIcon sx={{ fontSize: 12 }} />
                       </IconButton>
@@ -1164,12 +1164,12 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                         px: '8px',
                         minHeight: '22px',
                         borderRadius: '8px',
-                        border: '1px dashed #1f8a5b',
-                        color: '#1f8a5b',
-                        bgcolor: 'rgba(31, 138, 91, 0.04)',
+                        border: '1px dashed #5b7262',
+                        color: 'var(--c-accent)',
+                        bgcolor: 'rgba(104, 127, 110, 0.04)',
                         '&:hover': {
-                          bgcolor: 'rgba(31, 138, 91, 0.1)',
-                          borderColor: '#0f2e1f'
+                          bgcolor: 'rgba(104, 127, 110, 0.1)',
+                          borderColor: 'var(--c-ink2)'
                         },
                         shrink: 0
                       }}
@@ -1207,7 +1207,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         <Box className="relative flex flex-col items-center justify-center">
           <IconButton 
             onClick={() => setSelectedMedia(null)} 
-            sx={{ position: 'absolute', top: 12, right: 12, bgcolor: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'white' }, zIndex: 10 }}
+            sx={{ position: 'absolute', top: 12, right: 12, bgcolor: 'var(--c-card-a)', '&:hover': { bgcolor: 'var(--c-card)' }, zIndex: 10 }}
           >
             <CloseIcon />
           </IconButton>
@@ -1257,7 +1257,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                           {new Date(entry.editedAt).toLocaleString()}
                         </Typography>
                         {entry.changesSummary && (
-                          <Typography variant="body2" sx={{ mt: 1, p: 1, bgcolor: '#f3f4f6', borderRadius: 1, borderLeft: '3px solid #1f8a5b' }}>
+                          <Typography variant="body2" sx={{ mt: 1, p: 1, bgcolor: '#f2ede6', borderRadius: 1, borderLeft: '3px solid #5b7262' }}>
                             {entry.changesSummary}
                           </Typography>
                         )}

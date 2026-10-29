@@ -49,8 +49,8 @@ const SheetReadMode = ({
         zIndex: 999999,
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: isDarkMode ? '#0f172a' : '#f1f5f9',
-        color: isDarkMode ? '#f8fafc' : '#1e293b',
+        bgcolor: isDarkMode ? '#161a17' : 'var(--c-surface2)',
+        color: isDarkMode ? '#faf8f4' : '#232824',
         overflow: 'hidden',
         userSelect: 'none'
       }}
@@ -63,8 +63,8 @@ const SheetReadMode = ({
           justifyContent: 'space-between',
           px: { xs: 2, sm: 3 },
           py: 1,
-          bgcolor: isDarkMode ? '#1e293b' : '#ffffff',
-          borderBottom: isDarkMode ? '1px solid #334155' : '1px solid #e2e8f0',
+          bgcolor: isDarkMode ? '#232824' : '#ffffff',
+          borderBottom: isDarkMode ? '1px solid #3a413b' : '1px solid #e6e0d6',
           boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
           zIndex: 10,
           flexShrink: 0
@@ -101,7 +101,7 @@ const SheetReadMode = ({
             >
               {doc.title || 'Spreadsheet'}
             </Typography>
-            <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.72rem' }}>
+            <Typography variant="caption" sx={{ color: 'var(--c-muted)', fontSize: '0.72rem' }}>
               Interactive Spreadsheet Viewer • Read Mode
             </Typography>
           </Box>
@@ -126,10 +126,10 @@ const SheetReadMode = ({
               size="small"
               onClick={handleDownloadXlsx}
               sx={{
-                bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f8fafc',
+                bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'var(--c-surface)',
                 color: '#059669',
                 border: '1px solid',
-                borderColor: isDarkMode ? '#334155' : '#cbd5e1',
+                borderColor: isDarkMode ? '#3a413b' : '#d4cbbf',
                 '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.1)' }
               }}
             >
@@ -142,10 +142,10 @@ const SheetReadMode = ({
               size="small"
               onClick={handleDownloadCsv}
               sx={{
-                bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f8fafc',
+                bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'var(--c-surface)',
                 color: '#0284c7',
                 border: '1px solid',
-                borderColor: isDarkMode ? '#334155' : '#cbd5e1',
+                borderColor: isDarkMode ? '#3a413b' : '#d4cbbf',
                 '&:hover': { bgcolor: 'rgba(2, 132, 199, 0.1)' }
               }}
             >
@@ -180,8 +180,8 @@ const SheetReadMode = ({
             flexDirection: 'column',
             overflow: 'hidden',
             borderRadius: { xs: 0, sm: '12px' },
-            border: isDarkMode ? '1px solid #334155' : '1px solid #e2e8f0',
-            bgcolor: isDarkMode ? '#1e293b' : '#ffffff'
+            border: isDarkMode ? '1px solid #3a413b' : '1px solid #e6e0d6',
+            bgcolor: isDarkMode ? '#232824' : '#ffffff'
           }}
         >
           <SpreadsheetEditor

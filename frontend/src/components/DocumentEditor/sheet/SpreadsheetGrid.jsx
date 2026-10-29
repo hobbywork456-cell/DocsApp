@@ -15,7 +15,7 @@ const STYLE_PRESETS = {
   total: {}
 };
 
-const BORDER = '1px solid #1f2937';
+const BORDER = '1px solid #262b27';
 
 export const getCellStyle = (cell, value) => {
   const preset = STYLE_PRESETS[cell.styleType] || {};
@@ -29,7 +29,7 @@ export const getCellStyle = (cell, value) => {
     fontFamily: cell.fontFamily || undefined,
     fontSize: cell.fontSize || (cell.styleType === 'heading1' ? '15pt' : undefined),
     // A filled cell without its own font colour gets dark text, so light fills stay readable in dark mode
-    color: cell.color || preset.color || (cell.bg || preset.bg ? '#111827' : undefined),
+    color: cell.color || preset.color || (cell.bg || preset.bg ? '#1a1e1b' : undefined),
     backgroundColor: cell.bg || preset.bg,
     textAlign: cell.align || (isNumber ? 'right' : isCentered ? 'center' : 'left'),
     verticalAlign: cell.valign || 'bottom',
@@ -38,7 +38,7 @@ export const getCellStyle = (cell, value) => {
   };
   const b = cell.border;
   if (b === 'all' || b === 'thick') {
-    const line = b === 'thick' ? '2px solid #111827' : BORDER;
+    const line = b === 'thick' ? '2px solid #1a1e1b' : BORDER;
     style.borderTop = line; style.borderBottom = line; style.borderLeft = line; style.borderRight = line;
   }
   if (b === 'top') style.borderTop = BORDER;
@@ -46,7 +46,7 @@ export const getCellStyle = (cell, value) => {
   if (b === 'right') style.borderRight = BORDER;
   if (b === 'bottom' || cell.styleType === 'heading1') style.borderBottom = cell.styleType === 'heading1' ? '2px solid #4472c4' : BORDER;
   if (b === 'double-bottom' || cell.styleType === 'total') {
-    style.borderBottom = '3px double #111827';
+    style.borderBottom = '3px double #1a1e1b';
     if (cell.styleType === 'total') style.borderTop = '1px solid #4472c4';
   }
   return style;

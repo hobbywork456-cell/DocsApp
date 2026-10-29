@@ -36,7 +36,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CheckIcon from '@mui/icons-material/Check';
 
 export const getTagColor = (tag) => {
-  if (!tag) return '#9ca3af';
+  if (!tag) return '#a59a8c';
   let hash = 0;
   for (let i = 0; i < tag.length; i++) {
     hash = tag.charCodeAt(i) + ((hash << 5) - hash);
@@ -121,7 +121,7 @@ const EditorHeader = ({
                   onClick={onBackToLibrary}
                   size="small"
                   className="md:hidden shrink-0"
-                  sx={{ color: '#1f8a5b', bgcolor: 'rgba(255,255,255,0.85)', p: '5px', borderRadius: '8px', '&:hover': { bgcolor: '#f0fdf4' } }}
+                  sx={{ color: 'var(--c-accent)', bgcolor: 'var(--c-card-a)', p: '5px', borderRadius: '8px', '&:hover': { bgcolor: 'var(--c-tint)' } }}
                 >
                   <ArrowBackIcon fontSize="small" />
                 </IconButton>
@@ -138,7 +138,7 @@ const EditorHeader = ({
               sx={{
                 fontSize: { xs: '0.95rem', sm: '1.05rem', md: '1.15rem' },
                 fontWeight: '900',
-                color: '#1f2937',
+                color: 'var(--c-ink)',
                 letterSpacing: '-0.02em',
                 opacity: isEditing ? 1 : 0.9,
                 lineHeight: 1.2,
@@ -176,7 +176,7 @@ const EditorHeader = ({
               <>
                 <Tooltip title="Add Tag">
                   <IconButton size="small" onClick={onOpenTagMenu} sx={{ p: '2px', bgcolor: 'rgba(0,0,0,0.04)', '&:hover': { bgcolor: 'rgba(0,0,0,0.08)' } }} className="dark:bg-gray-800 dark:hover:bg-gray-700">
-                    <LocalOfferIcon sx={{ fontSize: 16, color: '#9ca3af' }} />
+                    <LocalOfferIcon sx={{ fontSize: 16, color: '#a59a8c' }} />
                   </IconButton>
                 </Tooltip>
                 <Popover
@@ -196,9 +196,9 @@ const EditorHeader = ({
                       onKeyDown={(e) => { if (e.key === 'Enter') onAddTag(); }}
                       autoFocus
                       slotProps={{ input: { className: 'dark:text-white' } }}
-                      sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#d1d5db' }, '&:hover fieldset': { borderColor: '#1f8a5b' }, '&.Mui-focused fieldset': { borderColor: '#1f8a5b' } } }}
+                      sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: 'var(--c-line)' }, '&:hover fieldset': { borderColor: 'var(--c-accent)' }, '&.Mui-focused fieldset': { borderColor: 'var(--c-accent)' } } }}
                     />
-                    <Button variant="contained" onClick={onAddTag} sx={{ bgcolor: '#a8e6c3', '&:hover': { bgcolor: '#8fdab2' }, textTransform: 'none', minWidth: '60px' }}>
+                    <Button variant="contained" onClick={onAddTag} sx={{ bgcolor: '#687f6e', '&:hover': { bgcolor: '#5a7060' }, textTransform: 'none', minWidth: '60px' }}>
                       Add
                     </Button>
                   </Box>
@@ -231,10 +231,10 @@ const EditorHeader = ({
           <Tooltip title={docType === 'sheet' ? 'Sheet Read Mode' : docType === 'ppt' ? 'Presentation Read Mode' : 'Read Mode'}>
             <IconButton onClick={onReadModeOpen}
               sx={{ 
-                color: docType === 'sheet' ? '#059669' : docType === 'ppt' ? '#ea580c' : '#1f8a5b', 
-                bgcolor: docType === 'sheet' ? 'rgba(5,150,105,0.08)' : docType === 'ppt' ? 'rgba(234,88,12,0.08)' : 'rgba(31, 138, 91, 0.06)', 
+                color: docType === 'sheet' ? '#687f6e' : docType === 'ppt' ? '#b07d5b' : 'var(--c-accent)', 
+                bgcolor: docType === 'sheet' ? 'rgba(5,150,105,0.08)' : docType === 'ppt' ? 'rgba(234,88,12,0.08)' : 'rgba(104, 127, 110, 0.06)', 
                 '&:hover': { 
-                  bgcolor: docType === 'sheet' ? 'rgba(5,150,105,0.15)' : docType === 'ppt' ? 'rgba(234,88,12,0.15)' : 'rgba(31, 138, 91, 0.13)', 
+                  bgcolor: docType === 'sheet' ? 'rgba(5,150,105,0.15)' : docType === 'ppt' ? 'rgba(234,88,12,0.15)' : 'rgba(104, 127, 110, 0.13)', 
                   transform: 'translateY(-1px)' 
                 }, 
                 p: '5px', 
@@ -252,16 +252,16 @@ const EditorHeader = ({
                 onClick={(e) => setDownloadMenuAnchor(e.currentTarget)} 
                 disabled={isDownloading}
                 sx={{ 
-                  color: '#3b82f6', 
+                  color: '#6b7f94', 
                   bgcolor: 'rgba(59,130,246,0.06)', 
                   '&:hover': { bgcolor: 'rgba(59,130,246,0.13)', transform: 'translateY(-1px)' }, 
-                  '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, 
+                  '&.Mui-disabled': { color: '#d4cbbf', bgcolor: 'transparent' }, 
                   p: '5px', 
                   borderRadius: '10px', 
                   transition: 'all 0.2s' 
                 }}
               >
-                {isDownloading ? <CircularProgress size={16} sx={{ color: '#3b82f6' }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: 18 }} />}
+                {isDownloading ? <CircularProgress size={16} sx={{ color: '#6b7f94' }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: 18 }} />}
               </IconButton>
             </span>
           </Tooltip>
@@ -278,16 +278,16 @@ const EditorHeader = ({
                   boxShadow: '0 12px 30px rgba(0, 0, 0, 0.15)',
                   minWidth: 240,
                   py: 0.5,
-                  border: '1px solid #e2e8f0'
+                  border: '1px solid #e6e0d6'
                 }
               }
             }}
           >
-            <Box sx={{ px: 2, py: 1, borderBottom: '1px solid #f1f5f9' }}>
-              <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <Box sx={{ px: 2, py: 1, borderBottom: '1px solid #f1ece4' }}>
+              <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, color: '#a59a8c', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Download Options
               </Typography>
-              <Typography sx={{ fontSize: '0.84rem', fontWeight: 700, color: '#1e293b' }}>
+              <Typography sx={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--c-ink)' }}>
                 {docType === 'sheet' ? 'Spreadsheet Formats' : docType === 'ppt' ? 'Presentation Formats' : 'Document Formats'}
               </Typography>
             </Box>
@@ -308,7 +308,7 @@ const EditorHeader = ({
                 </MenuItem>
                 <MenuItem onClick={() => handleSelectDownloadFormat('doc')} sx={{ py: 1 }}>
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <DescriptionIcon fontSize="small" sx={{ color: '#2563eb' }} />
+                    <DescriptionIcon fontSize="small" sx={{ color: '#6b7f94' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Word Document (.doc)" 
@@ -319,7 +319,7 @@ const EditorHeader = ({
                 </MenuItem>
                 <MenuItem onClick={() => handleSelectDownloadFormat('txt')} sx={{ py: 1 }}>
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <ArticleIcon fontSize="small" sx={{ color: '#64748b' }} />
+                    <ArticleIcon fontSize="small" sx={{ color: 'var(--c-muted)' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Plain Text (.txt)" 
@@ -400,7 +400,7 @@ const EditorHeader = ({
           </Menu>
 
           {/* Divider */}
-          <Box sx={{ width: '1px', height: 22, bgcolor: '#e5e7eb', mx: 0.25 }} />
+          <Box sx={{ width: '1px', height: 22, bgcolor: '#e6e0d6', mx: 0.25 }} />
 
           {/* Edit / Import + Save */}
           {isStorageExceeded ? (
@@ -437,12 +437,12 @@ const EditorHeader = ({
                 onClick={() => setIsEditing(true)}
                 startIcon={<EditIcon sx={{ fontSize: 16 }} />}
                 sx={{
-                  color: '#0b1410',
-                  background: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
+                  color: '#ffffff',
+                  background: 'linear-gradient(135deg, #718a77 0%, #61786a 100%)',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%)',
+                    background: 'linear-gradient(135deg, #61786a 0%, #556a5d 100%)',
                     transform: 'translateY(-1px)',
-                    boxShadow: '0 4px 14px rgba(31, 138, 91, 0.4)'
+                    boxShadow: '0 4px 14px rgba(104, 127, 110, 0.4)'
                   },
                   textTransform: 'none',
                   fontWeight: 700,
@@ -450,7 +450,7 @@ const EditorHeader = ({
                   borderRadius: '8px',
                   px: 1.5,
                   py: 0.35,
-                  boxShadow: '0 2px 8px rgba(31, 138, 91, 0.3)',
+                  boxShadow: '0 2px 8px rgba(104, 127, 110, 0.3)',
                   transition: 'all 0.2s'
                 }}
               >
@@ -476,7 +476,7 @@ const EditorHeader = ({
                       color: '#6366f1', 
                       bgcolor: 'rgba(99,102,241,0.06)', 
                       '&:hover': { bgcolor: 'rgba(99,102,241,0.13)', transform: 'translateY(-1px)' }, 
-                      '&.Mui-disabled': { color: '#d1d5db', bgcolor: 'transparent' }, 
+                      '&.Mui-disabled': { color: '#d4cbbf', bgcolor: 'transparent' }, 
                       p: '5px', 
                       borderRadius: '10px', 
                       transition: 'all 0.2s' 
@@ -499,16 +499,16 @@ const EditorHeader = ({
                       boxShadow: '0 12px 30px rgba(0, 0, 0, 0.15)',
                       minWidth: 250,
                       py: 0.5,
-                      border: '1px solid #e2e8f0'
+                      border: '1px solid #e6e0d6'
                     }
                   }
                 }}
               >
-                <Box sx={{ px: 2, py: 1, borderBottom: '1px solid #f1f5f9' }}>
-                  <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <Box sx={{ px: 2, py: 1, borderBottom: '1px solid #f1ece4' }}>
+                  <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, color: '#a59a8c', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Import & Convert File
                   </Typography>
-                  <Typography sx={{ fontSize: '0.84rem', fontWeight: 700, color: '#1e293b' }}>
+                  <Typography sx={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--c-ink)' }}>
                     Select File Type
                   </Typography>
                 </Box>
@@ -539,7 +539,7 @@ const EditorHeader = ({
 
                 <MenuItem onClick={() => handleTriggerImport('.docx,.doc,.pdf,.txt')} sx={{ py: 1 }}>
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <DescriptionIcon fontSize="small" sx={{ color: '#2563eb' }} />
+                    <DescriptionIcon fontSize="small" sx={{ color: '#6b7f94' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Word / PDF Document (.docx, .pdf)" 
@@ -580,19 +580,19 @@ const EditorHeader = ({
                     size="small"
                     onClick={onSave}
                     disabled={isSaving}
-                    startIcon={isSaving ? <CircularProgress size={14} sx={{ color: '#0b1410' }} /> : <CheckIcon sx={{ fontSize: 16 }} />}
+                    startIcon={isSaving ? <CircularProgress size={14} sx={{ color: '#ffffff' }} /> : <CheckIcon sx={{ fontSize: 16 }} />}
                     sx={{
-                      color: '#0b1410',
+                      color: '#ffffff',
                       background: isSaving
-                        ? 'linear-gradient(135deg, #86efac 0%, #4ade80 100%)'
-                        : 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
-                      boxShadow: '0 2px 10px rgba(31, 138, 91, 0.35)',
+                        ? 'linear-gradient(135deg, #a7b8a7 0%, #8fa391 100%)'
+                        : 'linear-gradient(135deg, #718a77 0%, #61786a 100%)',
+                      boxShadow: '0 2px 10px rgba(104, 127, 110, 0.35)',
                       '&:hover': {
-                        background: 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%)',
-                        boxShadow: '0 4px 14px rgba(31, 138, 91, 0.45)',
+                        background: 'linear-gradient(135deg, #61786a 0%, #556a5d 100%)',
+                        boxShadow: '0 4px 14px rgba(104, 127, 110, 0.45)',
                         transform: 'translateY(-1px)'
                       },
-                      '&.Mui-disabled': { background: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' },
+                      '&.Mui-disabled': { background: '#e6e0d6', color: '#a59a8c', boxShadow: 'none' },
                       textTransform: 'none',
                       fontWeight: 700,
                       fontSize: '0.78rem',

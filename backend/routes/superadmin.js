@@ -8,6 +8,7 @@ const Document = require('../models/Document');
 const SystemSettings = require('../models/SystemSettings');
 const Subscription = require('../models/Subscription');
 const { getUserStorageStats, getDocumentSizeBytes, invalidateStorageCache } = require('../utils/storage');
+const { decorateSubscription, isSampleTierSet } = require('../utils/subscriptionView');
 
 // Apply auth and superadmin middleware to all routes in this router
 router.use(auth, superadmin);
@@ -21,7 +22,7 @@ router.get('/stats', async (req, res) => {
       User.find({}),
       Group.find({}).populate('createdBy', 'email'),
       Document.find({}),
-      Subscription.find({ status: 'active' })
+      Subscription.find({ status: 'active', $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gt: new Date() } }] })
     ]);
 
     // Calculate total application storage used
@@ -37,7 +38,7 @@ router.get('/stats', async (req, res) => {
 
     // Active subscribers set
     const subscribedUserIds = new Set(subscriptions.map(s => s.user.toString()));
-    const subscribedCount = totalUsers.filter(u => u.isSubscribed || subscribedUserIds.has(u._id.toString())).length;
+    const subscribedCount = totalUsers.filter(u => subscribedUserIds.has(u._id.toString())).length;
     const freeUsersCount = totalUsers.length - subscribedCount;
 
     res.json({
@@ -182,7 +183,7 @@ router.get('/groups', async (req, res) => {
 router.get('/tariff', async (req, res) => {
   try {
     const settings = await SystemSettings.getSettings();
-    res.json(settings);
+    res.json({ ...settings.toObject(), isSampleTiers: isSampleTierSet(settings.tiers) });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching tariff settings', error: error.message });
   }
@@ -208,11 +209,38 @@ router.put('/tariff', async (req, res) => {
 
     if (freeStorageMB !== undefined) settings.freeStorageMB = Number(freeStorageMB);
     if (warningThresholdPercent !== undefined) settings.warningThresholdPercent = Number(warningThresholdPercent);
-    if (currency !== undefined) settings.currency = currency;
+    if (currency !== undefined) settings.currency = String(currency).trim().toUpperCase() || 'INR';
     if (currencySymbol !== undefined) settings.currencySymbol = currencySymbol;
     if (pricePer50MB !== undefined) settings.pricePer50MB = Number(pricePer50MB);
     if (activeTheme !== undefined) settings.activeTheme = activeTheme;
-    if (Array.isArray(tiers)) settings.tiers = tiers;
+    if (Array.isArray(tiers)) {
+      const seen = new Set();
+      const cleaned = [];
+      for (const [i, t] of tiers.entries()) {
+        const name = String(t.name || '').trim();
+        const storageMB = Number(t.storageMB);
+        const price = Number(t.price);
+        if (!name) return res.status(400).json({ message: `Plan ${i + 1}: name is required.` });
+        if (!(storageMB > 0)) return res.status(400).json({ message: `"${name}": storage must be more than 0 MB.` });
+        if (!(price >= 1)) return res.status(400).json({ message: `"${name}": price must be at least 1 (Razorpay minimum).` });
+        let id = String(t.id || '').trim() || `tier-${Date.now()}-${i}`;
+        if (seen.has(id)) id = `${id}-${i}`;
+        seen.add(id);
+        cleaned.push({
+          id,
+          name,
+          storageMB,
+          price,
+          period: ['monthly', 'yearly', 'one-time'].includes(t.period) ? t.period : 'monthly',
+          description: String(t.description || '').trim(),
+          badge: String(t.badge || '').trim(),
+          features: (Array.isArray(t.features) ? t.features : String(t.features || '').split('\n'))
+            .map((f) => String(f).trim()).filter(Boolean).slice(0, 8),
+          isPopular: Boolean(t.isPopular)
+        });
+      }
+      settings.tiers = cleaned;
+    }
 
     settings.updatedBy = req.user.userId;
     settings.updatedAt = new Date();
@@ -222,7 +250,7 @@ router.put('/tariff', async (req, res) => {
 
     res.json({
       message: 'Tariff and storage settings updated successfully! New rates are now active for all application users.',
-      settings
+      settings: { ...settings.toObject(), isSampleTiers: isSampleTierSet(settings.tiers) }
     });
   } catch (error) {
     res.status(500).json({ message: 'Error updating tariff settings', error: error.message });
@@ -236,7 +264,7 @@ router.get('/subscriptions', async (req, res) => {
       .populate('user', 'email firstName lastName')
       .sort({ createdAt: -1 });
 
-    res.json(subscriptions);
+    res.json(subscriptions.map((sub) => decorateSubscription(sub)));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching subscriptions', error: error.message });
   }

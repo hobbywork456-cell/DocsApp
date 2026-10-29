@@ -205,9 +205,9 @@ const Dashboard = () => {
         sx={{
           width: { xs: '100%', md: `${A4_WIDTH}px` },
           minHeight: { xs: 'calc(100vh - 60px)', md: '1122px' },
-          bgcolor: isDarkMode ? '#1e293b' : 'white',
+          bgcolor: isDarkMode ? '#232824' : 'white',
           boxShadow: isDarkMode ? 'none' : '0 4px 24px rgba(0,0,0,0.18)',
-          color: isDarkMode ? '#f8fafc' : 'inherit',
+          color: isDarkMode ? '#faf8f4' : 'inherit',
           borderRadius: { xs: 0, md: '2px' },
           p: { xs: '60px 20px 40px 20px', md: '72px 80px 72px 80px' },
           mb: { xs: 0, md: 4 },
@@ -219,10 +219,10 @@ const Dashboard = () => {
           fontFamily: '"Times New Roman", Times, serif',
           fontSize: '22pt',
           fontWeight: 'bold',
-          color: isDarkMode ? '#f1f5f9' : '#111827',
+          color: isDarkMode ? '#f1ece4' : 'var(--c-ink)',
           mb: '0.6em',
           lineHeight: 1.3,
-          borderBottom: isDarkMode ? '2px solid #334155' : '2px solid #e5e7eb',
+          borderBottom: isDarkMode ? '2px solid #3a413b' : '2px solid #e6e0d6',
           pb: '0.4em',
         }}>
           {doc.title || 'Untitled Document'}
@@ -245,14 +245,14 @@ const Dashboard = () => {
           overflowY: 'auto',
           px: { xs: 2, md: 6, lg: 10 },
           py: { xs: 6, md: 4 },
-          borderRight: openDocuments.length > 1 ? '1px solid #e5e7eb' : 'none',
+          borderRight: openDocuments.length > 1 ? '1px solid #e6e0d6' : 'none',
         }}
       >
         <Typography variant="h2" sx={{
           fontFamily: '"Times New Roman", Times, serif',
           fontSize: { xs: '1.6rem', md: '2.2rem' },
           fontWeight: 'bold',
-          color: isDarkMode ? '#f1f5f9' : '#111827',
+          color: isDarkMode ? '#f1ece4' : 'var(--c-ink)',
           mb: 3,
           mt: { xs: 5, md: 0 },
           lineHeight: 1.3,
@@ -271,7 +271,7 @@ const Dashboard = () => {
     return createPortal(
       <Box sx={{
         position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 999999,
-        backgroundColor: isFullscreen ? (isDarkMode ? '#0f172a' : 'white') : (isDarkMode ? '#1e293b' : '#d1d5db'),
+        backgroundColor: isFullscreen ? (isDarkMode ? '#161a17' : 'white') : (isDarkMode ? '#232824' : '#d4cbbf'),
         display: 'flex',
         flexDirection: isFullscreen ? { xs: 'column', md: 'row' } : 'column',
         overflowY: 'auto',
@@ -289,7 +289,7 @@ const Dashboard = () => {
           <Tooltip title={isFullscreen ? 'A4 View' : 'Full Screen'}>
             <IconButton
               onClick={() => setIsFullscreen(prev => !prev)}
-              sx={{ bgcolor: '#f0fdf4', color: '#1f8a5b', boxShadow: '0 2px 8px rgba(31, 138, 91, 0.3)', '&:hover': { bgcolor: '#dcfce7' } }}
+              sx={{ bgcolor: 'var(--c-tint)', color: 'var(--c-accent)', boxShadow: '0 2px 8px rgba(104, 127, 110, 0.3)', '&:hover': { bgcolor: 'var(--c-tint2)' } }}
             >
               {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
             </IconButton>
@@ -297,7 +297,7 @@ const Dashboard = () => {
           <Tooltip title="Exit Read Mode">
             <IconButton
               onClick={() => { dispatch(setGlobalReadMode(false)); setIsFullscreen(false); }}
-              sx={{ bgcolor: '#f0fdf4', color: '#1f8a5b', boxShadow: '0 2px 8px rgba(31, 138, 91, 0.3)', '&:hover': { bgcolor: '#dcfce7' } }}
+              sx={{ bgcolor: 'var(--c-tint)', color: 'var(--c-accent)', boxShadow: '0 2px 8px rgba(104, 127, 110, 0.3)', '&:hover': { bgcolor: 'var(--c-tint2)' } }}
             >
               <LockIcon />
             </IconButton>
@@ -404,7 +404,7 @@ const Dashboard = () => {
 
   const renderModernLoader = () => (
     <Box className="glass-card flex-1 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
-      <CircularProgress size={48} thickness={4} sx={{ color: '#1f8a5b', mb: 3 }} />
+      <CircularProgress size={48} thickness={4} sx={{ color: 'var(--c-accent)', mb: 3 }} />
       <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 mb-1">
         Syncing Workspace
       </Typography>
@@ -439,7 +439,7 @@ const Dashboard = () => {
         {!isSidebarOpen && (
           <Box 
             onClick={() => setIsSidebarOpen(true)}
-            className="hidden md:flex absolute cursor-pointer items-center justify-center bg-[#a8e6c3] text-[#0b1410] hover:bg-[#a8e6c3] transition-colors"
+            className="hidden md:flex absolute cursor-pointer items-center justify-center bg-[#687f6e] text-white hover:bg-[#5a7060] transition-colors"
             style={{ zIndex: 9999 }}
             sx={{
               top: '60px',
@@ -490,15 +490,15 @@ const Dashboard = () => {
             <Box 
               sx={{ 
                 position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
-                bgcolor: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(4px)',
-                zIndex: 9999, borderRadius: '1rem', border: '3px dashed #1f8a5b',
+                bgcolor: 'var(--c-card-a)', backdropFilter: 'blur(4px)',
+                zIndex: 9999, borderRadius: '1rem', border: '3px dashed #5b7262',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 10px 40px rgba(31, 138, 91, 0.15)'
+                boxShadow: '0 10px 40px rgba(104, 127, 110, 0.15)'
               }}
             >
               <Box sx={{ pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <EditNoteIcon sx={{ fontSize: 64, color: '#1f8a5b', mb: 2, opacity: 0.8 }} />
-                <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f2e1f' }}>
+                <EditNoteIcon sx={{ fontSize: 64, color: 'var(--c-accent)', mb: 2, opacity: 0.8 }} />
+                <Typography variant="h5" sx={{ fontWeight: 800, color: 'var(--c-ink2)' }}>
                   Drop to Open Document
                 </Typography>
                 {openDocuments.length >= 2 && (
@@ -514,7 +514,7 @@ const Dashboard = () => {
           ) : openDocuments.length === 0 ? (
             /* Desktop Empty State */
             <Box id="empty-state-welcome" className="glass-card hidden md:flex flex-1 rounded-xl overflow-hidden bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-sm dark:shadow-none border border-green-100 dark:border-green-900/50 flex-col items-center justify-center p-6 text-center">
-              <EditNoteIcon sx={{ fontSize: 80, color: '#86efac', mb: 2, opacity: 0.8 }} />
+              <EditNoteIcon sx={{ fontSize: 80, color: '#a7b8a7', mb: 2, opacity: 0.8 }} />
               <Typography variant="h5" component="h2" className="font-extrabold text-gray-800 dark:text-gray-200 mb-2">
                 {activeGroup ? `Welcome to ${activeGroup.name}` : 'Ready to Collaborate?'}
               </Typography>
@@ -526,9 +526,9 @@ const Dashboard = () => {
 
               {activeGroup && (
                 <Box className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 dark:bg-green-900/40 border border-green-100 dark:border-green-900">
-                  <GroupIcon sx={{ color: '#1f8a5b', fontSize: 18 }} />
+                  <GroupIcon sx={{ color: 'var(--c-accent)', fontSize: 18 }} />
                   <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300">
-                    Group ID: <span className="text-[#0f2e1f] font-mono">{activeGroup.groupId}</span>
+                    Group ID: <span className="text-[var(--c-ink2)] font-mono">{activeGroup.groupId}</span>
                   </Typography>
                 </Box>
               )}
@@ -551,8 +551,8 @@ const Dashboard = () => {
                         onClick={() => setActiveMobileDocId(id)}
                         className={`text-xs font-bold rounded-lg px-3 py-1 truncate max-w-[140px] transition-all ${
                           isActive
-                            ? 'bg-[#a8e6c3] text-[#0b1410] shadow-sm dark:shadow-none'
-                            : 'text-gray-600 dark:text-gray-400 dark:text-gray-500 bg-transparent hover:bg-green-50 dark:bg-green-900/40 hover:text-[#0f2e1f]'
+                            ? 'bg-[#687f6e] text-white shadow-sm dark:shadow-none'
+                            : 'text-gray-600 dark:text-gray-400 dark:text-gray-500 bg-transparent hover:bg-green-50 dark:bg-green-900/40 hover:text-[var(--c-ink2)]'
                         }`}
                         sx={{ textTransform: 'none' }}
                       >
@@ -595,13 +595,13 @@ const Dashboard = () => {
                       <Tooltip title="Compare Documents">
                         <IconButton 
                           onClick={() => setIsCompareMode(true)}
-                          className="bg-[#a8e6c3] hover:bg-[#8fdab2] text-[#0b1410] shadow-lg border-2 border-white dark:border-gray-900 transition-transform hover:scale-105"
+                          className="bg-[#687f6e] hover:bg-[#5a7060] text-white shadow-lg border-2 border-white dark:border-gray-900 transition-transform hover:scale-105"
                           sx={{ 
                             width: 40,
                             height: 40,
-                            color: '#0b1410',
-                            backgroundColor: '#a8e6c3',
-                            '&:hover': { backgroundColor: '#8fdab2' }
+                            color: '#ffffff',
+                            backgroundColor: '#687f6e',
+                            '&:hover': { backgroundColor: '#5a7060' }
                           }}
                         >
                           <CompareArrowsIcon fontSize="medium" />
@@ -634,7 +634,7 @@ const Dashboard = () => {
         <Box className="relative flex flex-col items-center justify-center">
           <IconButton 
             onClick={() => setSelectedMedia(null)} 
-            sx={{ position: 'absolute', top: 12, right: 12, bgcolor: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'white' }, zIndex: 10 }}
+            sx={{ position: 'absolute', top: 12, right: 12, bgcolor: 'var(--c-card-a)', '&:hover': { bgcolor: 'var(--c-card)' }, zIndex: 10 }}
           >
             <CloseIcon />
           </IconButton>

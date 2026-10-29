@@ -11,6 +11,7 @@ const {
   getGroupStorageStats, 
   invalidateStorageCache 
 } = require('../utils/storage');
+const { decorateSubscription, publicTariff } = require('../utils/subscriptionView');
 
 /// ── Razorpay client setup ─────────────────────────────────────────────────
 // Keys come from backend/.env: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
@@ -71,9 +72,10 @@ const activateSubscription = async ({ userId, planId, orderId, paymentId, signat
     razorpaySignature: signature || 'webhook',
     purchaseType: 'subscription',
     startDate: new Date(),
+    // monthly → 30 days, yearly → 365 days, one-time → never expires
     expiresAt: tier.period === 'lifetime' || tier.period === 'one-time'
-      ? undefined
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      ? null
+      : new Date(Date.now() + (tier.period === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000)
   });
   try {
     await subscription.save();
@@ -88,20 +90,36 @@ const activateSubscription = async ({ userId, planId, orderId, paymentId, signat
   return { subscription, tier, alreadyRecorded: false };
 };
 
-// ── 1. Public tariff & pricing ────────────────────────────────────────────
+// ── 1. Public tariff & pricing (landing page, subscription window, profile) ──
 router.get('/tariff', async (req, res) => {
   try {
     const settings = await SystemSettings.getSettings();
-    res.json({
-      freeStorageMB: settings.freeStorageMB,
-      warningThresholdPercent: settings.warningThresholdPercent,
-      currency: settings.currency || 'INR',
-      currencySymbol: settings.currencySymbol || '₹',
-      pricePer50MB: settings.pricePer50MB || 99,
-      tiers: settings.tiers || []
-    });
+    res.json(publicTariff(settings));
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving tariff details', error: error.message });
+  }
+});
+
+// ── 1b. Everything the signed-in user's subscription screens need, in one call ──
+router.get('/summary', auth, async (req, res) => {
+  try {
+    const [settings, stats, history] = await Promise.all([
+      SystemSettings.getSettings(),
+      getUserStorageStats(req.user.userId, req.query.refresh === '1'),
+      Subscription.find({ user: req.user.userId }).sort({ createdAt: -1 }).lean()
+    ]);
+    const decoratedHistory = history.map((h) => decorateSubscription(h));
+    const totalPaid = decoratedHistory.reduce((sum, h) => sum + (Number(h.price) || 0), 0);
+    res.json({
+      tariff: publicTariff(settings),
+      stats,
+      activePlans: stats.activeSubscriptions || [],
+      history: decoratedHistory,
+      totalPaid: parseFloat(totalPaid.toFixed(2)),
+      paymentsEnabled: Boolean(razorpayClient)
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error loading subscription details', error: error.message });
   }
 });
 
@@ -154,6 +172,7 @@ router.post('/create-order', auth, async (req, res) => {
     const settings = await SystemSettings.getSettings();
     const tier = (settings.tiers || []).find((t) => t.id === planId);
     if (!tier) return res.status(400).json({ message: 'Invalid subscription tier selected' });
+    if (!(Number(tier.storageMB) > 0)) return res.status(400).json({ message: 'This plan has no storage configured. Please contact the administrator.' });
 
     const amountInPaise = Math.round(Number(tier.price) * 100);
     if (!(amountInPaise >= 100)) return res.status(400).json({ message: 'Plan price must be at least ₹1.' });
@@ -237,7 +256,7 @@ router.post('/verify-payment', auth, async (req, res) => {
       message: alreadyRecorded
         ? 'Payment already recorded — storage is active.'
         : `Payment verified! ✓ ${tier.name} activated — +${tier.storageMB} MB added to your workspace.`,
-      subscription,
+      subscription: decorateSubscription(subscription),
       stats
     });
   } catch (error) {
@@ -309,18 +328,18 @@ router.get('/invoice/:subscriptionId', auth, async (req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Invoice ${invoiceNo} — DocuSphere</title>
+  <title>Invoice ${invoiceNo} — DocsApp</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #0f172a; }
     .page { max-width: 750px; margin: 0 auto; padding: 48px 40px; }
     .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
     .brand { display: flex; align-items: center; gap: 12px; }
-    .brand-icon { width: 44px; height: 44px; background: linear-gradient(135deg,#427c36,#326127); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 18px; }
+    .brand-icon { width: 44px; height: 44px; background: linear-gradient(135deg,#687f6e,#326127); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 18px; }
     .brand-name { font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
     .brand-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
     .invoice-meta { text-align: right; }
-    .invoice-title { font-size: 26px; font-weight: 900; color: #427c36; letter-spacing: -0.5px; }
+    .invoice-title { font-size: 26px; font-weight: 900; color: #687f6e; letter-spacing: -0.5px; }
     .invoice-no { font-size: 13px; color: #64748b; margin-top: 4px; font-family: monospace; }
     .invoice-date { font-size: 12px; color: #94a3b8; margin-top: 2px; }
     .divider { border: none; border-top: 2px solid #e2e8f0; margin: 24px 0; }
@@ -333,11 +352,11 @@ router.get('/invoice/:subscriptionId', auth, async (req, res) => {
     th { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }
     td { padding: 14px; font-size: 13px; color: #334155; border-bottom: 1px solid #f1f5f9; }
     td.bold { font-weight: 700; color: #0f172a; }
-    td.mono { font-family: monospace; font-size: 12px; color: #427c36; }
+    td.mono { font-family: monospace; font-size: 12px; color: #687f6e; }
     .total-row { display: flex; justify-content: flex-end; margin-top: 8px; }
     .total-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px 24px; text-align: right; min-width: 220px; }
     .total-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .total-amount { font-size: 26px; font-weight: 900; color: #427c36; }
+    .total-amount { font-size: 26px; font-weight: 900; color: #687f6e; }
     .status-badge { display: inline-block; background: #ecfdf5; color: #15803d; border: 1px solid #86efac; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
     .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; }
     .footer p { font-size: 11px; color: #94a3b8; line-height: 1.6; }
@@ -359,7 +378,7 @@ router.get('/invoice/:subscriptionId', auth, async (req, res) => {
       <div class="brand">
         <div class="brand-icon">DS</div>
         <div>
-          <div class="brand-name">DocuSphere</div>
+          <div class="brand-name">DocsApp</div>
           <div class="brand-sub">Cloud Documentation Platform</div>
         </div>
       </div>
@@ -375,15 +394,15 @@ router.get('/invoice/:subscriptionId', auth, async (req, res) => {
     <div class="parties">
       <div>
         <div class="party-label">Billed By</div>
-        <div class="party-name">DocuSphere Platform</div>
+        <div class="party-name">DocsApp Platform</div>
         <div class="party-sub">Cloud Storage &amp; Workspace Services</div>
-        <div class="party-sub" style="margin-top:6px;color:#427c36;font-weight:600;">support@docusphere.app</div>
+        <div class="party-sub" style="margin-top:6px;color:#687f6e;font-weight:600;">support@docsapp.app</div>
       </div>
       <div>
         <div class="party-label">Billed To</div>
         <div class="party-name">${userName}</div>
         <div class="party-sub">${sub.user.email}</div>
-        <div class="party-sub" style="margin-top:6px;">DocuSphere User Account</div>
+        <div class="party-sub" style="margin-top:6px;">DocsApp User Account</div>
       </div>
     </div>
 
@@ -428,8 +447,8 @@ router.get('/invoice/:subscriptionId', auth, async (req, res) => {
     </div>
 
     <div class="footer">
-      <p>Thank you for choosing DocuSphere! This is a computer-generated invoice and does not require a signature.</p>
-      <p style="margin-top:6px;">For support, contact <strong>support@docusphere.app</strong> | Invoice ${invoiceNo}</p>
+      <p>Thank you for choosing DocsApp! This is a computer-generated invoice and does not require a signature.</p>
+      <p style="margin-top:6px;">For support, contact <strong>support@docsapp.app</strong> | Invoice ${invoiceNo}</p>
     </div>
   </div>
 
@@ -457,7 +476,7 @@ router.get('/history', auth, async (req, res) => {
     const history = await Subscription.find({ user: req.user.userId })
       .sort({ createdAt: -1 })
       .lean();
-    res.json(history);
+    res.json(history.map((h) => decorateSubscription(h)));
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving subscription history', error: error.message });
   }

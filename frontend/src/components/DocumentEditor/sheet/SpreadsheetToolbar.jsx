@@ -749,7 +749,7 @@ const SpreadsheetToolbar = ({
                 disabled={readOnly}
                 onClick={() => applyFormatting('wrap', !activeCellData.wrap)}
               >
-                <WrapTextIcon sx={{ fontSize: 15, color: '#2563eb' }} />
+                <WrapTextIcon sx={{ fontSize: 15, color: '#6b7f94' }} />
                 <span className="ml-1 text-[11px] font-medium">Wrap Text</span>
               </button>
             </Tooltip>
@@ -763,7 +763,7 @@ const SpreadsheetToolbar = ({
                   disabled={readOnly}
                   onClick={() => applyFormatting('merge', activeCellData.mergeRows > 1 || activeCellData.mergeCols > 1 ? false : 'center')}
                 >
-                  <CallMergeIcon sx={{ fontSize: 15, color: '#2563eb' }} />
+                  <CallMergeIcon sx={{ fontSize: 15, color: '#6b7f94' }} />
                   <span className="ml-1 text-[11px] font-medium">Merge &amp; Center</span>
                 </button>
               </Tooltip>
@@ -963,7 +963,7 @@ const SpreadsheetToolbar = ({
                 disabled={readOnly}
                 onClick={(e) => setTableStyleAnchor(e.currentTarget)}
               >
-                <TableChartIcon sx={{ fontSize: 15, color: '#3b82f6' }} />
+                <TableChartIcon sx={{ fontSize: 15, color: '#6b7f94' }} />
                 <span className="ml-1 text-[11px] font-medium">Format as Table</span>
                 <ArrowDropDownIcon sx={{ fontSize: 13 }} />
               </button>
@@ -974,7 +974,7 @@ const SpreadsheetToolbar = ({
               onClose={() => setTableStyleAnchor(null)}
             >
               <MenuItem onClick={() => { applyFormatting('bg', '#e0f2fe'); applyFormatting('bold', true); setTableStyleAnchor(null); }}>Table Style Light Blue</MenuItem>
-              <MenuItem onClick={() => { applyFormatting('bg', '#dcfce7'); applyFormatting('bold', true); setTableStyleAnchor(null); }}>Table Style Light Green</MenuItem>
+              <MenuItem onClick={() => { applyFormatting('bg', '#e3e9e1'); applyFormatting('bold', true); setTableStyleAnchor(null); }}>Table Style Light Green</MenuItem>
               <MenuItem onClick={() => { applyFormatting('bg', '#fef3c7'); applyFormatting('bold', true); setTableStyleAnchor(null); }}>Table Style Light Orange</MenuItem>
               <MenuItem onClick={() => { applyFormatting('bg', '#1e293b'); applyFormatting('color', '#ffffff'); applyFormatting('bold', true); setTableStyleAnchor(null); }}>Table Style Dark Slate</MenuItem>
             </Menu>
@@ -1114,7 +1114,7 @@ const SpreadsheetToolbar = ({
               disabled={readOnly}
               onClick={(e) => setFormatCellsAnchor(e.currentTarget)}
             >
-              <TuneIcon sx={{ fontSize: 24, color: '#3b82f6' }} />
+              <TuneIcon sx={{ fontSize: 24, color: '#6b7f94' }} />
               <span className="excel-btn-big-label">Format <ArrowDropDownIcon sx={{ fontSize: 13 }} /></span>
             </button>
           </Tooltip>
@@ -1170,7 +1170,7 @@ const SpreadsheetToolbar = ({
               disabled={readOnly}
               onClick={(e) => setFillMenuAnchor(e.currentTarget)}
             >
-              <AutoFixHighIcon sx={{ fontSize: 22, color: '#2563eb' }} />
+              <AutoFixHighIcon sx={{ fontSize: 22, color: '#6b7f94' }} />
               <span className="excel-btn-big-label">Fill <ArrowDropDownIcon sx={{ fontSize: 13 }} /></span>
             </button>
           </Tooltip>
@@ -1237,7 +1237,7 @@ const SpreadsheetToolbar = ({
               className={`excel-btn-big ${findBarOpen ? 'active' : ''}`}
               onClick={() => setFindBarOpen(!findBarOpen)}
             >
-              <SearchIcon sx={{ fontSize: 22, color: '#3b82f6' }} />
+              <SearchIcon sx={{ fontSize: 22, color: '#6b7f94' }} />
               <span className="excel-btn-big-label">Find</span>
             </button>
           </Tooltip>

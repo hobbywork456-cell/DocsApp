@@ -264,7 +264,7 @@ const DocumentComparer = ({ doc1, doc2, onClose }) => {
       {/* Body */}
       {!result ? (
         <Box className="cmp-loading">
-          <CircularProgress size={40} thickness={4} sx={{ color: '#1f8a5b' }} />
+          <CircularProgress size={40} thickness={4} sx={{ color: 'var(--c-accent)' }} />
           <Typography variant="body2" sx={{ mt: 2, fontWeight: 600 }}>Analysing differences…</Typography>
         </Box>
       ) : !result.left && !result.right ? (

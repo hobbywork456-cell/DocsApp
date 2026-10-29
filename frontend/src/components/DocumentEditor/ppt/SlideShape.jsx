@@ -33,7 +33,7 @@ export const createShape = (type, theme, overrides = {}) => {
     stroke: isText ? 'transparent' : isLine || type === 'brackets' ? theme?.accentColor || '#2563eb' : 'transparent',
     strokeWidth: isLine ? 3 : 2,
     text: isText ? 'Click to add text' : '',
-    color: isText ? theme?.textColor || '#1f2937' : '#ffffff',
+    color: isText ? theme?.textColor || '#262b27' : '#ffffff',
     fontSize: isText ? 22 : 18,
     bold: false,
     italic: false,

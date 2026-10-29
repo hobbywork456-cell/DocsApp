@@ -251,7 +251,7 @@ const AIAssistant = ({ open, onClose, docType = 'doc', getContext, selectionText
               </button>
             </Tooltip>
             <Tooltip title="Close (Esc)">
-              <IconButton size="small" onClick={onClose} sx={{ color: '#0b1410', p: 0.5 }}>
+              <IconButton size="small" onClick={onClose} sx={{ color: 'var(--c-ink)', p: 0.5 }}>
                 <CloseIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -334,7 +334,7 @@ const AIAssistant = ({ open, onClose, docType = 'doc', getContext, selectionText
             </Box>
           ) : (
             <Box className="ai-empty">
-              <AutoAwesomeIcon sx={{ fontSize: 40, color: '#1f8a5b', opacity: 0.25 }} />
+              <AutoAwesomeIcon sx={{ fontSize: 40, color: 'var(--c-accent)', opacity: 0.25 }} />
               <Typography variant="body2">
                 Pick a quick action or describe what you need. Select text first to work on just that part.
               </Typography>

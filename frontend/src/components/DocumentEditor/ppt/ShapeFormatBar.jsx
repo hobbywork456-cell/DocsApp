@@ -16,9 +16,9 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import BlurOnIcon from '@mui/icons-material/BlurOn';
 
 const SWATCHES = [
-  'transparent', '#ffffff', '#f1f5f9', '#94a3b8', '#475569', '#0f172a',
+  'transparent', '#ffffff', '#f1f5f9', '#94a3b8', '#475569', '#161a17',
   '#fee2e2', '#ef4444', '#b91c1c', '#ffedd5', '#f97316', '#c2410c',
-  '#fef9c3', '#eab308', '#a16207', '#dcfce7', '#22c55e', '#15803d',
+  '#fef9c3', '#eab308', '#a16207', '#e3e9e1', '#22c55e', '#15803d',
   '#dbeafe', '#3b82f6', '#1d4ed8', '#ede9fe', '#8b5cf6', '#6d28d9',
   '#fce7f3', '#ec4899', '#be185d', '#ccfbf1', '#14b8a6', '#0f766e'
 ];

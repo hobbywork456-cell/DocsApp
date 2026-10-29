@@ -22,7 +22,7 @@ const FIRST_CHUNK_TIMEOUT_MS = 25000; // give up on a model that has not started
 const TOTAL_TIMEOUT_MS = 120000;
 const MAX_CONTEXT_CHARS = 60000;
 
-const SYSTEM_INSTRUCTION = `You are the writing assistant inside DocuSphere, a document editor (documents, spreadsheets, presentations).
+const SYSTEM_INSTRUCTION = `You are the writing assistant inside DocsApp, a document editor (documents, spreadsheets, presentations).
 - Do exactly what the user asks with the provided document or selected text.
 - Reply with the finished content only: no preamble ("Sure!", "Here is…"), no closing remarks, no questions back.
 - Format with Markdown (headings, lists, bold, tables) only when it helps; plain paragraphs otherwise.

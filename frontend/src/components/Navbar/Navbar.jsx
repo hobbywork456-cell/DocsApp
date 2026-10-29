@@ -65,10 +65,10 @@ import {
 } from '../../slices/groupSlice';
 import { useNavigate } from 'react-router-dom';
 import {
-  fetchTariff,
-  fetchStorageUsage,
-  setSubscriptionModalOpen
+  fetchSubscriptionSummary,
+  openSubscriptionModal
 } from '../../slices/subscriptionSlice';
+import { formatDate, formatMB, formatPrice, validityText } from '../../utils/subscriptionFormat';
 import SubscriptionModal from '../Subscription/SubscriptionModal';
 import './Navbar.css';
 
@@ -86,7 +86,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
     isCurrentUserAdmin,
     membersLoading
   } = useSelector((state) => state.groups);
-  const { userStats, tariff } = useSelector((state) => state.subscription);
+  const { userStats, tariff, summary } = useSelector((state) => state.subscription);
 
   // Group Switcher Menu
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -118,8 +118,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
   // Fetch updated subscription & storage usage whenever Profile dialog is opened
   useEffect(() => {
     if (profileDialogOpen) {
-      dispatch(fetchTariff());
-      dispatch(fetchStorageUsage());
+      dispatch(fetchSubscriptionSummary({ refresh: true }));
     }
   }, [profileDialogOpen, dispatch]);
 
@@ -137,6 +136,10 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
   const profileQuotaMB = profileStats.totalQuotaMB || defaultFreeMB;
   const profilePercent = Math.min(100, Math.round(profileStats.percentUsed || (profileQuotaMB > 0 ? (profileUsedMB / profileQuotaMB) * 100 : 0)));
   const profileIsExceeded = profileStats.isExceeded || profilePercent >= 100;
+  const profileActivePlans = summary?.activePlans || profileStats.activeSubscriptions || [];
+  const profileLastPayment = (summary?.history || [])[0] || null;
+  const profileSymbol = tariff?.currencySymbol || '₹';
+  const profilePlanName = profileActivePlans.length ? profileActivePlans.map((p) => p.planName).join(' + ') : 'Free plan';
 
   const currentGroup = groups.find((g) => g.groupId === activeGroupId) || null;
 
@@ -334,7 +337,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           {/* Left Side: Brand Logo, Group Switcher */}
           <Box className="flex items-center overflow-hidden">
             <Box className="flex items-center shrink-0">
-              <MenuBookIcon sx={{ color: '#1f8a5b', mr: 0.75, fontSize: { xs: 22, sm: 26 } }} />
+              <MenuBookIcon sx={{ color: 'var(--c-accent)', mr: 0.75, fontSize: { xs: 22, sm: 26 } }} />
             <Typography
   variant="h6"
   noWrap
@@ -343,7 +346,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
   sx={{
     display: 'inline-block',
     fontWeight: 900,
-    background: 'linear-gradient(135deg, #1f8a5b 0%, #0b1410 100%)',
+    background: 'linear-gradient(135deg, var(--c-accent) 0%, var(--c-ink) 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     backgroundClip: 'text',
@@ -368,7 +371,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                   minWidth: '240px',
                   maxWidth: '320px',
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid #e6e0d6',
                   p: 0.5
                 }
               }}
@@ -386,7 +389,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     className={`rounded-xl my-0.5 transition-all ${isSelected ? 'bg-green-50 dark:bg-green-900/40 font-bold' : ''}`}
                   >
                     <ListItemIcon sx={{ minWidth: 32 }}>
-                      {isSelected ? <CheckIcon sx={{ color: '#000', fontSize: 18 }} /> : <GroupIcon sx={{ color: '#9ca3af', fontSize: 18 }} />}
+                      {isSelected ? <CheckIcon sx={{ color: '#000', fontSize: 18 }} /> : <GroupIcon sx={{ color: '#a59a8c', fontSize: 18 }} />}
                     </ListItemIcon>
                     <Box className="flex flex-col">
                       <Typography
@@ -394,12 +397,12 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                         sx={{
                           fontSize: '0.85rem',
                           fontWeight: isSelected ? 700 : 500,
-                          color: isSelected ? '#0f2e1f' : '#374151'
+                          color: isSelected ? 'var(--c-ink2)' : 'var(--c-muted2)'
                         }}
                       >
                         {group.name}
                       </Typography>
-                      <Typography variant="caption" sx={{ fontSize: '0.72rem', color: '#6b7280' }}>
+                      <Typography variant="caption" sx={{ fontSize: '0.72rem', color: 'var(--c-muted)' }}>
                         ID: {group.groupId}
                       </Typography>
                     </Box>
@@ -417,20 +420,20 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 {currentGroup && (
                   <MenuItem onClick={handleOpenMembersDialog} className="rounded-md text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-800">
                     <ListItemIcon sx={{ minWidth: 28 }}>
-                      <PeopleIcon sx={{ color: '#4b5563', fontSize: 15 }} />
+                      <PeopleIcon sx={{ color: 'var(--c-muted2)', fontSize: 15 }} />
                     </ListItemIcon>
                     Manage Group Members
                   </MenuItem>
                 )}
                 <MenuItem onClick={handleOpenAddDialog} className="rounded-md text-xs font-bold text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:bg-gray-800">
                   <ListItemIcon sx={{ minWidth: 28 }}>
-                    <GroupAddIcon sx={{ color: '#4b5563', fontSize: 15 }} />
+                    <GroupAddIcon sx={{ color: 'var(--c-muted2)', fontSize: 15 }} />
                   </ListItemIcon>
                   Create New Group
                 </MenuItem>
                 <MenuItem onClick={handleOpenJoinDialog} className="rounded-md text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-800">
                   <ListItemIcon sx={{ minWidth: 28 }}>
-                    <GroupIcon sx={{ color: '#6b7280', fontSize: 15 }} />
+                    <GroupIcon sx={{ color: 'var(--c-muted)', fontSize: 15 }} />
                   </ListItemIcon>
                   Join Existing Group
                 </MenuItem>
@@ -504,25 +507,25 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     onClick={handleOpenGroupMenu}
                     className="group flex items-center cursor-pointer transition-all duration-200"
                     sx={{
-                      background: 'linear-gradient(135deg, rgba(168, 230, 195, 0.06) 0%, rgba(31, 138, 91, 0.06) 100%)',
-                      border: '1px solid rgba(31, 138, 91, 0.1)',
+                      background: 'linear-gradient(135deg, rgba(167, 184, 167, 0.06) 0%, rgba(104, 127, 110, 0.06) 100%)',
+                      border: '1px solid rgba(104, 127, 110, 0.1)',
                       borderRadius: '10px',
                       padding: { xs: '4px 6px', sm: '6px 12px' },
                       '&:hover': {
-                        background: 'linear-gradient(135deg, rgba(168, 230, 195, 0.12) 0%, rgba(31, 138, 91, 0.12) 100%)',
-                        borderColor: 'rgba(31, 138, 91, 0.3)',
-                        boxShadow: '0 2px 8px rgba(31, 138, 91, 0.1)'
+                        background: 'linear-gradient(135deg, rgba(167, 184, 167, 0.12) 0%, rgba(104, 127, 110, 0.12) 100%)',
+                        borderColor: 'rgba(104, 127, 110, 0.3)',
+                        boxShadow: '0 2px 8px rgba(104, 127, 110, 0.1)'
                       }
                     }}
                   >
                     <Typography
                       variant="caption"
-                      className="font-bold text-[#0f2e1f] uppercase tracking-wide truncate max-w-[100px] sm:max-w-[140px] mr-0.5 sm:mr-1 transition-colors"
+                      className="font-bold text-[var(--c-ink2)] uppercase tracking-wide truncate max-w-[100px] sm:max-w-[140px] mr-0.5 sm:mr-1 transition-colors"
                       sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                     >
                       {currentGroup ? currentGroup.name : 'NO GROUP'}
                     </Typography>
-                    <KeyboardArrowDownIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#1f8a5b', transition: 'transform 0.2s', ...{ '.group:hover &': { transform: 'translateY(1px)' } } }} />
+                    <KeyboardArrowDownIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: 'var(--c-accent)', transition: 'transform 0.2s', ...{ '.group:hover &': { transform: 'translateY(1px)' } } }} />
                   </Box>
                 </Tooltip>
 
@@ -535,7 +538,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                       <IconButton
                         onClick={handleOpenMembersDialog}
                         size="small"
-                        sx={{ color: '#1f8a5b', bgcolor: 'rgba(31, 138, 91, 0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(31, 138, 91, 0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                        sx={{ color: 'var(--c-accent)', bgcolor: 'rgba(104, 127, 110, 0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(104, 127, 110, 0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
                       >
                         <AdminPanelSettingsIcon sx={{ fontSize: 20 }} />
                       </IconButton>
@@ -546,7 +549,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     <IconButton
                       onClick={handleOpenAddDialog}
                       size="small"
-                      sx={{ color: '#1f8a5b', bgcolor: 'rgba(31, 138, 91, 0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(31, 138, 91, 0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                      sx={{ color: 'var(--c-accent)', bgcolor: 'rgba(104, 127, 110, 0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(104, 127, 110, 0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
                     >
                       <GroupAddIcon sx={{ fontSize: 20 }} />
                     </IconButton>
@@ -556,7 +559,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     <IconButton
                       onClick={handleOpenJoinDialog}
                       size="small"
-                      sx={{ color: '#1f8a5b', bgcolor: 'rgba(31, 138, 91, 0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(31, 138, 91, 0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                      sx={{ color: 'var(--c-accent)', bgcolor: 'rgba(104, 127, 110, 0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(104, 127, 110, 0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
                     >
                       <GroupIcon sx={{ fontSize: 20 }} />
                     </IconButton>
@@ -571,12 +574,12 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 onClick={() => dispatch(toggleTheme())}
                 size="small"
                 sx={{
-                  color: isDarkMode ? '#fbbf24' : '#4b5563',
-                  bgcolor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
+                  color: isDarkMode ? '#fbbf24' : 'var(--c-muted2)',
+                  bgcolor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#f2ede6',
                   p: { xs: '6px', sm: '8px' },
                   borderRadius: '10px',
                   mr: 1,
-                  '&:hover': { bgcolor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#e5e7eb', transform: 'translateY(-1px)' },
+                  '&:hover': { bgcolor: isDarkMode ? 'rgba(255,255,255,0.2)' : '#e6e0d6', transform: 'translateY(-1px)' },
                   transition: 'all 0.2s'
                 }}
               >
@@ -589,7 +592,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               <Box
                 onClick={() => setProfileDialogOpen(true)}
                 className="hidden md:flex w-9 h-9 rounded-full items-center justify-center font-bold text-sm cursor-pointer shadow-sm dark:shadow-none border-2 border-white hover:scale-105 transition-transform"
-                sx={{ background: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)', color: '#0b1410', ml: 1 }}
+                sx={{ background: 'linear-gradient(135deg, #718a77 0%, #61786a 100%)', color: '#ffffff', ml: 1 }}
               >
                 {user?.email?.charAt(0).toUpperCase() || 'U'}
               </Box>
@@ -619,7 +622,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             }
           }}
         >
-          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#c8f1da]/20 to-[#93ddb6]/20 dark:from-[#c8f1da]/30 dark:to-[#93ddb6]/30 pointer-events-none" />
+          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#718a77]/20 to-[#61786a]/20 dark:from-[#718a77]/30 dark:to-[#61786a]/30 pointer-events-none" />
 
           <IconButton
             onClick={handleCloseAddDialog}
@@ -632,7 +635,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           <Box component="form" onSubmit={handleCreateGroupSubmit} className="relative z-10 flex flex-col pt-8">
             <DialogTitle className="flex flex-col items-center pb-2 text-center">
-              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#c8f1da] to-[#93ddb6] flex items-center justify-center shadow-lg shadow-[#5cc28f]/30 mb-4 text-[#0b1410]">
+              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#718a77] to-[#61786a] flex items-center justify-center shadow-lg shadow-[#687f6e]/30 mb-4 text-white">
                 <GroupAddIcon fontSize="large" />
               </Box>
               <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
@@ -682,7 +685,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                       onClick={handleGenerateId}
                       startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
                       sx={{ textTransform: 'none', py: 0, minHeight: 'auto', fontSize: '0.7rem', fontWeight: 'bold' }}
-                      className="text-[#1f8a5b] dark:text-[#86efac] hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg px-2 transition-colors"
+                      className="text-[var(--c-accent)] dark:text-[#a7b8a7] hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg px-2 transition-colors"
                     >
                       Auto-generate
                     </Button>
@@ -712,7 +715,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 type="submit"
                 fullWidth
                 disabled={actionLoading || !newGroupName.trim()}
-                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#c8f1da] to-[#93ddb6] hover:from-[#b4ebcc] hover:to-[#7fd4a6] text-[#0b1410] shadow-lg shadow-[#5cc28f]/25 transition-all transform hover:-translate-y-0.5"
+                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#718a77] to-[#61786a] hover:from-[#61786a] hover:to-[#556a5d] text-white shadow-lg shadow-[#687f6e]/25 transition-all transform hover:-translate-y-0.5"
                 sx={{ textTransform: 'none' }}
               >
                 {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Create Workspace'}
@@ -753,7 +756,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             }
           }}
         >
-          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#c8f1da]/20 to-[#93ddb6]/20 dark:from-[#c8f1da]/30 dark:to-[#93ddb6]/30 pointer-events-none" />
+          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#718a77]/20 to-[#61786a]/20 dark:from-[#718a77]/30 dark:to-[#61786a]/30 pointer-events-none" />
 
           <IconButton
             onClick={handleCloseJoinDialog}
@@ -766,7 +769,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           <Box component="form" onSubmit={handleJoinGroupSubmit} className="relative z-10 flex flex-col pt-8">
             <DialogTitle className="flex flex-col items-center pb-2 text-center">
-              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#c8f1da] to-[#93ddb6] flex items-center justify-center shadow-lg shadow-[#5cc28f]/30 mb-4 text-[#0b1410]">
+              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#718a77] to-[#61786a] flex items-center justify-center shadow-lg shadow-[#687f6e]/30 mb-4 text-white">
                 <GroupIcon fontSize="large" />
               </Box>
               <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
@@ -814,7 +817,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 type="submit"
                 fullWidth
                 disabled={actionLoading || !joinInputId.trim()}
-                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#c8f1da] to-[#93ddb6] hover:from-[#b4ebcc] hover:to-[#7fd4a6] text-[#0b1410] shadow-lg shadow-[#5cc28f]/25 transition-all transform hover:-translate-y-0.5"
+                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#718a77] to-[#61786a] hover:from-[#61786a] hover:to-[#556a5d] text-white shadow-lg shadow-[#687f6e]/25 transition-all transform hover:-translate-y-0.5"
                 sx={{ textTransform: 'none' }}
               >
                 {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Join Workspace'}
@@ -845,14 +848,14 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 borderRadius: '20px',
                 p: 1,
                 boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-                border: '1px solid #dcfce3'
+                border: '1px solid #e3e9e1'
               }
             }
           }}
         >
           <DialogTitle className="flex justify-between items-center pb-2">
             <Box className="flex items-center gap-2">
-              <Box className="p-2 rounded-xl bg-green-50 dark:bg-green-900/40 text-[#1f8a5b] border border-green-100 dark:border-green-900">
+              <Box className="p-2 rounded-xl bg-green-50 dark:bg-green-900/40 text-[var(--c-accent)] border border-green-100 dark:border-green-900">
                 <PeopleIcon fontSize="small" />
               </Box>
               <Box>
@@ -874,7 +877,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             <Box className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 dark:border-green-900 mb-4 shadow-sm dark:shadow-none">
               <Box>
                 <Typography variant="body2" className="font-bold text-gray-700 dark:text-gray-300">
-                  Total Members: <span className="text-[#0f2e1f]">{currentGroupMembers.length}</span>
+                  Total Members: <span className="text-[var(--c-ink2)]">{currentGroupMembers.length}</span>
                 </Typography>
                 <Typography variant="caption" className="text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   {isCurrentUserAdmin ? 'You are the Group Admin.' : 'You are a Member of this group.'}
@@ -885,7 +888,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                   icon={<AdminPanelSettingsIcon sx={{ fontSize: 16 }} />}
                   label="Group Admin"
                   size="small"
-                  className="bg-gradient-to-r from-green-400 to-[#93ddb6] text-[#0b1410] font-bold text-xs shadow-sm dark:shadow-none"
+                  className="bg-gradient-to-r from-[#7d9482] to-[#61786a] text-white font-bold text-xs shadow-sm dark:shadow-none"
                 />
               )}
             </Box>
@@ -897,7 +900,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
             {membersLoading ? (
               <Box className="flex justify-center py-6">
-                <CircularProgress size={32} sx={{ color: '#1f8a5b' }} />
+                <CircularProgress size={32} sx={{ color: 'var(--c-accent)' }} />
               </Box>
             ) : (
               <List className="p-0 space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
@@ -908,7 +911,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     className="p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-green-50 dark:border-green-800 flex items-center justify-between shadow-sm dark:shadow-none"
                   >
                     <Box className="flex items-center gap-3 overflow-hidden flex-1">
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#a8e6c3' : '#e0e7ff', color: member.isAdmin ? '#0b1410' : '#4338ca', fontSize: 13, fontWeight: 'bold' }}>
+                      <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#687f6e' : '#e6e0d6', color: member.isAdmin ? '#ffffff' : 'var(--c-muted2)', fontSize: 13, fontWeight: 'bold' }}>
                         {member.email?.[0]?.toUpperCase() || 'U'}
                       </Avatar>
                       <Box className="overflow-hidden">
@@ -926,7 +929,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                         <Chip
                           label="Admin"
                           size="small"
-                          className="bg-green-100 dark:bg-green-900/60 text-[#0f2e1f] font-bold text-[10px] h-5"
+                          className="bg-green-100 dark:bg-green-900/60 text-[var(--c-ink2)] font-bold text-[10px] h-5"
                         />
                       ) : (
                         isCurrentUserAdmin && (
@@ -975,7 +978,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                         </Typography>
                       </Box>
                       <Box className="flex items-center justify-end gap-1 shrink-0 ml-auto pl-2">
-                        <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: '#0f2e1f', bgcolor: '#f0fdf4', '&:hover': { bgcolor: '#dcfce3' } }}>
+                        <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: 'var(--c-ink2)', bgcolor: 'var(--c-tint)', '&:hover': { bgcolor: 'var(--c-tint2)' } }}>
                           <CheckCircleIcon fontSize="small" />
                         </IconButton>
                         <IconButton size="small" onClick={() => handleRejectRequest(req._id)} sx={{ color: '#ef4444', bgcolor: '#fef2f2', '&:hover': { bgcolor: '#fee2e2' } }}>
@@ -992,7 +995,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             {isCurrentUserAdmin && (
               <Box className="mt-4 pt-4 border-t border-green-100 dark:border-green-900">
                 <Box className="p-3.5 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 dark:border-green-900 flex flex-col items-start gap-2 shadow-sm dark:shadow-none">
-                  <Typography variant="subtitle2" className="font-extrabold text-[#0f2e1f] flex items-center gap-1">
+                  <Typography variant="subtitle2" className="font-extrabold text-[var(--c-ink2)] flex items-center gap-1">
                     <LinkIcon fontSize="small" /> Share Invite Link
                   </Typography>
                   <Typography variant="caption" className="text-gray-600 dark:text-gray-400 dark:text-gray-500 leading-relaxed">
@@ -1003,7 +1006,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     size="small"
                     startIcon={<ContentCopyIcon />}
                     onClick={handleCopyInviteLink}
-                    sx={{ mt: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', borderColor: '#ffb6d8', color: '#0f2e1f', '&:hover': { borderColor: '#1f8a5b', bgcolor: '#f0fdf4' } }}
+                    sx={{ mt: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', borderColor: '#ffb6d8', color: 'var(--c-ink2)', '&:hover': { borderColor: 'var(--c-accent)', bgcolor: 'var(--c-tint)' } }}
                   >
                     Copy Link
                   </Button>
@@ -1151,218 +1154,205 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         onClose={() => setProfileDialogOpen(false)}
         maxWidth="sm"
         fullWidth
-        slotProps={{ paper: { className: 'rounded-3xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden m-4 max-w-[480px] w-full' } }}
+        scroll="body"
+        slotProps={{ paper: { className: 'rounded-3xl overflow-hidden m-4 max-w-[460px] w-full' } }}
       >
-        {/* Cover Photo Area */}
-        <Box className="h-32 relative bg-gradient-to-r from-green-50 to-emerald-100 dark:from-green-900/40 dark:to-green-900/40">
-          <Box className="absolute inset-0 opacity-30 mix-blend-multiply dark:mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, rgba(0,0,0,0.1) 2px, transparent 0)', backgroundSize: '24px 24px' }} />
+        {/* Header: identity at a glance */}
+        <Box className="relative px-5 sm:px-6 pt-6 pb-5 bg-gradient-to-br from-green-50 to-green-100/60 dark:from-green-900/30 dark:to-transparent border-b border-[var(--c-line)]">
           <IconButton
             onClick={() => setProfileDialogOpen(false)}
-            sx={{ position: 'absolute', top: 12, right: 12, color: 'text.secondary', bgcolor: 'rgba(255,255,255,0.5)', '&:hover': { bgcolor: 'rgba(255,255,255,0.8)' } }}
-            className="dark:bgcolor-gray-800/50 dark:hover:bg-gray-800"
+            size="small"
+            aria-label="Close profile"
+            sx={{ position: 'absolute', top: 12, right: 12, color: 'var(--c-muted)', bgcolor: 'var(--c-card-a)', '&:hover': { bgcolor: 'var(--c-card)' } }}
           >
             <CloseIcon fontSize="small" />
           </IconButton>
-        </Box>
 
-        {/* Profile Info Area */}
-        <Box className="flex flex-col items-center px-8 pb-8 -mt-16 relative z-10">
-          <Avatar
-            sx={{
-              width: 100,
-              height: 100,
-              bgcolor: 'white',
-              color: '#1f8a5b',
-              fontSize: 36,
-              fontWeight: 800,
-              border: '6px solid white',
-              boxShadow: '0 8px 24px rgba(31, 138, 91, 0.15)'
-            }}
-            className="dark:border-gray-900"
-          >
-            {user?.firstName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
-          </Avatar>
-
-          <Box className="mt-4 text-center w-full">
-            <Typography variant="h5" className="font-extrabold text-gray-800 dark:text-white tracking-tight">
-              {user?.firstName
-                ? (user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName)
-                : (user?.email ? user.email.split('@')[0] : 'Workspace User')}
-            </Typography>
-
-            <Chip
-              label={user?.role === 'superadmin' ? "👑 Super Admin" : user?.firstName ? "Verified Account" : "Standard Member"}
-              size="small"
-              className="mt-2 font-bold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-100 dark:border-green-800"
-              sx={{ borderRadius: '8px' }}
-            />
-          </Box>
-
-          <Box className="w-full mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 flex flex-col gap-3">
-            <Box className="flex items-center gap-4">
-              <Box className="w-10 h-10 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center shadow-sm border border-gray-200 dark:border-gray-600 shrink-0">
-                <AlternateEmailIcon sx={{ color: '#9ca3af', fontSize: 20 }} />
-              </Box>
-              <Box className="overflow-hidden">
-                <Typography variant="caption" className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block">
-                  Email Address
-                </Typography>
-                <Typography variant="body2" className="text-gray-800 dark:text-gray-200 font-medium truncate">
+          <Box className="flex items-center gap-4 pr-8">
+            <Avatar
+              sx={{
+                width: 64,
+                height: 64,
+                bgcolor: '#687f6e',
+                color: '#ffffff',
+                fontSize: 26,
+                fontWeight: 700,
+                border: '3px solid var(--c-card)',
+                boxShadow: '0 6px 18px rgba(86, 106, 91, 0.3)',
+                flexShrink: 0
+              }}
+            >
+              {user?.firstName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+            </Avatar>
+            <Box className="min-w-0">
+              <Typography sx={{ fontWeight: 700, fontSize: '1.15rem', color: 'var(--c-ink)', lineHeight: 1.25 }} noWrap>
+                {user?.firstName
+                  ? (user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName)
+                  : (user?.email ? user.email.split('@')[0] : 'Workspace User')}
+              </Typography>
+              <Box className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                <AlternateEmailIcon sx={{ fontSize: 14, color: 'var(--c-muted)' }} />
+                <Typography sx={{ fontSize: '0.8rem', color: 'var(--c-muted)' }} noWrap>
                   {user?.email || 'N/A'}
                 </Typography>
               </Box>
+              <Chip
+                label={user?.role === 'superadmin' ? 'Super Admin' : user?.firstName ? 'Verified Account' : 'Standard Member'}
+                size="small"
+                sx={{ mt: 1, height: 22, fontSize: '0.68rem', fontWeight: 700, borderRadius: '7px', bgcolor: 'var(--c-tint2)', color: 'var(--c-accent)' }}
+              />
             </Box>
           </Box>
+        </Box>
 
-          {/* Workspace Storage & Subscription Section (Moved to My Profile in blue & green gradient theme) */}
-          <Box className="w-full mt-4 bg-gradient-to-br from-green-50/80 via-white to-green-50/80 dark:from-gray-800/90 dark:via-gray-800/60 dark:to-green-950/40 rounded-2xl p-4 border border-green-100 dark:border-green-900/50 shadow-xs">
-            <Box className="flex items-center justify-between mb-3">
-              <Box className="flex items-center gap-2.5">
-                <Box className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#c8f1da] to-[#93ddb6] flex items-center justify-center text-[#0b1410] shadow-sm shadow-[#5cc28f]/20">
+        <Box className="px-5 sm:px-6 py-5 flex flex-col gap-4">
+          {/* Subscription & storage (live from /api/subscription/summary) */}
+          <Box className="rounded-2xl p-4 border border-[var(--c-line)]" sx={{ bgcolor: 'var(--c-surface)' }}>
+            <Box className="flex items-center justify-between gap-3 mb-3">
+              <Box className="flex items-center gap-2.5 min-w-0">
+                <Box className="w-9 h-9 rounded-xl bg-[#687f6e] flex items-center justify-center text-white shrink-0">
                   <CloudQueueIcon sx={{ fontSize: 18 }} />
                 </Box>
-                <Box>
-                  <Typography variant="caption" className="font-extrabold text-gray-800 dark:text-white uppercase tracking-wider block text-[11px] leading-tight">
-                    Storage &amp; Subscription
-                  </Typography>
-                  <Typography variant="caption" className="text-gray-500 dark:text-gray-400 text-[10px]">
-                    Workspace cloud capacity
+                <Box className="min-w-0">
+                  <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--c-ink)', lineHeight: 1.2 }}>Subscription &amp; storage</Typography>
+                  <Typography sx={{ fontSize: '0.72rem', color: 'var(--c-muted)' }} noWrap>
+                    {profileActivePlans.length
+                      ? (profileStats.planExpiresAt ? `Paid storage valid till ${formatDate(profileStats.planExpiresAt)}` : 'Paid storage — no expiry')
+                      : `Free ${defaultFreeMB} MB included with your account`}
                   </Typography>
                 </Box>
               </Box>
-
               <Chip
-                label={profileStats.currentPlan || `Free Tier (${defaultFreeMB} MB)`}
+                label={profilePlanName}
                 size="small"
-                sx={{
-                  background: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
-                  color: '#0b1410',
-                  fontWeight: 800,
-                  fontSize: '0.68rem',
-                  height: '22px',
-                  borderRadius: '6px',
-                  boxShadow: '0 2px 6px rgba(31, 138, 91, 0.25)'
-                }}
+                sx={{ bgcolor: profileActivePlans.length ? '#687f6e' : 'var(--c-tint2)', color: profileActivePlans.length ? '#ffffff' : 'var(--c-accent)', fontWeight: 700, fontSize: '0.68rem', height: 22, borderRadius: '7px', maxWidth: '45%' }}
               />
             </Box>
 
-            {/* Storage Progress Bar */}
-            <Box className="mb-2">
-              <Box className="flex justify-between items-center mb-1 text-xs">
-                <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300">
-                  {profileUsedMB} MB <span className="font-normal text-gray-400 dark:text-gray-500">used of</span> {profileQuotaMB} MB
-                </Typography>
-                <Typography
-                  variant="caption"
-                  className="font-extrabold"
-                  sx={{ color: profileIsExceeded ? '#ef4444' : profilePercent > 80 ? '#f59e0b' : '#0f2e1f' }}
-                >
-                  {profilePercent}%
-                </Typography>
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={profilePercent}
-                sx={{
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: 'rgba(0, 0, 0, 0.06)',
-                  '& .MuiLinearProgress-bar': {
-                    background: profileIsExceeded
-                      ? 'linear-gradient(90deg, #ef4444, #dc2626)'
-                      : profilePercent > 80
-                        ? 'linear-gradient(90deg, #f59e0b, #ea580c)'
-                        : 'linear-gradient(90deg, #a8e6c3 0%, #5cc28f 100%)',
-                    borderRadius: 4
-                  }
-                }}
-              />
-            </Box>
-
-            {/* Storage Metric Breakdown */}
-            <Box className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-xs">
-              <Box className="p-2.5 rounded-xl bg-white/80 dark:bg-gray-800/80 border border-gray-100 dark:border-gray-700">
-                <Typography variant="caption" className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-bold block">
-                  Free Quota
-                </Typography>
-                <Typography variant="body2" className="font-extrabold text-gray-800 dark:text-gray-200 text-xs">
-                  {profileStats.freeStorageMB || defaultFreeMB} MB
-                </Typography>
-              </Box>
-              <Box className="p-2.5 rounded-xl bg-white/80 dark:bg-gray-800/80 border border-gray-100 dark:border-gray-700">
-                <Typography variant="caption" className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-bold block">
-                  Bonus Storage
-                </Typography>
-                <Typography variant="body2" className="font-extrabold text-[#0f2e1f] dark:text-green-400 text-xs">
-                  +{profileStats.bonusStorageMB || 0} MB
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* Upgrade Button in Blue & Green gradient */}
-            <Button
-              fullWidth
-              size="small"
-              variant="contained"
-              startIcon={<AutoAwesomeIcon sx={{ fontSize: '1rem !important' }} />}
-              onClick={() => {
-                dispatch(setSubscriptionModalOpen(true));
-              }}
-              sx={{
-                mt: 2.5,
-                py: 1,
-                background: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%) !important',
-                color: '#0b1410 !important',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-                textTransform: 'none',
-                borderRadius: '12px',
-                boxShadow: '0 3px 12px rgba(31, 138, 91, 0.25)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%) !important',
-                  transform: 'translateY(-1px)'
-                },
-                transition: 'all 0.2s'
-              }}
-            >
-              {profileIsExceeded ? 'Unlock Storage (Upgrade Plan)' : 'Upgrade Storage & Plans'}
-            </Button>
-          </Box>
-
-          <Box className="w-full mt-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
-            <Box className="flex items-center justify-between mb-2">
-              <Typography variant="caption" className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
-                My Workspaces
+            <Box className="flex justify-between items-baseline mb-1.5">
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--c-ink2)' }}>
+                {profileUsedMB} MB <Box component="span" sx={{ fontWeight: 400, color: 'var(--c-muted)' }}>of {profileQuotaMB} MB used</Box>
               </Typography>
-              {groups && groups.length > 0 && (
-                <Typography variant="caption" className="text-gray-400 dark:text-gray-500 font-bold bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-md">
-                  {groups.length}
+              <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: profileIsExceeded ? '#ef4444' : profilePercent > 80 ? '#f59e0b' : 'var(--c-ink2)' }}>
+                {profilePercent}%
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={profilePercent}
+              sx={{
+                height: 8,
+                borderRadius: 4,
+                '& .MuiLinearProgress-bar': {
+                  background: profileIsExceeded ? '#ef4444' : profilePercent > 80 ? '#f59e0b' : '#687f6e',
+                  borderRadius: 4
+                }
+              }}
+            />
+
+            <Box className="grid grid-cols-3 gap-2 mt-4">
+              {[
+                { label: 'Free', value: `${profileStats.freeStorageMB || defaultFreeMB} MB`, color: 'var(--c-ink)' },
+                { label: 'Paid', value: `+${profileStats.bonusStorageMB || 0} MB`, color: 'var(--c-accent)' },
+                { label: 'Total', value: `${profileQuotaMB} MB`, color: 'var(--c-ink)' }
+              ].map((cell) => (
+                <Box key={cell.label} className="p-2.5 rounded-xl border border-[var(--c-line)]" sx={{ bgcolor: 'var(--c-card)' }}>
+                  <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--c-muted)' }}>{cell.label}</Typography>
+                  <Typography sx={{ fontSize: '0.88rem', fontWeight: 700, color: cell.color, mt: 0.25 }}>{cell.value}</Typography>
+                </Box>
+              ))}
+            </Box>
+
+            {/* Active paid plans */}
+            <Box className="mt-3 flex flex-col gap-1.5">
+              {profileActivePlans.length === 0 ? (
+                <Typography sx={{ fontSize: '0.74rem', color: 'var(--c-muted)', lineHeight: 1.5 }}>
+                  You&apos;re on the free plan. Need more space? Add a subscription — storage is added as soon as your payment is confirmed.
+                </Typography>
+              ) : profileActivePlans.map((p) => (
+                <Box key={p._id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-[var(--c-line)]" sx={{ bgcolor: 'var(--c-card)' }}>
+                  <Box className="min-w-0">
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--c-ink)' }} noWrap>
+                      {p.planName} <Box component="span" sx={{ color: 'var(--c-accent)' }}>· +{formatMB(p.bonusStorageMB)}</Box>
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.68rem', color: 'var(--c-muted)' }} noWrap>{validityText(p)}</Typography>
+                  </Box>
+                  <Chip label="Active" size="small" sx={{ height: 20, fontSize: '0.62rem', fontWeight: 800, bgcolor: '#687f6e', color: '#fff' }} />
+                </Box>
+              ))}
+              {profileLastPayment && (
+                <Typography sx={{ fontSize: '0.7rem', color: 'var(--c-muted)', mt: 0.5 }}>
+                  Last payment: <strong>{formatPrice(profileLastPayment.currency || profileSymbol, profileLastPayment.price)}</strong> for {profileLastPayment.planName} on {formatDate(profileLastPayment.createdAt)}
                 </Typography>
               )}
             </Box>
 
-            <Box className="max-h-[140px] overflow-y-auto custom-scrollbar pr-2 mt-2 space-y-1">
+            <Box className="grid grid-cols-2 gap-2 mt-3">
+              <Button
+                variant="contained"
+                startIcon={<AutoAwesomeIcon sx={{ fontSize: '1rem !important' }} />}
+                onClick={() => dispatch(openSubscriptionModal(0))}
+                sx={{ py: 1, fontWeight: 700, fontSize: '0.8rem', borderRadius: '12px' }}
+              >
+                {profileIsExceeded ? 'Storage full — Add' : 'Add Subscription'}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => dispatch(openSubscriptionModal(2))}
+                sx={{ py: 1, fontWeight: 700, fontSize: '0.8rem', borderRadius: '12px' }}
+              >
+                Billing &amp; invoices
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Workspaces: one card per workspace, spaced apart */}
+          <Box>
+            <Box className="flex items-center justify-between mb-2.5 px-0.5">
+              <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--c-muted)' }}>
+                My Workspaces
+              </Typography>
+              {groups && groups.length > 0 && (
+                <Box component="span" sx={{ fontSize: '0.7rem', fontWeight: 700, px: 1, py: 0.25, borderRadius: '6px', bgcolor: 'var(--c-tint2)', color: 'var(--c-accent)' }}>
+                  {groups.length}
+                </Box>
+              )}
+            </Box>
+
+            <Box className="max-h-[220px] overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-2.5">
               {groups && groups.length > 0 ? (
                 groups.map((g) => {
                   const isActive = g.groupId === activeGroupId;
                   return (
-                    <Box key={g.groupId} className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${isActive ? 'bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700/50 border border-transparent'}`}>
-                      <Box className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isActive ? 'bg-[#a8e6c3] text-[#0b1410]' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-                        <GroupIcon sx={{ fontSize: 16 }} />
+                    <Box
+                      key={g.groupId}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-colors"
+                      sx={{
+                        bgcolor: isActive ? 'var(--c-tint)' : 'var(--c-card)',
+                        borderColor: isActive ? 'rgba(104, 127, 110, 0.45)' : 'var(--c-line)',
+                        '&:hover': { borderColor: 'rgba(104, 127, 110, 0.45)' }
+                      }}
+                    >
+                      <Box
+                        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                        sx={{ bgcolor: isActive ? '#687f6e' : 'var(--c-surface2)', color: isActive ? '#ffffff' : 'var(--c-muted)' }}
+                      >
+                        <GroupIcon sx={{ fontSize: 18 }} />
                       </Box>
-                      <Typography variant="body2" className={`font-bold truncate flex-1 ${isActive ? 'text-[#0f2e1f] dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                        {g.name}
-                      </Typography>
+                      <Box className="min-w-0 flex-1">
+                        <Typography sx={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--c-ink)' }} noWrap>{g.name}</Typography>
+                        <Typography sx={{ fontSize: '0.7rem', color: 'var(--c-muted)', fontFamily: 'monospace' }} noWrap>{g.groupId}</Typography>
+                      </Box>
                       {isActive && (
-                        <Chip label="Active" size="small" sx={{ height: 20, fontSize: '0.65rem' }} className="bg-[#a8e6c3] text-[#0b1410] font-bold" />
+                        <Chip label="Active" size="small" sx={{ height: 22, fontSize: '0.66rem', fontWeight: 700, bgcolor: '#687f6e', color: '#ffffff', borderRadius: '7px' }} />
                       )}
                     </Box>
                   );
                 })
               ) : (
-                <Typography variant="body2" className="text-gray-500 text-center italic py-2">
-                  No workspaces found.
-                </Typography>
+                <Box className="rounded-xl border border-dashed border-[var(--c-line)] py-5 text-center">
+                  <Typography sx={{ fontSize: '0.82rem', color: 'var(--c-muted)' }}>No workspaces yet.</Typography>
+                </Box>
               )}
             </Box>
           </Box>
@@ -1370,18 +1360,13 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           <Button
             fullWidth
             variant="outlined"
+            color="error"
             startIcon={<LogoutIcon />}
             onClick={() => {
               setProfileDialogOpen(false);
               handleLogout();
             }}
-            className="mt-6 py-2.5 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
-            sx={{
-              borderRadius: '12px',
-              textTransform: 'none',
-              fontWeight: 700,
-              fontSize: '1rem'
-            }}
+            sx={{ mt: 0.5, py: 1.1, borderRadius: '12px', fontWeight: 600, fontSize: '0.9rem' }}
           >
             Sign Out
           </Button>
@@ -1389,12 +1374,12 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
       </Dialog>
 
       {/* TELEGRAM-STYLE BOTTOM NAVBAR FOR MOBILE */}
-      <Box className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center justify-around z-[100] pb-safe transition-all" sx={{ backdropFilter: 'blur(10px)', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
+      <Box className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center justify-around z-[100] pb-safe transition-all" sx={{ backdropFilter: 'blur(10px)', backgroundColor: 'var(--c-card-a)' }}>
         <Button
           onClick={() => onToggleMobileView && onToggleMobileView('sidebar')}
           sx={{
             display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
-            color: mobileView === 'sidebar' ? '#1f8a5b' : '#9ca3af',
+            color: mobileView === 'sidebar' ? 'var(--c-accent)' : '#a59a8c',
             '&:hover': { bgcolor: 'transparent' }
           }}
         >
@@ -1408,7 +1393,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           }}
           sx={{
             display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
-            color: hasOpenDocuments ? (mobileView === 'editor' ? '#1f8a5b' : '#9ca3af') : '#d1d5db',
+            color: hasOpenDocuments ? (mobileView === 'editor' ? 'var(--c-accent)' : '#a59a8c') : '#d4cbbf',
             '&:hover': { bgcolor: 'transparent' }
           }}
         >
@@ -1418,7 +1403,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         <Button
           onClick={handleOpenAddDialog}
-          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#1f8a5b' } }}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#a59a8c', '&:hover': { bgcolor: 'transparent', color: 'var(--c-accent)' } }}
         >
           <GroupAddIcon sx={{ fontSize: 22, mb: 0.2 }} />
           <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Add</Typography>
@@ -1426,7 +1411,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         <Button
           onClick={handleOpenJoinDialog}
-          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#1f8a5b' } }}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#a59a8c', '&:hover': { bgcolor: 'transparent', color: 'var(--c-accent)' } }}
         >
           <GroupIcon sx={{ fontSize: 22, mb: 0.2 }} />
           <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Join</Typography>
@@ -1434,7 +1419,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         <Button
           onClick={() => setProfileDialogOpen(true)}
-          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#1f8a5b' } }}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#a59a8c', '&:hover': { bgcolor: 'transparent', color: 'var(--c-accent)' } }}
         >
           <PersonIcon sx={{ fontSize: 22, mb: 0.2 }} />
           <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Profile</Typography>

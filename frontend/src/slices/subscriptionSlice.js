@@ -72,6 +72,24 @@ export const fetchGroupStorageUsage = createAsyncThunk(
   }
 );
 
+// Everything the signed-in user's subscription screens need (plans, usage, active plans, history)
+export const fetchSubscriptionSummary = createAsyncThunk(
+  'subscription/fetchSubscriptionSummary',
+  async (opts = {}, { getState, dispatch, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      if (!token) return rejectWithValue('Not authenticated');
+      const response = await axios.get(`${API_URL}/summary${opts.refresh ? '?refresh=1' : ''}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 401) dispatch(logout());
+      return rejectWithValue(error.response?.data?.message || 'Failed to load subscription details');
+    }
+  }
+);
+
 // Create Razorpay Order
 export const createRazorpayOrder = createAsyncThunk(
   'subscription/createRazorpayOrder',
@@ -180,15 +198,28 @@ const subscriptionSlice = createSlice({
     subscribeSuccess: null,
     error: null,
     isModalOpen: false,
+    modalTab: 0, // 0: plans, 1: groups breakdown, 2: billing history
+    summary: null,
+    summaryLoading: false,
   },
   reducers: {
     setSubscriptionModalOpen: (state, action) => {
       state.isModalOpen = action.payload;
-      if (!action.payload) {
+      if (action.payload) {
+        state.modalTab = 0;
+      } else {
         state.subscribeSuccess = null;
         state.error = null;
         state.paymentProcessing = false;
       }
+    },
+    // Opens the subscription window on a given tab (0 plans, 1 groups, 2 billing)
+    openSubscriptionModal: (state, action) => {
+      state.isModalOpen = true;
+      state.modalTab = typeof action.payload === 'number' ? action.payload : 0;
+    },
+    setSubscriptionModalTab: (state, action) => {
+      state.modalTab = action.payload;
     },
     clearSubscriptionError: (state) => {
       state.error = null;
@@ -200,6 +231,21 @@ const subscriptionSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Summary (single source for profile / subscription window)
+      .addCase(fetchSubscriptionSummary.pending, (state) => {
+        if (!state.summary) state.summaryLoading = true;
+      })
+      .addCase(fetchSubscriptionSummary.fulfilled, (state, action) => {
+        state.summaryLoading = false;
+        state.summary = action.payload;
+        state.userStats = action.payload.stats;
+        state.history = action.payload.history;
+        state.tariff = action.payload.tariff;
+        state.tariffLastFetched = Date.now();
+      })
+      .addCase(fetchSubscriptionSummary.rejected, (state) => {
+        state.summaryLoading = false;
+      })
       // Tariff
       .addCase(fetchTariff.fulfilled, (state, action) => {
         state.tariff = action.payload;
@@ -265,6 +311,8 @@ const subscriptionSlice = createSlice({
 
 export const { 
   setSubscriptionModalOpen, 
+  openSubscriptionModal,
+  setSubscriptionModalTab,
   clearSubscriptionError, 
   setPaymentProcessing 
 } = subscriptionSlice.actions;

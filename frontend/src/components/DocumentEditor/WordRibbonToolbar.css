@@ -3,22 +3,22 @@
    ========================================================================== */
 
 .word-ribbon-container {
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: #faf8f4;
+  border-bottom: 1px solid #e6e0d6;
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
   user-select: none;
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-  color: #1e293b;
+  color: #232824;
   position: relative;
   z-index: 30;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .dark .word-ribbon-container {
-  background: #0f172a;
-  border-bottom: 1px solid #1e293b;
-  color: #f1f5f9;
+  background: #161a17;
+  border-bottom: 1px solid #232824;
+  color: #f1ece4;
 }
 
 /* Main Ribbon Body — 40px Height (Compact 50% scale) */
@@ -39,7 +39,7 @@
   height: 3px;
 }
 .word-ribbon-body::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #d4cbbf;
   border-radius: 3px;
 }
 
@@ -47,13 +47,13 @@
 .ribbon-divider {
   width: 1px;
   height: 18px;
-  background-color: #cbd5e1;
+  background-color: #d4cbbf;
   margin: 0 3px;
   flex-shrink: 0;
 }
 
 .dark .ribbon-divider {
-  background-color: #334155;
+  background-color: #3a413b;
 }
 
 /* Compact Ribbon Buttons */
@@ -67,7 +67,7 @@
   border-radius: 4px;
   border: 1px solid transparent;
   background: transparent;
-  color: #334155;
+  color: #3a413b;
   cursor: pointer;
   transition: all 0.12s ease;
   font-size: 0.72rem;
@@ -76,23 +76,23 @@
 }
 
 .dark .ribbon-btn {
-  color: #cbd5e1;
+  color: #d4cbbf;
 }
 
 .ribbon-btn:hover:not(:disabled) {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
-  color: #0f172a;
+  background: #e6e0d6;
+  border-color: #d4cbbf;
+  color: #161a17;
 }
 
 .dark .ribbon-btn:hover:not(:disabled) {
-  background: #334155;
-  border-color: #475569;
-  color: #f8fafc;
+  background: #3a413b;
+  border-color: #5d5a52;
+  color: #faf8f4;
 }
 
 .ribbon-btn:active:not(:disabled) {
-  background: #cbd5e1;
+  background: #d4cbbf;
   transform: translateY(1px);
 }
 
@@ -105,7 +105,7 @@
 
 .dark .ribbon-btn.active {
   background: rgba(59, 130, 246, 0.25) !important;
-  border-color: #7fd4a6 !important;
+  border-color: #8fa391 !important;
   color: #93c5fd !important;
 }
 
@@ -122,30 +122,30 @@
   height: 24px;
   padding: 0 5px;
   background: white;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #d4cbbf;
   border-radius: 4px;
   font-size: 0.72rem;
   font-weight: 500;
-  color: #334155;
+  color: #3a413b;
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
 .dark .ribbon-dropdown-btn {
-  background: #1e293b;
-  border-color: #475569;
-  color: #cbd5e1;
+  background: #232824;
+  border-color: #5d5a52;
+  color: #d4cbbf;
 }
 
 .ribbon-dropdown-btn:hover {
   border-color: #3b82f6;
-  background: #f8fafc;
+  background: #faf8f4;
 }
 
 .dark .ribbon-dropdown-btn:hover {
-  border-color: #7fd4a6;
-  background: #334155;
+  border-color: #8fa391;
+  background: #3a413b;
 }
 
 /* Compact Split button */
@@ -159,13 +159,13 @@
 }
 
 .ribbon-split-btn:hover {
-  border-color: #cbd5e1;
-  background: #e2e8f0;
+  border-color: #d4cbbf;
+  background: #e6e0d6;
 }
 
 .dark .ribbon-split-btn:hover {
-  border-color: #475569;
-  background: #334155;
+  border-color: #5d5a52;
+  background: #3a413b;
 }
 
 .ribbon-split-btn-main {
@@ -222,8 +222,8 @@
 }
 
 .dark .word-find-replace-bar {
-  background: #1e293b;
-  border-bottom-color: #7fd4a6;
+  background: #232824;
+  border-bottom-color: #8fa391;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
 }
 
@@ -245,31 +245,31 @@
   align-items: center;
   justify-content: center;
   padding: 10px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #faf8f4;
+  border: 1px solid #e6e0d6;
   border-radius: 10px;
   min-width: 90px;
 }
 
 .dark .stat-pill {
-  background: #1e293b;
-  border-color: #334155;
+  background: #232824;
+  border-color: #3a413b;
 }
 
 .stat-pill-value {
   font-size: 1.25rem;
   font-weight: 800;
-  color: #0f172a;
+  color: #161a17;
 }
 
 .dark .stat-pill-value {
-  color: #f8fafc;
+  color: #faf8f4;
 }
 
 .stat-pill-label {
   font-size: 0.68rem;
   font-weight: 600;
-  color: #64748b;
+  color: #7a756c;
   text-transform: uppercase;
   margin-top: 1px;
 }
@@ -282,7 +282,7 @@
 .show-paragraph-marks .ql-editor h4::after,
 .show-paragraph-marks .ql-editor li::after {
   content: " ¶";
-  color: #94a3b8;
+  color: #a59a8c;
   font-weight: normal;
   opacity: 0.65;
   font-size: 0.85em;

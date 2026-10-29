@@ -127,12 +127,12 @@ const StorageIndicator = ({ groupId }) => {
           variant="contained"
           className={`storage-upgrade-btn ${isExceeded ? 'btn-danger' : isWarning ? 'btn-warning' : 'btn-primary'}`}
           sx={!isExceeded && !isWarning ? {
-            background: 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%) !important',
-            color: '#0b1410 !important',
-            boxShadow: '0 1px 5px rgba(31, 138, 91, 0.3)',
+            background: 'linear-gradient(135deg, #61786a 0%, #556a5d 100%) !important',
+            color: '#ffffff !important',
+            boxShadow: '0 1px 5px rgba(104, 127, 110, 0.3)',
             '&:hover': {
-              background: 'linear-gradient(135deg, #a8e6c3 0%, #6fcb9a 100%) !important',
-              boxShadow: '0 2px 8px rgba(31, 138, 91, 0.45)',
+              background: 'linear-gradient(135deg, #61786a 0%, #556a5d 100%) !important',
+              boxShadow: '0 2px 8px rgba(104, 127, 110, 0.45)',
               transform: 'translateY(-0.5px)'
             }
           } : undefined}
