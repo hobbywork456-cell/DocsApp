@@ -57,7 +57,7 @@ const StorageIndicator = ({ groupId }) => {
   }
 
   const usedMB = stats.totalUsedMB || 0;
-  const quotaMB = stats.totalQuotaMB || (tariff?.freeStorageMB || 50);
+  const quotaMB = stats.totalQuotaMB || (tariff?.freeStorageMB || 25);
   const percent = Math.min(100, Math.round(stats.percentUsed || (quotaMB > 0 ? (usedMB / quotaMB) * 100 : 0)));
   const isExceeded = stats.isExceeded || percent >= 100;
   const isWarning = stats.isWarning || (percent >= (stats.warningThreshold || 80));
@@ -127,12 +127,12 @@ const StorageIndicator = ({ groupId }) => {
           variant="contained"
           className={`storage-upgrade-btn ${isExceeded ? 'btn-danger' : isWarning ? 'btn-warning' : 'btn-primary'}`}
           sx={!isExceeded && !isWarning ? {
-            background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%) !important',
-            color: 'white !important',
-            boxShadow: '0 1px 5px rgba(59, 130, 246, 0.3)',
+            background: 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%) !important',
+            color: '#0b1410 !important',
+            boxShadow: '0 1px 5px rgba(31, 138, 91, 0.3)',
             '&:hover': {
-              background: 'linear-gradient(135deg, #2563eb 0%, #1f4d1d 100%) !important',
-              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.45)',
+              background: 'linear-gradient(135deg, #a8e6c3 0%, #6fcb9a 100%) !important',
+              boxShadow: '0 2px 8px rgba(31, 138, 91, 0.45)',
               transform: 'translateY(-0.5px)'
             }
           } : undefined}

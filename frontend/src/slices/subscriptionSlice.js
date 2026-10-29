@@ -4,7 +4,7 @@ import { logout } from './authSlice';
 
 const API_URL = `${import.meta.env.VITE_API_URL}/subscription`;
 
-// Fetch tariff & pricing configuration (free MB, price per 50MB, tiers, storage boosters)
+// Fetch tariff & pricing configuration (free MB, price per 50MB, tiers)
 export const fetchTariff = createAsyncThunk(
   'subscription/fetchTariff',
   async (_, { getState, rejectWithValue }) => {
@@ -47,9 +47,7 @@ export const fetchStorageUsage = createAsyncThunk(
       });
       return response.data;
     } catch (error) {
-      if (error.response?.status === 401) {
-        dispatch(logout());
-      }
+      if (error.response?.status === 401) dispatch(logout());
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch storage usage');
     }
   }
@@ -68,9 +66,7 @@ export const fetchGroupStorageUsage = createAsyncThunk(
       });
       return response.data;
     } catch (error) {
-      if (error.response?.status === 401) {
-        dispatch(logout());
-      }
+      if (error.response?.status === 401) dispatch(logout());
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch group storage');
     }
   }
@@ -79,25 +75,23 @@ export const fetchGroupStorageUsage = createAsyncThunk(
 // Create Razorpay Order
 export const createRazorpayOrder = createAsyncThunk(
   'subscription/createRazorpayOrder',
-  async ({ planId, isStoragePack = false, storageMB, price }, { getState, dispatch, rejectWithValue }) => {
+  async ({ planId }, { getState, dispatch, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
       const response = await axios.post(
         `${API_URL}/create-order`,
-        { planId, isStoragePack, storageMB, price },
+        { planId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       return response.data;
     } catch (error) {
-      if (error.response?.status === 401) {
-        dispatch(logout());
-      }
+      if (error.response?.status === 401) dispatch(logout());
       return rejectWithValue(error.response?.data?.message || 'Failed to initiate Razorpay payment order');
     }
   }
 );
 
-// Verify Razorpay Payment Signature
+// Verify Razorpay Payment Signature & activate storage
 export const verifyRazorpayPayment = createAsyncThunk(
   'subscription/verifyRazorpayPayment',
   async (paymentData, { getState, dispatch, rejectWithValue }) => {
@@ -110,31 +104,8 @@ export const verifyRazorpayPayment = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      if (error.response?.status === 401) {
-        dispatch(logout());
-      }
+      if (error.response?.status === 401) dispatch(logout());
       return rejectWithValue(error.response?.data?.message || 'Payment signature verification failed');
-    }
-  }
-);
-
-// Direct / Simulated Subscribe fallback
-export const subscribePlan = createAsyncThunk(
-  'subscription/subscribePlan',
-  async ({ planId, paymentMethod }, { getState, dispatch, rejectWithValue }) => {
-    try {
-      const token = getState().auth.token;
-      const response = await axios.post(
-        `${API_URL}/subscribe`,
-        { planId, paymentMethod },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data;
-    } catch (error) {
-      if (error.response?.status === 401) {
-        dispatch(logout());
-      }
-      return rejectWithValue(error.response?.data?.message || 'Subscription activation failed');
     }
   }
 );
@@ -150,10 +121,33 @@ export const fetchSubscriptionHistory = createAsyncThunk(
       });
       return response.data;
     } catch (error) {
-      if (error.response?.status === 401) {
-        dispatch(logout());
-      }
+      if (error.response?.status === 401) dispatch(logout());
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch subscription history');
+    }
+  }
+);
+
+// Download invoice for a subscription
+export const downloadInvoice = createAsyncThunk(
+  'subscription/downloadInvoice',
+  async (subscriptionId, { getState, dispatch, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await axios.get(`${API_URL}/invoice/${subscriptionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+
+      // Open HTML invoice in a new tab
+      const blob = new Blob([response.data], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      return { success: true };
+    } catch (error) {
+      if (error.response?.status === 401) dispatch(logout());
+      return rejectWithValue(error.response?.data?.message || 'Failed to download invoice');
     }
   }
 );
@@ -162,13 +156,12 @@ const subscriptionSlice = createSlice({
   name: 'subscription',
   initialState: {
     tariff: {
-      freeStorageMB: 50,
+      freeStorageMB: 25,
       warningThresholdPercent: 80,
       currency: 'INR',
       currencySymbol: '₹',
       pricePer50MB: 99,
-      tiers: [],
-      boosters: []
+      tiers: []
     },
     tariffLastFetched: null,
     razorpayConfig: {
@@ -183,6 +176,7 @@ const subscriptionSlice = createSlice({
     loading: false,
     subscribing: false,
     paymentProcessing: false,
+    invoiceLoading: false,
     subscribeSuccess: null,
     error: null,
     isModalOpen: false,
@@ -241,7 +235,7 @@ const subscriptionSlice = createSlice({
         state.paymentProcessing = false;
         state.subscribing = false;
         state.subscribeSuccess = action.payload.message;
-        state.userStats = action.payload.stats;
+        if (action.payload.stats) state.userStats = action.payload.stats;
         if (action.payload.subscription) {
           state.history.unshift(action.payload.subscription);
         }
@@ -251,27 +245,20 @@ const subscriptionSlice = createSlice({
         state.subscribing = false;
         state.error = action.payload;
       })
-      // Direct subscribe plan
-      .addCase(subscribePlan.pending, (state) => {
-        state.subscribing = true;
-        state.subscribeSuccess = null;
-        state.error = null;
-      })
-      .addCase(subscribePlan.fulfilled, (state, action) => {
-        state.subscribing = false;
-        state.subscribeSuccess = action.payload.message;
-        state.userStats = action.payload.stats;
-        if (action.payload.subscription) {
-          state.history.unshift(action.payload.subscription);
-        }
-      })
-      .addCase(subscribePlan.rejected, (state, action) => {
-        state.subscribing = false;
-        state.error = action.payload;
-      })
       // Subscription history
       .addCase(fetchSubscriptionHistory.fulfilled, (state, action) => {
         state.history = action.payload;
+      })
+      // Invoice download
+      .addCase(downloadInvoice.pending, (state) => {
+        state.invoiceLoading = true;
+      })
+      .addCase(downloadInvoice.fulfilled, (state) => {
+        state.invoiceLoading = false;
+      })
+      .addCase(downloadInvoice.rejected, (state, action) => {
+        state.invoiceLoading = false;
+        state.error = action.payload;
       });
   }
 });

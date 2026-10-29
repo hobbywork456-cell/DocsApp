@@ -23,6 +23,7 @@ import ReactQuill, { Quill } from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AIAssistant from './AIAssistant';
+import { toComparableText } from '../../utils/docText';
 import { setSubscriptionModalOpen } from '../../slices/subscriptionSlice';
 import {
   downloadDocAsPdf,
@@ -79,46 +80,62 @@ class CustomImage extends BaseImageFormat {
 }
 Quill.register(CustomImage, true);
 
-// Register custom style-based Parchment attributors for full Word/Docs styling support
+// Register custom style-based Parchment attributors for full Word/Docs styling support.
+// Quill 2 ships Parchment v3, which exports StyleAttributor / ClassAttributor directly
+// (the v1 `Parchment.Attributor.Style` path no longer exists).
 try {
-  const FontStyle = Quill.import('attributors/style/font');
-  if (FontStyle) {
-    FontStyle.whitelist = [
-      'Calibri', 'Arial', 'Times New Roman', 'Roboto', 'Georgia', 'Courier New', 'Verdana', 'Comic Sans MS', 'Impact', 'Trebuchet MS', 'Segoe UI'
-    ];
-    Quill.register({ 'formats/font': FontStyle }, true);
-  }
-
-  const SizeStyle = Quill.import('attributors/style/size');
-  if (SizeStyle) {
-    SizeStyle.whitelist = [
-      '8pt', '9pt', '10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '20pt', '22pt', '24pt', '26pt', '28pt', '36pt', '48pt', '72pt'
-    ];
-    Quill.register({ 'formats/size': SizeStyle }, true);
-  }
-
   const Parchment = Quill.import('parchment');
-  if (Parchment && Parchment.Attributor && Parchment.Attributor.Style) {
-    const LineHeightStyle = new Parchment.Attributor.Style('line-height', 'line-height', {
-      scope: Parchment.Scope.BLOCK
-    });
-    Quill.register({ 'formats/lineHeight': LineHeightStyle, 'attributors/style/lineHeight': LineHeightStyle }, true);
+  const StyleAttributor = Parchment.StyleAttributor || Parchment.Attributor?.Style;
+  const ClassAttributor = Parchment.ClassAttributor || Parchment.Attributor?.Class;
+  const BLOCK = Parchment.Scope.BLOCK;
+  const INLINE = Parchment.Scope.INLINE;
 
-    const BlockBackground = new Parchment.Attributor.Style('blockBackground', 'background-color', {
-      scope: Parchment.Scope.BLOCK
-    });
-    Quill.register({ 'formats/blockBackground': BlockBackground, 'attributors/style/blockBackground': BlockBackground }, true);
-
-    const BlockBorder = new Parchment.Attributor.Style('blockBorder', 'border', {
-      scope: Parchment.Scope.BLOCK
-    });
-    Quill.register({ 'formats/blockBorder': BlockBorder, 'attributors/style/blockBorder': BlockBorder }, true);
-
-    const UnderlineStyle = new Parchment.Attributor.Style('underlineStyle', 'text-decoration-style', {
-      scope: Parchment.Scope.INLINE
-    });
-    Quill.register({ 'formats/underlineStyle': UnderlineStyle, 'attributors/style/underlineStyle': UnderlineStyle }, true);
+  // Browsers report multi-word families quoted ("Times New Roman"), which would fail the
+  // whitelist and silently drop the font when a saved document is reopened.
+  class FontFamilyAttributor extends StyleAttributor {
+    value(node) {
+      const v = (node.style.fontFamily || '').split(',')[0].replace(/["']/g, '').trim();
+      return this.canAdd(node, v) ? v : '';
+    }
   }
+  const FontStyle = new FontFamilyAttributor('font', 'font-family', {
+    scope: INLINE,
+    whitelist: ['Calibri', 'Arial', 'Times New Roman', 'Roboto', 'Georgia', 'Courier New', 'Verdana', 'Comic Sans MS', 'Impact', 'Trebuchet MS', 'Segoe UI']
+  });
+  const SizeStyle = new StyleAttributor('size', 'font-size', {
+    scope: INLINE,
+    whitelist: ['8pt', '9pt', '10pt', '11pt', '12pt', '13pt', '14pt', '15pt', '16pt', '18pt', '20pt', '22pt', '24pt', '26pt', '28pt', '36pt', '48pt', '72pt']
+  });
+  // Format names (first argument) must match the names the ribbon passes to quill.format()
+  const LineHeightStyle = new StyleAttributor('lineHeight', 'line-height', { scope: BLOCK });
+  const BlockBackground = new StyleAttributor('blockBackground', 'background-color', { scope: BLOCK });
+  const BlockBorder = new StyleAttributor('blockBorder', 'border', { scope: BLOCK });
+  const BlockBorderBottom = new StyleAttributor('blockBorderBottom', 'border-bottom', { scope: BLOCK });
+  const UnderlineStyle = new StyleAttributor('underlineStyle', 'text-decoration-style', { scope: INLINE });
+  // Bullet / numbering variants: adds ql-list-<style> to the <li>
+  const ListStyle = new ClassAttributor('listStyle', 'ql-list', { scope: BLOCK });
+
+  Quill.register({
+    'formats/font': FontStyle,
+    'formats/size': SizeStyle,
+    'formats/lineHeight': LineHeightStyle,
+    'formats/blockBackground': BlockBackground,
+    'formats/blockBorder': BlockBorder,
+    'formats/blockBorderBottom': BlockBorderBottom,
+    'formats/underlineStyle': UnderlineStyle,
+    'formats/listStyle': ListStyle
+  }, true);
+
+  // Horizontal rule and page break blocks (Quill 2 has no built-in divider blot)
+  const BlockEmbed = Quill.import('blots/block/embed');
+  class DividerBlot extends BlockEmbed {}
+  DividerBlot.blotName = 'divider';
+  DividerBlot.tagName = 'hr';
+  class PageBreakBlot extends BlockEmbed {}
+  PageBreakBlot.blotName = 'pagebreak';
+  PageBreakBlot.tagName = 'hr';
+  PageBreakBlot.className = 'page-break';
+  Quill.register({ 'formats/divider': DividerBlot, 'formats/pagebreak': PageBreakBlot }, true);
 } catch (e) {
   console.warn('Custom Quill format registration:', e);
 }
@@ -129,7 +146,6 @@ icons['redo'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 icons['table'] = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>`;
 
 import { updateDocument, removeOpenDocument, importDocumentContent, uploadImageFile, uploadAttachment, deleteAttachment, setGlobalReadMode } from '../../slices/documentSlice';
-import html2pdf from 'html2pdf.js';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import TableRowsIcon from '@mui/icons-material/TableRows';
@@ -185,31 +201,13 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiModel, setAiModel] = useState('gemma-4-26b-a4b-it');
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiResult, setAiResult] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
+  // Last non-empty text selection in the editor; kept while focus moves into the AI panel
+  const [aiSelection, setAiSelection] = useState({ index: 0, length: 0, text: '' });
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [mediaEditNode, setMediaEditNode] = useState(null);
-    const [tableEditNode, setTableEditNode] = useState(null);
-  const [tablePopoverAnchor, setTablePopoverAnchor] = useState(null);
-  const [hoveredGrid, setHoveredGrid] = useState({ rows: 0, cols: 0 });
-  const [tableInsertIndex, setTableInsertIndex] = useState(0);
-  const openTableDialogRef = useRef(null);
-
-  openTableDialogRef.current = () => {
-    if (quillRef.current) {
-      const quill = quillRef.current.getEditor();
-      const range = quill.getSelection();
-      setTableInsertIndex(range ? range.index : quill.getLength());
-    }
-    const btn = document.querySelector('.ql-table');
-    if (btn) {
-      setTablePopoverAnchor(btn);
-    } else {
-      setTablePopoverAnchor(document.body);
-    }
-  };
+  const [tableEditNode, setTableEditNode] = useState(null);
+  const [zoom, setZoom] = useState(100);
+  const [docStats, setDocStats] = useState({ words: 0, chars: 0 });
   const [tableOverlayStyle, setTableOverlayStyle] = useState(null);
   const [overlayStyle, setOverlayStyle] = useState(null);
   const [isListening, setIsListening] = useState(false);
@@ -297,7 +295,15 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     }
   };
 
+  // Re-sync from the store when a different document opens, or when the stored copy changes while
+  // the user is only viewing. Never while editing: attachment uploads/deletes and saves refresh the
+  // store mid-edit, and resetting then would silently discard the user's unsaved changes.
+  const syncedDocIdRef = useRef(null);
   useEffect(() => {
+    if (!selectedDocument) return;
+    const isNewDoc = syncedDocIdRef.current !== selectedDocument._id;
+    if (!isNewDoc && isEditingRef.current) return;
+    syncedDocIdRef.current = selectedDocument._id;
     if (selectedDocument) {
       setTitle(selectedDocument.title || '');
       setContent(selectedDocument.content || '');
@@ -317,10 +323,22 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       }
       setDocType(detectedType);
       formatDraftsRef.current[detectedType] = selectedDocument.content || '';
-      setIsEditing(false);
-      setPendingAttachments([]);
+      if (isNewDoc) {
+        setIsEditing(false);
+        setPendingAttachments([]);
+      }
     }
   }, [selectedDocument]);
+
+  // Live word / character count for the status bar (debounced so typing stays smooth)
+  useEffect(() => {
+    if (docType !== 'doc') return undefined;
+    const t = setTimeout(() => {
+      const text = (quillRef.current?.getEditor?.().getText() || '').trim();
+      setDocStats({ words: text ? text.split(/\s+/).length : 0, chars: text.replace(/\n/g, '').length });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [content, docType]);
 
   const handleDocTypeChange = (newType) => {
     if (newType === docType) return;
@@ -346,41 +364,59 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
     if (quillRef.current) quillRef.current.getEditor().history.redo();
   };
 
-  const handleGenerateAI = async () => {
-    if (!aiPrompt.trim()) return;
-    setIsAiLoading(true);
-    setAiResult('');
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL.replace('/api', '')}/api/ai/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ prompt: aiPrompt, model: aiModel })
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'AI generation failed');
-      setAiResult(data.html || data.text);
-    } catch (error) {
-      console.error('AI error:', error);
-      alert(error.message);
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
+  // Track the editor selection so AI actions can work on "just the selected text"
+  useEffect(() => {
+    if (docType !== 'doc' || !quillRef.current) return undefined;
+    const quill = quillRef.current.getEditor();
+    const onSelection = (range) => {
+      if (!range) return; // focus moved elsewhere (e.g. into the AI panel): keep the last selection
+      setAiSelection(range.length > 0
+        ? { index: range.index, length: range.length, text: quill.getText(range.index, range.length) }
+        : { index: range.index, length: 0, text: '' });
+    };
+    quill.on('selection-change', onSelection);
+    return () => quill.off('selection-change', onSelection);
+  }, [docType, selectedDocument?._id]);
 
-  const handleInsertAI = () => {
-    if (quillRef.current && aiResult) {
+  // What the AI reads: selection (docs) plus a plain-text view of the whole document/sheet/deck
+  const getAiContext = useCallback(() => {
+    const documentText = docType === 'doc'
+      ? (quillRef.current?.getEditor?.().getText() || '')
+      : toComparableText({ docType, content });
+    return { docType, title, selection: docType === 'doc' ? aiSelection.text : '', documentText };
+  }, [docType, title, content, aiSelection.text]);
+
+  const handleAiInsert = useCallback((html, { replace } = {}) => {
+    if (!quillRef.current) return;
+    const insert = () => {
       const quill = quillRef.current.getEditor();
-      const range = quill.getSelection(true) || { index: quill.getLength() };
-      quill.clipboard.dangerouslyPasteHTML(range.index, aiResult);
-      setAiOpen(false);
-      setAiPrompt('');
-      setAiResult('');
+      const sel = aiSelection;
+      let index;
+      if (replace && sel.length > 0) {
+        quill.deleteText(sel.index, sel.length, 'user');
+        index = sel.index;
+      } else if (sel.length > 0) {
+        // "Insert below": start a new paragraph after the selected text
+        index = sel.index + sel.length;
+        quill.insertText(index, '\n', 'user');
+        index += 1;
+      } else {
+        index = Math.min(sel.index || quill.getLength() - 1, quill.getLength() - 1);
+      }
+      const before = quill.getLength();
+      quill.clipboard.dangerouslyPasteHTML(index, html, 'user');
+      const inserted = quill.getLength() - before;
+      quill.setSelection(index, Math.max(0, inserted), 'user');
+      setAiSelection({ index, length: Math.max(0, inserted), text: quill.getText(index, Math.max(0, inserted)) });
+    };
+    // Inserting needs edit mode; switch to it first so the change is undoable and saved normally
+    if (!isEditing) {
+      setIsEditing(true);
+      setTimeout(insert, 50);
+    } else {
+      insert();
     }
-  };
+  }, [aiSelection, isEditing]);
 
   const handleAttachmentClick = () => {
     if (attachmentInputRef.current) {
@@ -413,7 +449,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
   const getAttachmentIcon = (type, filename, size = 16) => {
     const sx = { fontSize: size };
     if (type === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) return <PictureAsPdfIcon sx={{ ...sx, color: '#ef4444' }} />;
-    if (type.includes('spreadsheet') || type.includes('excel') || filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls')) return <TableChartIcon sx={{ ...sx, color: '#326127' }} />;
+    if (type.includes('spreadsheet') || type.includes('excel') || filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls')) return <TableChartIcon sx={{ ...sx, color: '#0f2e1f' }} />;
     return <DescriptionIcon sx={{ ...sx, color: '#3b82f6' }} />;
   };
 
@@ -471,8 +507,13 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       setPendingAttachments([]); // Clear after upload
     }
 
-    await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags, docType }));
+    const result = await dispatch(updateDocument({ id: selectedDocument._id, title, content, tags, docType }));
     setIsSaving(false);
+    if (updateDocument.rejected.match(result)) {
+      // Stay in edit mode so nothing is lost; the user can retry or copy their work
+      alert(`Your changes were not saved: ${result.payload || 'please try again.'}`);
+      return;
+    }
     setIsEditing(false);
   };
 
@@ -873,7 +914,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           elevation={0} 
           sx={{ backgroundColor: 'transparent' }}
           onClickCapture={handleEditorClick}
-          className={`flex-1 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-900/80 shadow-sm dark:shadow-none flex flex-col relative ${isEditing ? 'border-2 border-[#427c36]' : 'border border-green-100 dark:border-green-900'} ${!isEditing ? 'editor-readonly' : ''}`}
+          className={`flex-1 rounded-2xl overflow-hidden bg-white/80 dark:bg-gray-900/80 shadow-sm dark:shadow-none flex flex-col relative ${isEditing ? 'border-2 border-[#1f8a5b]' : 'border border-green-100 dark:border-green-900'} ${!isEditing ? 'editor-readonly' : ''}`}
         >
           {docType === 'sheet' ? (
             <SpreadsheetEditor
@@ -916,8 +957,32 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                 }}
                 readOnly={!isEditing}
                 modules={modules}
+                style={{ '--doc-zoom': zoom / 100 }}
                 className={`flex-1 flex flex-col min-h-0 custom-quill ${isA4Mode ? 'a4-mode' : ''} ${showParagraphMarks ? 'show-paragraph-marks' : ''}`}
               />
+              {/* Word-style status bar */}
+              <Box className="doc-status-bar">
+                <span>Page {Math.max(1, Math.ceil(docStats.words / 500))} est.</span>
+                <span className="doc-status-sep" />
+                <span>{docStats.words.toLocaleString()} {docStats.words === 1 ? 'word' : 'words'}</span>
+                <span className="doc-status-sep" />
+                <span>{docStats.chars.toLocaleString()} characters</span>
+                {!isEditing && <span className="doc-status-mode">Read-only · click Edit to make changes</span>}
+                <Box className="doc-status-zoom">
+                  <button type="button" onClick={() => setZoom((z) => Math.max(50, z - 10))} aria-label="Zoom out">−</button>
+                  <input
+                    type="range"
+                    min={50}
+                    max={200}
+                    step={10}
+                    value={zoom}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    aria-label="Zoom"
+                  />
+                  <button type="button" onClick={() => setZoom((z) => Math.min(200, z + 10))} aria-label="Zoom in">+</button>
+                  <span className="doc-status-zoom-label" onClick={() => setZoom(100)} title="Reset to 100%">{zoom}%</span>
+                </Box>
+              </Box>
               {/* Interactive Table Edit Overlay */}
               {isEditing && tableOverlayStyle && tableEditNode && (
                 <Box sx={{ position: 'absolute', top: tableOverlayStyle.top, left: tableOverlayStyle.left, zIndex: 60 }}>
@@ -1021,7 +1086,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
         {(isEditing || (selectedDocument.attachments && selectedDocument.attachments.length > 0) || pendingAttachments.length > 0) && (
           <Box className="w-full flex items-center gap-1.5 px-2 py-1 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md rounded-xl border border-gray-200/80 dark:border-gray-800 shadow-2xs shrink-0 overflow-x-auto min-h-[32px]">
             <Box className="flex items-center gap-1 shrink-0 text-gray-500 dark:text-gray-400 mr-0.5">
-              <AttachFileIcon sx={{ fontSize: 12, color: '#427c36' }} />
+              <AttachFileIcon sx={{ fontSize: 12, color: '#1f8a5b' }} />
               <Typography variant="caption" sx={{ fontWeight: '700', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Attachments
               </Typography>
@@ -1099,12 +1164,12 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                         px: '8px',
                         minHeight: '22px',
                         borderRadius: '8px',
-                        border: '1px dashed #427c36',
-                        color: '#427c36',
-                        bgcolor: 'rgba(66,124,54,0.04)',
+                        border: '1px dashed #1f8a5b',
+                        color: '#1f8a5b',
+                        bgcolor: 'rgba(31, 138, 91, 0.04)',
                         '&:hover': {
-                          bgcolor: 'rgba(66,124,54,0.1)',
-                          borderColor: '#326127'
+                          bgcolor: 'rgba(31, 138, 91, 0.1)',
+                          borderColor: '#0f2e1f'
                         },
                         shrink: 0
                       }}
@@ -1157,49 +1222,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
       
      
       
-        {/* Table Dimension Grid Popover */}
-        <Popover
-          open={Boolean(tablePopoverAnchor)}
-          anchorEl={tablePopoverAnchor}
-          onClose={() => setTablePopoverAnchor(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-          slotProps={{ paper: { className: 'p-4 rounded-xl shadow-2xl dark:bg-gray-800 border dark:border-gray-700' } }}
-        >
-          <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 'bold', color: 'text.secondary', textAlign: 'center' }}>
-            {hoveredGrid.cols > 0 && hoveredGrid.rows > 0 ? `${hoveredGrid.cols}x${hoveredGrid.rows} Table` : 'Insert Table'}
-          </Typography>
-          <Box className="flex flex-col gap-1" onMouseLeave={() => setHoveredGrid({rows: 0, cols: 0})}>
-            {[...Array(10)].map((_, rowIndex) => (
-              <Box key={rowIndex} className="flex gap-1">
-                {[...Array(10)].map((_, colIndex) => {
-                  const isHovered = rowIndex < hoveredGrid.rows && colIndex < hoveredGrid.cols;
-                  return (
-                    <Box 
-                      key={colIndex} 
-                      onMouseEnter={() => setHoveredGrid({rows: rowIndex + 1, cols: colIndex + 1})}
-                      onClick={() => {
-                        if (quillRef.current) {
-                          const quill = quillRef.current.getEditor();
-                          quill.focus();
-                          quill.setSelection(tableInsertIndex, 0);
-                          const tableModule = quill.getModule('table');
-                          if (tableModule) {
-                            tableModule.insertTable(rowIndex + 1, colIndex + 1);
-                          }
-                        }
-                        setTablePopoverAnchor(null);
-                      }}
-                      className={`w-5 h-5 border rounded-sm cursor-pointer transition-colors ${isHovered ? 'bg-blue-100 border-blue-400 dark:bg-blue-900/60 dark:border-blue-500' : 'bg-gray-50 border-gray-200 dark:bg-gray-700 dark:border-gray-600'}`}
-                    />
-                  )
-                })}
-              </Box>
-            ))}
-          </Box>
-        </Popover>
-
-<Dialog 
+        <Dialog 
         open={historyOpen} 
         onClose={() => setHistoryOpen(false)}
         maxWidth="sm"
@@ -1234,7 +1257,7 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
                           {new Date(entry.editedAt).toLocaleString()}
                         </Typography>
                         {entry.changesSummary && (
-                          <Typography variant="body2" sx={{ mt: 1, p: 1, bgcolor: '#f3f4f6', borderRadius: 1, borderLeft: '3px solid #427c36' }}>
+                          <Typography variant="body2" sx={{ mt: 1, p: 1, bgcolor: '#f3f4f6', borderRadius: 1, borderLeft: '3px solid #1f8a5b' }}>
                             {entry.changesSummary}
                           </Typography>
                         )}
@@ -1248,17 +1271,14 @@ const DocumentEditor = ({ documentId, onBackToLibrary }) => {
           )}
         </List>
       </Dialog>
-      <AIAssistant 
-        open={aiOpen} 
-        onClose={() => setAiOpen(false)} 
-        aiModel={aiModel} 
-        setAiModel={setAiModel} 
-        aiPrompt={aiPrompt} 
-        setAiPrompt={setAiPrompt} 
-        aiResult={aiResult} 
-        isAiLoading={isAiLoading} 
-        onGenerate={handleGenerateAI} 
-        onInsert={handleInsertAI} 
+      <AIAssistant
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        docType={docType}
+        getContext={getAiContext}
+        selectionText={docType === 'doc' ? aiSelection.text : ''}
+        onInsert={handleAiInsert}
+        canInsert={docType === 'doc' && !isStorageExceeded}
       />
     </Box>
   );

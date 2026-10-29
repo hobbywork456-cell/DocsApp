@@ -46,10 +46,13 @@ import SearchIcon from '@mui/icons-material/Search';
 import SortByAlphaIcon from '@mui/icons-material/SortByAlpha';
 import DownloadIcon from '@mui/icons-material/Download';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import AppsIcon from '@mui/icons-material/Apps';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import LaunchIcon from '@mui/icons-material/Launch';
 import CloseIcon from '@mui/icons-material/Close';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import UndoIcon from '@mui/icons-material/Undo';
+import RedoIcon from '@mui/icons-material/Redo';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 
 import './ExcelRibbonToolbar.css';
 
@@ -118,6 +121,17 @@ const SpreadsheetToolbar = ({
   onExportCSV,
   formatPainterActive,
   setFormatPainterActive,
+  onCopy,
+  onCut,
+  onPaste,
+  onFill,
+  onAutoFit,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
+  onFind,
+  findInfo = { count: 0, index: -1, query: '' },
   readOnly = false
 }) => {
   // Anchors for dropdown menus and popovers
@@ -171,40 +185,46 @@ const SpreadsheetToolbar = ({
   };
 
   // Clipboard operations
-  const handlePaste = async () => {
-    if (readOnly) return;
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text !== undefined) {
-        applyFormatting('value', text);
-      }
-    } catch {
-      alert("Press Ctrl + V to paste into the selected cell.");
-    }
-  };
+  // The editor owns the range-aware clipboard; the ribbon only triggers it
+  const handlePaste = () => !readOnly && onPaste?.();
+  const handleCopy = () => onCopy?.();
+  const handleCut = () => !readOnly && onCut?.();
 
-  const handleCopy = async () => {
-    const textToCopy = activeCellData.formula || activeCellData.value || '';
-    try {
-      await navigator.clipboard.writeText(String(textToCopy));
-    } catch {
-      document.execCommand('copy');
-    }
-  };
-
-  const handleCut = async () => {
-    if (readOnly) return;
-    const textToCut = activeCellData.formula || activeCellData.value || '';
-    try {
-      await navigator.clipboard.writeText(String(textToCut));
-      applyFormatting('value', '');
-    } catch {
-      document.execCommand('cut');
-    }
+  // Toolbar buttons must not steal keyboard focus from the grid
+  const keepGridFocus = (e) => {
+    if (!e.target.closest('input, textarea')) e.preventDefault();
   };
 
   return (
-    <Box className="excel-ribbon-container">
+    <Box sx={{ position: 'relative', flexShrink: 0, zIndex: 20 }}>
+    <Box className="excel-ribbon-container" onMouseDown={keepGridFocus}>
+      {/* ── 0. UNDO / REDO ────────────────────────────────────────────── */}
+      <div className="excel-ribbon-group">
+        <div className="excel-ribbon-group-content">
+          <div className="excel-group-row-stack">
+            <Tooltip title="Undo (Ctrl+Z)">
+              <span>
+                <button type="button" className="excel-btn-small" disabled={readOnly || !canUndo} onClick={onUndo}>
+                  <UndoIcon sx={{ fontSize: 15 }} />
+                  <span className="ml-1 text-[11px]">Undo</span>
+                </button>
+              </span>
+            </Tooltip>
+            <Tooltip title="Redo (Ctrl+Y)">
+              <span>
+                <button type="button" className="excel-btn-small" disabled={readOnly || !canRedo} onClick={onRedo}>
+                  <RedoIcon sx={{ fontSize: 15 }} />
+                  <span className="ml-1 text-[11px]">Redo</span>
+                </button>
+              </span>
+            </Tooltip>
+          </div>
+        </div>
+        <div className="excel-ribbon-group-label">
+          <span>Undo</span>
+        </div>
+      </div>
+
       {/* ── 1. CLIPBOARD GROUP ────────────────────────────────────────── */}
       <div className="excel-ribbon-group">
         <div className="excel-ribbon-group-content">
@@ -739,9 +759,9 @@ const SpreadsheetToolbar = ({
               <Tooltip title="Merge & Center">
                 <button
                   type="button"
-                  className={`excel-split-btn-main ${activeCellData.merge ? 'active' : ''}`}
+                  className={`excel-split-btn-main ${activeCellData.mergeRows > 1 || activeCellData.mergeCols > 1 ? 'active' : ''}`}
                   disabled={readOnly}
-                  onClick={() => applyFormatting('merge', !activeCellData.merge)}
+                  onClick={() => applyFormatting('merge', activeCellData.mergeRows > 1 || activeCellData.mergeCols > 1 ? false : 'center')}
                 >
                   <CallMergeIcon sx={{ fontSize: 15, color: '#2563eb' }} />
                   <span className="ml-1 text-[11px] font-medium">Merge &amp; Center</span>
@@ -761,11 +781,8 @@ const SpreadsheetToolbar = ({
               open={Boolean(mergeMenuAnchor)}
               onClose={() => setMergeMenuAnchor(null)}
             >
-              <MenuItem onClick={() => { applyFormatting('merge', true); applyFormatting('align', 'center'); setMergeMenuAnchor(null); }}>
+              <MenuItem onClick={() => { applyFormatting('merge', 'center'); setMergeMenuAnchor(null); }}>
                 Merge &amp; Center
-              </MenuItem>
-              <MenuItem onClick={() => { applyFormatting('merge', true); setMergeMenuAnchor(null); }}>
-                Merge Across
               </MenuItem>
               <MenuItem onClick={() => { applyFormatting('merge', true); setMergeMenuAnchor(null); }}>
                 Merge Cells
@@ -1106,8 +1123,8 @@ const SpreadsheetToolbar = ({
             open={Boolean(formatCellsAnchor)}
             onClose={() => setFormatCellsAnchor(null)}
           >
-            <MenuItem onClick={() => { applyFormatting('valign', 'middle'); setFormatCellsAnchor(null); }}>AutoFit Row Height</MenuItem>
-            <MenuItem onClick={() => { applyFormatting('wrap', true); setFormatCellsAnchor(null); }}>AutoFit Column Content</MenuItem>
+            <MenuItem onClick={() => { onAutoFit?.(); setFormatCellsAnchor(null); }}>AutoFit Column Width</MenuItem>
+            <MenuItem onClick={() => { applyFormatting('wrap', true); setFormatCellsAnchor(null); }}>Wrap Text (auto row height)</MenuItem>
           </Menu>
         </div>
         <div className="excel-ribbon-group-label">
@@ -1162,8 +1179,12 @@ const SpreadsheetToolbar = ({
             open={Boolean(fillMenuAnchor)}
             onClose={() => setFillMenuAnchor(null)}
           >
-            <MenuItem onClick={() => { applyFormatting('value', activeCellData.value || '1'); setFillMenuAnchor(null); }}>Fill Down</MenuItem>
-            <MenuItem onClick={() => { applyFormatting('value', activeCellData.value || '1'); setFillMenuAnchor(null); }}>Fill Right</MenuItem>
+            <MenuItem onClick={() => { onFill?.('down'); setFillMenuAnchor(null); }}>Fill Down (Ctrl+D)</MenuItem>
+            <MenuItem onClick={() => { onFill?.('right'); setFillMenuAnchor(null); }}>Fill Right (Ctrl+R)</MenuItem>
+            <Divider />
+            <Typography variant="caption" sx={{ px: 2, py: 0.5, display: 'block', color: 'text.secondary', maxWidth: 220, whiteSpace: 'normal' }}>
+              Select a range first. Tip: drag the small square at the corner of the selection to fill a series.
+            </Typography>
           </Menu>
 
           {/* Clear */}
@@ -1240,33 +1261,40 @@ const SpreadsheetToolbar = ({
             </button>
           </Tooltip>
 
-          <Tooltip title="Add-ins and Extensions">
-            <button
-              type="button"
-              className="excel-btn-big"
-              onClick={() => alert("Excel Extensions & Add-ins enabled for DocsApp Workspace.")}
-            >
-              <AppsIcon sx={{ fontSize: 24, color: '#6366f1' }} />
-              <span className="excel-btn-big-label">Add-ins</span>
-            </button>
-          </Tooltip>
         </div>
         <div className="excel-ribbon-group-label">
-          <span>Add-ins</span>
+          <span>Export</span>
         </div>
       </div>
+    </Box>
 
-      {/* ── Floating Excel Find Bar ───────────────────────────────────── */}
+      {/* ── Find bar (outside the ribbon so its overflow clipping does not hide it) ── */}
       {findBarOpen && (
-        <div className="excel-find-bar absolute top-full left-0 right-0">
+        <div className="excel-find-bar">
           <SearchIcon sx={{ color: '#107c41', fontSize: 18 }} />
           <InputBase
             autoFocus
-            placeholder="Find in sheet..."
+            placeholder="Find in sheet…"
             value={findText}
             onChange={(e) => setFindText(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') onFind?.(findText, e.shiftKey ? -1 : 1);
+              if (e.key === 'Escape') setFindBarOpen(false);
+            }}
             sx={{ fontSize: '0.8rem', width: 220, bgcolor: 'rgba(0,0,0,0.04)', px: 1, py: 0.2, borderRadius: 1 }}
           />
+          <Typography variant="caption" sx={{ minWidth: 70, color: findInfo.query && !findInfo.count ? '#dc2626' : 'text.secondary', fontWeight: 600 }}>
+            {findInfo.query === findText && findText
+              ? (findInfo.count ? `${findInfo.index + 1} of ${findInfo.count}` : 'No matches')
+              : 'Press Enter'}
+          </Typography>
+          <IconButton size="small" onClick={() => onFind?.(findText, -1)} disabled={!findText}>
+            <NavigateBeforeIcon fontSize="small" />
+          </IconButton>
+          <IconButton size="small" onClick={() => onFind?.(findText, 1)} disabled={!findText}>
+            <NavigateNextIcon fontSize="small" />
+          </IconButton>
           <IconButton size="small" onClick={() => setFindBarOpen(false)}>
             <CloseIcon fontSize="small" />
           </IconButton>

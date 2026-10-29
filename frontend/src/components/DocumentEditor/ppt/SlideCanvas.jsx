@@ -4,7 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import PermMediaIcon from '@mui/icons-material/PermMedia';
-import CloseIcon from '@mui/icons-material/Close';
+import { SlideShapesLayer } from './SlideShape';
 
 const SlideCanvas = ({
   activeSlide,
@@ -12,6 +12,9 @@ const SlideCanvas = ({
   totalSlides,
   activeTheme,
   updateActiveSlide,
+  selectedShapeId,
+  onSelectShape,
+  onUpdateShape,
   readOnly
 }) => {
   if (!activeSlide) return null;
@@ -30,17 +33,6 @@ const SlideCanvas = ({
   const handleDeleteBullet = (bIdx) => {
     const bullets = (activeSlide.bullets || []).filter((_, i) => i !== bIdx);
     updateActiveSlide('bullets', bullets);
-  };
-
-  // Shape manipulations
-  const handleUpdateShapeText = (shapeId, text) => {
-    const shapes = (activeSlide.shapes || []).map((s) => (s.id === shapeId ? { ...s, text } : s));
-    updateActiveSlide('shapes', shapes);
-  };
-
-  const handleDeleteShape = (shapeId) => {
-    const shapes = (activeSlide.shapes || []).filter((s) => s.id !== shapeId);
-    updateActiveSlide('shapes', shapes);
   };
 
   // Dynamic font & paragraph styling from activeSlide
@@ -76,6 +68,10 @@ const SlideCanvas = ({
           background: activeTheme.bg,
           color: activeTheme.textColor,
           position: 'relative'
+        }}
+        onMouseDown={(e) => {
+          // Clicking empty slide area clears the shape selection
+          if (selectedShapeId && !e.target.closest('.slide-shape')) onSelectShape?.(null);
         }}
       >
         {/* Top-Right Slide Number / Layout Pill */}
@@ -527,89 +523,15 @@ const SlideCanvas = ({
           </Box>
         )}
 
-        {/* INSERTED SHAPES & TEXT BOXES FROM DRAWING RIBBON */}
-        {(activeSlide.shapes || []).map((shape) => (
-          <Box
-            key={shape.id}
-            sx={{
-              position: 'absolute',
-              left: `${shape.x || 60}px`,
-              top: `${shape.y || 80}px`,
-              width: `${shape.width || 140}px`,
-              minHeight: `${shape.height || 60}px`,
-              background: shape.fill || activeTheme.cardBg,
-              border: `${shape.strokeWidth || 2}px solid ${shape.stroke || activeTheme.accentColor}`,
-              borderRadius: shape.type === 'rounded_rect' ? '12px' : shape.type === 'oval' ? '50%' : '4px',
-              boxShadow: shape.shadow ? '0 4px 14px rgba(0, 0, 0, 0.25)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              p: 1,
-              zIndex: 10,
-              transition: 'box-shadow 0.15s ease'
-            }}
-          >
-            {shape.type === 'textbox' ? (
-              <textarea
-                value={shape.text || ''}
-                placeholder="Type text in text box..."
-                disabled={readOnly}
-                onChange={(e) => handleUpdateShapeText(shape.id, e.target.value)}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  minHeight: '40px',
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  resize: 'none',
-                  color: bodyColor,
-                  fontFamily: activeSlide.fontFamily || 'inherit',
-                  fontSize: activeSlide.fontSize ? `${activeSlide.fontSize}px` : '14px',
-                  textAlign: activeSlide.textAlign || 'center',
-                  fontWeight: activeSlide.isBold ? 700 : 400
-                }}
-              />
-            ) : (
-              <input
-                type="text"
-                value={shape.text || ''}
-                placeholder={shape.type.toUpperCase()}
-                disabled={readOnly}
-                onChange={(e) => handleUpdateShapeText(shape.id, e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: bodyColor,
-                  width: '100%',
-                  textAlign: 'center',
-                  fontWeight: 600,
-                  fontSize: '0.85rem'
-                }}
-              />
-            )}
-            {!readOnly && (
-              <IconButton
-                size="small"
-                onClick={() => handleDeleteShape(shape.id)}
-                sx={{
-                  position: 'absolute',
-                  top: -8,
-                  right: -8,
-                  backgroundColor: '#ef4444',
-                  color: '#ffffff',
-                  width: 18,
-                  height: 18,
-                  padding: 0,
-                  '&:hover': { backgroundColor: '#dc2626' }
-                }}
-              >
-                <CloseIcon sx={{ fontSize: 12 }} />
-              </IconButton>
-            )}
-          </Box>
-        ))}
+        {/* INSERTED SHAPES & TEXT BOXES (move, resize, double-click to type) */}
+        <SlideShapesLayer
+          shapes={activeSlide.shapes || []}
+          editable={!readOnly}
+          selectedId={selectedShapeId}
+          onSelect={onSelectShape}
+          onChangeShape={onUpdateShape}
+          defaultTextColor={bodyColor}
+        />
       </Box>
     </Box>
   );

@@ -105,7 +105,7 @@
 
 .dark .ribbon-btn.active {
   background: rgba(59, 130, 246, 0.25) !important;
-  border-color: #60a5fa !important;
+  border-color: #7fd4a6 !important;
   color: #93c5fd !important;
 }
 
@@ -144,7 +144,7 @@
 }
 
 .dark .ribbon-dropdown-btn:hover {
-  border-color: #60a5fa;
+  border-color: #7fd4a6;
   background: #334155;
 }
 
@@ -223,7 +223,7 @@
 
 .dark .word-find-replace-bar {
   background: #1e293b;
-  border-bottom-color: #60a5fa;
+  border-bottom-color: #7fd4a6;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
 }
 

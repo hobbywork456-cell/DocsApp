@@ -81,7 +81,7 @@ const ResetPassword = () => {
             type="submit" 
             variant="contained" 
             disabled={loading || !password || !confirmPassword}
-            className="mt-2 py-3 bg-gradient-to-r from-[#60a5fa] to-[#427c36] text-white"
+            className="mt-2 py-3 bg-gradient-to-r from-[#c8f1da] to-[#93ddb6] text-[#0b1410]"
             sx={{ borderRadius: '8px', textTransform: 'none' }}
           >
             {loading ? <CircularProgress size={24} color="inherit" /> : 'Reset Password'}

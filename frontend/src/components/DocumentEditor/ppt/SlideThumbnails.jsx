@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Typography, IconButton, Tooltip } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
@@ -6,6 +6,20 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { SlideShapesLayer } from './SlideShape';
+
+// Short text lines summarising a slide's body for the mini preview
+const previewLines = (slide) => {
+  switch (slide.layout) {
+    case 'bullets': return (slide.bullets || []).slice(0, 4);
+    case 'two-column':
+    case 'comparison': return [slide.leftColumn, slide.rightColumn].filter(Boolean);
+    case 'three-column': return [slide.col1Title, slide.col2Title, slide.col3Title].filter(Boolean);
+    case 'metric': return [slide.metricNumber, slide.metricLabel].filter(Boolean);
+    case 'quote': return [slide.quoteText ? `“${slide.quoteText}”` : '', slide.quoteAuthor].filter(Boolean);
+    default: return [slide.subtitle].filter(Boolean);
+  }
+};
 
 const SlideThumbnails = ({
   slides,
@@ -15,10 +29,14 @@ const SlideThumbnails = ({
   onDuplicateSlide,
   onDeleteSlide,
   onMoveSlide,
+  onReorderSlide,
   onStartPresentation,
   activeTheme,
   readOnly
 }) => {
+  const [dragFrom, setDragFrom] = useState(null);
+  const [dropAt, setDropAt] = useState(null);
+
   return (
     <Box className="thumbnails-sidebar custom-scrollbar">
       <Box className="thumbnails-header">
@@ -50,8 +68,28 @@ const SlideThumbnails = ({
           return (
             <Box
               key={slide.id || sIdx}
-              className={`thumbnail-card ${isSelected ? 'selected' : ''}`}
+              className={`thumbnail-card ${isSelected ? 'selected' : ''}${dropAt === sIdx && dragFrom !== null && dragFrom !== sIdx ? (dragFrom < sIdx ? ' drop-after' : ' drop-before') : ''}${dragFrom === sIdx ? ' dragging' : ''}`}
               onClick={() => onSelectSlide(sIdx)}
+              draggable={!readOnly}
+              onDragStart={(e) => {
+                setDragFrom(sIdx);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(e) => {
+                if (dragFrom === null) return;
+                e.preventDefault();
+                setDropAt(sIdx);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragFrom !== null) onReorderSlide?.(dragFrom, sIdx);
+                setDragFrom(null);
+                setDropAt(null);
+              }}
+              onDragEnd={() => {
+                setDragFrom(null);
+                setDropAt(null);
+              }}
             >
               {/* Slide Number */}
               <Typography className="thumbnail-num">
@@ -69,9 +107,12 @@ const SlideThumbnails = ({
                 <Typography className="preview-title" style={{ color: activeTheme.titleColor }}>
                   {slide.title || 'Untitled Slide'}
                 </Typography>
-                <Typography className="preview-sub" style={{ color: activeTheme.textColor }}>
-                  {slide.layout ? `${slide.layout.toUpperCase()}` : ''}
-                </Typography>
+                {previewLines(slide).map((line, i) => (
+                  <Typography key={i} className="preview-sub" style={{ color: activeTheme.textColor }}>
+                    {slide.layout === 'bullets' ? '• ' : ''}{line}
+                  </Typography>
+                ))}
+                <SlideShapesLayer shapes={slide.shapes || []} defaultTextColor={activeTheme.textColor} />
               </Box>
 
               {/* Slide Actions on Hover */}

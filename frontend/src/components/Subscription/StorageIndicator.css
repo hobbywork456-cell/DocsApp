@@ -22,17 +22,17 @@
 
 .storage-indicator-container:hover {
   background: rgba(0, 0, 0, 0.02) !important;
-  border-color: rgba(66, 124, 54, 0.3);
+  border-color: rgba(31, 138, 91, 0.3);
   transform: translateY(-1px);
 }
 
 .dark .storage-indicator-container:hover {
   background: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(96, 165, 250, 0.3);
+  border-color: rgba(168, 230, 195, 0.3);
 }
 
 .storage-bar-normal {
-  border-left: 2.5px solid var(--color-theme-main, #427c36);
+  border-left: 2.5px solid var(--color-theme-main, #1f8a5b);
 }
 
 .storage-bar-warning {
@@ -119,15 +119,15 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #326127 100%) !important;
-  color: white !important;
-  box-shadow: 0 1px 5px rgba(59, 130, 246, 0.3) !important;
+  background: linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%) !important;
+  color: #0b1410 !important;
+  box-shadow: 0 1px 5px rgba(31, 138, 91, 0.3) !important;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1f4d1d 100%) !important;
+  background: linear-gradient(135deg, #a8e6c3 0%, #6fcb9a 100%) !important;
   filter: brightness(1.06);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(31, 138, 91, 0.45) !important;
   transform: translateY(-0.5px);
 }
 

@@ -108,7 +108,7 @@ function parsePptxBuffer(buffer, originalname) {
 // Helper: Parse Spreadsheet buffer into Workbook sheets JSON
 function parseSpreadsheetBuffer(buffer, originalname) {
   try {
-    const workbook = xlsx.read(buffer, { type: 'buffer' });
+    const workbook = xlsx.read(buffer, { type: 'buffer', cellNF: true });
     const sheetNames = workbook.SheetNames && workbook.SheetNames.length > 0 ? workbook.SheetNames : ['Sheet1'];
 
     const sheets = sheetNames.map((name, idx) => {
@@ -131,21 +131,50 @@ function parseSpreadsheetBuffer(buffer, originalname) {
           const coord = xlsx.utils.encode_cell({ r: R, c: C });
           const cell = sheet[coord];
           if (cell && cell.v !== undefined) {
-            cells[coord] = {
-              value: String(cell.w !== undefined ? cell.w : cell.v)
-            };
-            if (cell.f) {
-              cells[coord].formula = `=${cell.f}`;
+            // Keep raw numbers (not the display text) so formulas can compute, and map the number format
+            const out = {};
+            if (cell.t === 'n') {
+              out.value = String(cell.v);
+              const z = String(cell.z || '');
+              if (/%/.test(z)) out.format = 'percent';
+              else if (/[$₹€£¥]/.test(z)) {
+                out.format = 'currency';
+                const sym = z.match(/[$₹€£¥]/);
+                if (sym) out.currencySymbol = sym[0];
+              } else if (/[dmy]{1,4}/i.test(z) && !/0/.test(z)) out.format = /h|s/i.test(z) ? 'time' : 'shortDate';
+              else if (/#,##0/.test(z)) out.format = 'comma';
+              const dec = z.match(/\.(0+)/);
+              if (out.format && dec) out.decimals = dec[1].length;
+            } else if (cell.t === 'b') {
+              out.value = cell.v ? 'TRUE' : 'FALSE';
+            } else {
+              out.value = String(cell.w !== undefined ? cell.w : cell.v);
             }
+            if (cell.f) {
+              out.formula = `=${cell.f}`;
+              delete out.value;
+            }
+            cells[coord] = out;
           }
         }
       }
 
+      (sheet['!merges'] || []).forEach((m) => {
+        const coord = xlsx.utils.encode_cell(m.s);
+        cells[coord] = { ...(cells[coord] || {}), mergeRows: m.e.r - m.s.r + 1, mergeCols: m.e.c - m.s.c + 1 };
+      });
+
+      const colWidths = {};
+      (sheet['!cols'] || []).forEach((col, c) => {
+        if (col && (col.wpx || col.wch)) colWidths[c] = Math.round(col.wpx || col.wch * 7.5 + 10);
+      });
+
       return {
         id: `sheet${idx + 1}`,
         name: name || `Sheet${idx + 1}`,
-        rowCount: Math.max(30, range.e.r + 5),
-        colCount: Math.max(12, range.e.c + 3),
+        rowCount: Math.max(50, range.e.r + 10),
+        colCount: Math.max(15, range.e.c + 3),
+        colWidths,
         cells
       };
     });
@@ -371,21 +400,46 @@ async function verifyGroupMembership(userId, groupId) {
   return group.members.some(m => m.toString() === userId.toString());
 }
 
-// Get all documents for a group
+// Get all documents for a group or across all accessible groups
 router.get('/', auth, async (req, res) => {
   try {
-    const { groupId } = req.query;
-    if (!groupId) {
-      return res.status(400).json({ message: 'groupId query parameter is required' });
+    const { groupId, all, search } = req.query;
+
+    // Get all groups user has membership in
+    const userGroups = await Group.find({ members: req.user.userId }).select('groupId name').lean();
+    let allowedGroupIds = userGroups.map(g => (g.groupId || '').trim().toLowerCase()).filter(Boolean);
+
+    if (req.user.role === 'superadmin') {
+      const allGroups = await Group.find({}).select('groupId name').lean();
+      allGroups.forEach(g => {
+        const gid = (g.groupId || '').trim().toLowerCase();
+        if (gid && !allowedGroupIds.includes(gid)) allowedGroupIds.push(gid);
+      });
     }
 
-    const normalizedGroupId = groupId.trim().toLowerCase();
-    const isMember = await verifyGroupMembership(req.user.userId, normalizedGroupId);
-    if (!isMember) {
-      return res.status(403).json({ message: 'Access denied. You are not a member of this group.' });
+    let filter = {};
+
+    if (groupId && groupId !== 'all') {
+      const normalizedGroupId = groupId.trim().toLowerCase();
+      if (!allowedGroupIds.includes(normalizedGroupId)) {
+        return res.status(403).json({ message: 'Access denied. You are not a member of this group.' });
+      }
+      filter.groupId = normalizedGroupId;
+    } else {
+      filter.groupId = { $in: allowedGroupIds };
     }
 
-    const documents = await Document.find({ groupId: normalizedGroupId })
+    if (search && search.trim()) {
+      const q = search.trim();
+      const cleanTag = q.replace(/^#+/, '').replace(/^tags?:\s*/, '').trim();
+      filter.$or = [
+        { title: { $regex: q, $options: 'i' } },
+        { content: { $regex: q, $options: 'i' } },
+        { tags: { $regex: cleanTag, $options: 'i' } }
+      ];
+    }
+
+    const documents = await Document.find(filter)
       .sort({ updatedAt: -1 })
       .populate('history.editedBy', 'email')
       .populate('owner', 'email')

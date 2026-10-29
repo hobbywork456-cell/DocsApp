@@ -14,7 +14,7 @@ const TierSchema = new mongoose.Schema({
 
 const SystemSettingsSchema = new mongoose.Schema({
   key: { type: String, default: 'global_config', unique: true },
-  freeStorageMB: { type: Number, default: 50, required: true },
+  freeStorageMB: { type: Number, default: 25, required: true },
   warningThresholdPercent: { type: Number, default: 80, required: true },
   currency: { type: String, default: 'USD' },
   currencySymbol: { type: String, default: '$' },
@@ -30,7 +30,7 @@ SystemSettingsSchema.statics.getSettings = async function() {
   if (!settings) {
     settings = await this.create({
       key: 'global_config',
-      freeStorageMB: 50,
+      freeStorageMB: 25,
       warningThresholdPercent: 80,
       currency: 'USD',
       currencySymbol: '$',
@@ -106,6 +106,9 @@ SystemSettingsSchema.statics.getSettings = async function() {
         }
       ]
     });
+  } else if (settings && (settings.freeStorageMB === 50 || !settings.freeStorageMB)) {
+    settings.freeStorageMB = 25;
+    await settings.save();
   }
   return settings;
 };

@@ -76,9 +76,9 @@
 }
 
 .ppt-action-btn:hover {
-  background-color: rgba(66, 124, 54, 0.08) !important;
-  border-color: #427c36 !important;
-  color: #427c36 !important;
+  background-color: rgba(31, 138, 91, 0.08) !important;
+  border-color: #1f8a5b !important;
+  color: #1f8a5b !important;
 }
 
 .ppt-icon-btn {
@@ -89,28 +89,28 @@
 }
 
 .ppt-icon-btn:hover {
-  background-color: rgba(66, 124, 54, 0.1) !important;
-  color: #427c36 !important;
+  background-color: rgba(31, 138, 91, 0.1) !important;
+  color: #1f8a5b !important;
 }
 
 .ppt-icon-btn.active {
-  background-color: rgba(66, 124, 54, 0.18) !important;
-  color: #427c36 !important;
+  background-color: rgba(31, 138, 91, 0.18) !important;
+  color: #1f8a5b !important;
 }
 
 .ppt-present-btn {
-  background: linear-gradient(135deg, #2563eb 0%, #326127 100%) !important;
-  color: #ffffff !important;
+  background: linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%) !important;
+  color: #0b1410 !important;
   font-weight: 600 !important;
   text-transform: none !important;
   border-radius: 8px !important;
   padding: 5px 16px !important;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25) !important;
+  box-shadow: 0 2px 8px rgba(31, 138, 91, 0.25) !important;
   transition: all 0.2s ease !important;
 }
 
 .ppt-present-btn:hover {
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(31, 138, 91, 0.35) !important;
   transform: translateY(-1px);
 }
 
@@ -161,13 +161,13 @@
 }
 
 .add-slide-btn {
-  color: #427c36 !important;
-  background: rgba(66, 124, 54, 0.1) !important;
+  color: #1f8a5b !important;
+  background: rgba(31, 138, 91, 0.1) !important;
   padding: 4px !important;
 }
 
 .add-slide-btn:hover {
-  background: rgba(66, 124, 54, 0.2) !important;
+  background: rgba(31, 138, 91, 0.2) !important;
 }
 
 .thumbnails-list {
@@ -765,7 +765,7 @@
   display: flex;
   align-items: center;
   font-weight: 700 !important;
-  color: #427c36;
+  color: #1f8a5b;
 }
 
 .notes-textarea {
@@ -855,8 +855,8 @@
 }
 
 .layout-card.selected {
-  border-color: #427c36;
-  background: rgba(66, 124, 54, 0.08);
+  border-color: #1f8a5b;
+  background: rgba(31, 138, 91, 0.08);
 }
 
 .layout-card-icon-area {
@@ -881,7 +881,7 @@
 }
 
 .layout-card.selected .layout-card-icon {
-  color: #427c36;
+  color: #1f8a5b;
 }
 
 .layout-card-name {
@@ -1053,4 +1053,232 @@
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.7);
+}
+
+/* ==========================================================================
+   Shapes (shared by editor canvas, thumbnails, read mode and slideshow)
+   ========================================================================== */
+.slide-shapes-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  container-type: inline-size;
+  z-index: 10;
+}
+
+.slide-shape {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.slide-shape.editable {
+  pointer-events: auto;
+  cursor: move;
+}
+
+.slide-shape.has-shadow {
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.28));
+}
+
+.slide-shape.editable:hover:not(.selected) {
+  outline: 1px dashed rgba(59, 130, 246, 0.8);
+  outline-offset: 2px;
+}
+
+.slide-shape.selected {
+  outline: 1.5px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.slide-shape-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.slide-shape-text {
+  position: relative;
+  width: 100%;
+  max-height: 100%;
+  padding: 4% 6%;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+.slide-shape-text.placeholder {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+textarea.slide-shape-text.editing {
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  pointer-events: auto;
+  cursor: text;
+  display: flex;
+}
+
+.slide-shape-handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: #ffffff;
+  border: 1.5px solid #3b82f6;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+  z-index: 2;
+}
+.slide-shape-handle.h-nw { top: -7px; left: -7px; cursor: nwse-resize; }
+.slide-shape-handle.h-n  { top: -7px; left: calc(50% - 5px); cursor: ns-resize; }
+.slide-shape-handle.h-ne { top: -7px; right: -7px; cursor: nesw-resize; }
+.slide-shape-handle.h-e  { top: calc(50% - 5px); right: -7px; cursor: ew-resize; }
+.slide-shape-handle.h-se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+.slide-shape-handle.h-s  { bottom: -7px; left: calc(50% - 5px); cursor: ns-resize; }
+.slide-shape-handle.h-sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+.slide-shape-handle.h-w  { top: calc(50% - 5px); left: -7px; cursor: ew-resize; }
+
+/* Contextual "Shape Format" bar */
+.shape-format-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 10px 16px 0;
+  padding: 5px 8px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #fed7aa;
+  box-shadow: 0 4px 14px rgba(196, 62, 28, 0.08);
+  animation: slideFadeIn 0.15s ease-out;
+}
+
+.dark .shape-format-bar {
+  background: #1e293b;
+  border-color: #7c2d12;
+}
+
+.shape-bar-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c43e1c;
+  padding: 0 8px 0 4px;
+}
+
+.shape-bar-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.dark .shape-bar-btn { color: #cbd5e1; }
+
+.shape-bar-btn:hover { background: #fff7ed; color: #c43e1c; }
+.dark .shape-bar-btn:hover { background: rgba(196, 62, 28, 0.18); color: #fdba74; }
+.shape-bar-btn.active { background: #ffedd5; color: #c43e1c; }
+.dark .shape-bar-btn.active { background: rgba(196, 62, 28, 0.3); color: #fdba74; }
+.shape-bar-btn.danger:hover { background: #fee2e2; color: #dc2626; }
+
+.shape-bar-chip {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+}
+
+.shape-bar-select {
+  height: 26px;
+  margin: 0 2px;
+  padding: 0 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
+
+.shape-bar-size {
+  min-width: 22px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.shape-bar-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: #e2e8f0;
+}
+
+.dark .shape-bar-sep { background: #334155; }
+
+.shape-bar-hint {
+  margin-left: auto;
+  padding: 0 6px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.shape-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.shape-swatch:hover { transform: scale(1.15); }
+
+@media (max-width: 1100px) {
+  .shape-bar-hint { display: none; }
+}
+
+/* Thumbnails: live mini preview + drag reorder */
+.thumbnail-preview {
+  position: relative;
+  overflow: hidden;
+}
+
+.thumbnail-card.dragging { opacity: 0.45; }
+.thumbnail-card.drop-before { box-shadow: 0 -3px 0 0 #c43e1c; }
+.thumbnail-card.drop-after { box-shadow: 0 3px 0 0 #c43e1c; }
+
+/* Slideshow shapes frame (16:9, centred) */
+.slideshow-shapes-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(100vw, 177.78vh);
+  aspect-ratio: 16 / 9;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }

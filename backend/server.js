@@ -1,14 +1,22 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+// Load backend/.env no matter which folder the server is started from
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const app = express();
 
 app.use(cors({
   origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'].filter(Boolean)
 }));
-app.use(express.json());
+// Documents carry inline content (base64 images, workbook/deck JSON), so the 100kb default is far too small
+app.use(express.json({
+  limit: '25mb',
+  // Razorpay webhooks are signed over the exact raw bytes
+  verify: (req, res, buf) => {
+    if (req.originalUrl.startsWith('/api/subscription/webhook')) req.rawBody = buf;
+  }
+}));
 
 const path = require('path');
 
@@ -40,6 +48,11 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/docs_a
 const Group = require('./models/Group');
 const Document = require('./models/Document');
 const User = require('./models/User');
+
+// A stray rejected promise in one request must never take the whole API down
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason && reason.message ? reason.message : reason);
+});
 
 mongoose.connect(MONGODB_URI)
   .then(async () => {

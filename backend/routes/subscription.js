@@ -12,98 +12,83 @@ const {
   invalidateStorageCache 
 } = require('../utils/storage');
 
-// Initialize Razorpay client safely
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
+/// ── Razorpay client setup ─────────────────────────────────────────────────
+// Keys come from backend/.env: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
+// (rzp_test_… keys open the real checkout in Razorpay test mode; rzp_live_… keys take real payments)
+const RAZORPAY_KEY_ID         = (process.env.RAZORPAY_KEY_ID || '').trim();
+const RAZORPAY_KEY_SECRET     = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+const RAZORPAY_WEBHOOK_SECRET = (process.env.RAZORPAY_WEBHOOK_SECRET || '').trim();
+
+const isLiveRazorpayKey = Boolean(
+  /^rzp_(test|live)_/.test(RAZORPAY_KEY_ID) &&
+  RAZORPAY_KEY_SECRET &&
+  !/placeholder|YOUR_RAZORPAY/i.test(RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET)
+);
+const razorpayMode = RAZORPAY_KEY_ID.startsWith('rzp_live_') ? 'live' : 'test';
 
 let razorpayClient = null;
-const isLiveRazorpayKey = RAZORPAY_KEY_ID && 
-  RAZORPAY_KEY_SECRET && 
-  !RAZORPAY_KEY_ID.includes('placeholder') &&
-  !RAZORPAY_KEY_ID.includes('docsapp');
-
 if (isLiveRazorpayKey) {
   try {
-    razorpayClient = new Razorpay({
-      key_id: RAZORPAY_KEY_ID,
-      key_secret: RAZORPAY_KEY_SECRET
-    });
-    console.log('[Razorpay] Live client initialized successfully');
+    razorpayClient = new Razorpay({ key_id: RAZORPAY_KEY_ID, key_secret: RAZORPAY_KEY_SECRET });
+    console.log(`[Razorpay] ✓ Client initialized (${razorpayMode} mode).`);
   } catch (err) {
-    console.warn('[Razorpay] Client initialization warning:', err.message);
+    console.warn('[Razorpay] ⚠ Client init warning:', err.message);
   }
+} else {
+  console.log('[Razorpay] ⚠ RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET missing or invalid in .env — checkout disabled.');
 }
 
-// Predefined Dedicated Storage Booster Packs
-const STORAGE_BOOSTERS = [
-  {
-    id: 'booster-50mb',
-    name: '+50 MB Quick Storage Boost',
-    storageMB: 50,
-    price: 99,
-    currency: 'INR',
-    currencySymbol: '₹',
-    badge: 'Starter Booster',
-    description: 'Instant +50 MB extra cloud storage space added directly to your account',
-    features: [
-      '+50 MB permanent workspace storage allocation',
-      'Instant quota unlock for blocked documents',
-      'Shared across all groups you create',
-      'Stackable with other plans'
-    ]
-  },
-  {
-    id: 'booster-100mb',
-    name: '+100 MB Power Pack',
-    storageMB: 100,
-    price: 199,
-    currency: 'INR',
-    currencySymbol: '₹',
-    badge: 'Most Popular Booster',
-    isPopular: true,
-    description: 'High-capacity boost (+100 MB) for active teams and large attachments',
-    features: [
-      '+100 MB dedicated storage space',
-      'Supports high-resolution images & PDFs',
-      'Permanent quota upgrade across all groups',
-      'Priority upload speed & sync'
-    ]
-  },
-  {
-    id: 'booster-250mb',
-    name: '+250 MB Team Expansion',
-    storageMB: 250,
-    price: 399,
-    currency: 'INR',
-    currencySymbol: '₹',
-    badge: 'High Capacity',
-    description: '+250 MB heavy-duty storage upgrade for multiple team workflows',
-    features: [
-      '+250 MB enterprise-tier capacity expansion',
-      'Unlimited uploads and file attachments',
-      'All team members share workspace quota',
-      'Instant activation upon Razorpay payment'
-    ]
-  },
-  {
-    id: 'booster-500mb',
-    name: '+500 MB Mega Vault',
-    storageMB: 500,
-    price: 699,
-    currency: 'INR',
-    currencySymbol: '₹',
-    badge: 'Maximum Value',
-    description: '+500 MB maximum cloud capacity booster for complete peace of mind',
-    features: [
-      '+500 MB maximum storage expansion',
-      'Never run out of workspace storage',
-      'All group documentation permanently backed up',
-      '24/7 dedicated priority sync'
-    ]
-  }
-];
+const safeEqual = (a, b) => {
+  const x = Buffer.from(String(a || ''));
+  const y = Buffer.from(String(b || ''));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
 
-// 1. Get current public tariff and pricing plans
+/**
+ * Records a paid order as an active storage subscription. Idempotent on the payment id,
+ * so the checkout callback and the webhook can both call it safely.
+ */
+const activateSubscription = async ({ userId, planId, orderId, paymentId, signature, amountPaise }) => {
+  const existing = await Subscription.findOne({ transactionId: paymentId });
+  if (existing) return { subscription: existing, alreadyRecorded: true };
+
+  const settings = await SystemSettings.getSettings();
+  const tier = (settings.tiers || []).find((t) => t.id === planId);
+  if (!tier) throw new Error(`Unknown plan "${planId}" on paid order ${orderId}`);
+
+  const subscription = new Subscription({
+    user: userId,
+    planId: tier.id,
+    planName: tier.name,
+    bonusStorageMB: tier.storageMB,
+    price: amountPaise ? amountPaise / 100 : tier.price,
+    currency: settings.currencySymbol || '₹',
+    status: 'active',
+    paymentMethod: 'Razorpay',
+    transactionId: paymentId,
+    razorpayOrderId: orderId,
+    razorpayPaymentId: paymentId,
+    razorpaySignature: signature || 'webhook',
+    purchaseType: 'subscription',
+    startDate: new Date(),
+    expiresAt: tier.period === 'lifetime' || tier.period === 'one-time'
+      ? undefined
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+  });
+  try {
+    await subscription.save();
+  } catch (err) {
+    // Webhook and checkout callback raced: the other one already saved it
+    if (err.code === 11000) return { subscription: await Subscription.findOne({ transactionId: paymentId }), alreadyRecorded: true };
+    throw err;
+  }
+
+  await User.findByIdAndUpdate(userId, { isSubscribed: true, currentPlan: tier.name });
+  invalidateStorageCache(userId);
+  return { subscription, tier, alreadyRecorded: false };
+};
+
+// ── 1. Public tariff & pricing ────────────────────────────────────────────
 router.get('/tariff', async (req, res) => {
   try {
     const settings = await SystemSettings.getSettings();
@@ -113,21 +98,21 @@ router.get('/tariff', async (req, res) => {
       currency: settings.currency || 'INR',
       currencySymbol: settings.currencySymbol || '₹',
       pricePer50MB: settings.pricePer50MB || 99,
-      tiers: settings.tiers || [],
-      boosters: STORAGE_BOOSTERS
+      tiers: settings.tiers || []
     });
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving tariff details', error: error.message });
   }
 });
 
-// 2. Get Razorpay Public Configuration
+// ── 2. Razorpay public config (only the public key id is ever sent to the browser) ──
 router.get('/razorpay-config', async (req, res) => {
   try {
     const settings = await SystemSettings.getSettings();
     res.json({
-      keyId: RAZORPAY_KEY_ID,
-      isLive: Boolean(isLiveRazorpayKey && razorpayClient),
+      keyId: razorpayClient ? RAZORPAY_KEY_ID : '',
+      isLive: Boolean(razorpayClient),
+      mode: razorpayClient ? razorpayMode : null,
       currency: settings.currency || 'INR',
       currencySymbol: settings.currencySymbol || '₹'
     });
@@ -136,7 +121,7 @@ router.get('/razorpay-config', async (req, res) => {
   }
 });
 
-// 3. Get user's personal storage usage and quota
+// ── 3. User's personal storage usage ─────────────────────────────────────
 router.get('/usage', auth, async (req, res) => {
   try {
     const stats = await getUserStorageStats(req.user.userId);
@@ -146,274 +131,327 @@ router.get('/usage', auth, async (req, res) => {
   }
 });
 
-// 4. Get storage quota for a specific group workspace
+// ── 4. Group storage usage ────────────────────────────────────────────────
 router.get('/group-usage/:groupId', auth, async (req, res) => {
   try {
     const stats = await getGroupStorageStats(req.params.groupId);
-    if (!stats) {
-      return res.status(404).json({ message: 'Group not found' });
-    }
+    if (!stats) return res.status(404).json({ message: 'Group not found' });
     res.json(stats);
   } catch (error) {
     res.status(500).json({ message: 'Error checking group storage quota', error: error.message });
   }
 });
 
-// 5. Create Razorpay Order
+// ── 5. Create Razorpay Order ──────────────────────────────────────────────
 router.post('/create-order', auth, async (req, res) => {
   try {
-    const { planId, isStoragePack = false, storageMB, price, currency = 'INR' } = req.body;
-
-    if (!planId) {
-      return res.status(400).json({ message: 'Plan or booster ID is required' });
+    if (!razorpayClient) {
+      return res.status(503).json({ message: 'Online payments are not configured on the server. Please contact the administrator.' });
     }
-
-    let finalItem = null;
-    let finalAmount = 0;
-    let finalStorageMB = 0;
-    let finalName = '';
-
-    if (isStoragePack) {
-      const booster = STORAGE_BOOSTERS.find(b => b.id === planId);
-      if (!booster) {
-        return res.status(400).json({ message: 'Invalid storage booster pack selected' });
-      }
-      finalItem = booster;
-      finalAmount = booster.price;
-      finalStorageMB = booster.storageMB;
-      finalName = booster.name;
-    } else {
-      const settings = await SystemSettings.getSettings();
-      const tier = (settings.tiers || []).find(t => t.id === planId);
-      if (!tier) {
-        return res.status(400).json({ message: 'Invalid subscription tier selected' });
-      }
-      finalItem = tier;
-      finalAmount = tier.price;
-      finalStorageMB = tier.storageMB;
-      finalName = tier.name;
-    }
-
-    // Razorpay requires amount in paise (1 INR = 100 paise)
-    const amountInPaise = Math.round(finalAmount * 100);
-    const receipt = `rcpt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-
-    // If live Razorpay client is ready, create official order via Razorpay API
-    if (isLiveRazorpayKey && razorpayClient) {
-      try {
-        const order = await razorpayClient.orders.create({
-          amount: amountInPaise,
-          currency: 'INR',
-          receipt,
-          notes: {
-            userId: req.user.userId.toString(),
-            planId,
-            planName: finalName,
-            isStoragePack: isStoragePack ? 'true' : 'false',
-            storageMB: finalStorageMB.toString()
-          }
-        });
-
-        return res.status(200).json({
-          orderId: order.id,
-          amount: order.amount,
-          currency: order.currency,
-          keyId: RAZORPAY_KEY_ID,
-          planId,
-          planName: finalName,
-          storageMB: finalStorageMB,
-          isStoragePack,
-          isLive: true
-        });
-      } catch (rzpErr) {
-        console.error('[Razorpay Order Creation Error]:', rzpErr);
-        // Fall back gracefully to mock order if Razorpay rejects due to test sandbox credentials
-      }
-    }
-
-    // Test / Sandbox Fallback Order
-    const mockOrderId = `order_test_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    res.status(200).json({
-      orderId: mockOrderId,
-      amount: amountInPaise,
-      currency: 'INR',
-      keyId: RAZORPAY_KEY_ID || 'rzp_test_docsapp',
-      planId,
-      planName: finalName,
-      storageMB: finalStorageMB,
-      isStoragePack,
-      isLive: false
-    });
-  } catch (error) {
-    console.error('Create Order Error:', error);
-    res.status(500).json({ message: 'Error generating Razorpay order', error: error.message });
-  }
-});
-
-// 6. Verify Razorpay Payment Signature and Activate Quota
-router.post('/verify-payment', auth, async (req, res) => {
-  try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      planId,
-      isStoragePack = false
-    } = req.body;
-
-    if (!razorpay_order_id || !razorpay_payment_id) {
-      return res.status(400).json({ message: 'Missing Razorpay transaction references' });
-    }
-
-    // Cryptographic signature verification if live credentials
-    if (isLiveRazorpayKey && razorpay_signature) {
-      const generatedSignature = crypto
-        .createHmac('sha256', RAZORPAY_KEY_SECRET)
-        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-        .digest('hex');
-
-      if (generatedSignature !== razorpay_signature) {
-        return res.status(400).json({
-          message: 'Razorpay payment signature verification failed. Untrusted transaction.'
-        });
-      }
-    }
-
-    // Find details
-    let planName = '';
-    let bonusStorageMB = 50;
-    let price = 99;
-    let currencySymbol = '₹';
-
-    if (isStoragePack) {
-      const booster = STORAGE_BOOSTERS.find(b => b.id === planId);
-      if (booster) {
-        planName = booster.name;
-        bonusStorageMB = booster.storageMB;
-        price = booster.price;
-        currencySymbol = booster.currencySymbol;
-      } else {
-        planName = `Storage Booster (+${req.body.storageMB || 50} MB)`;
-        bonusStorageMB = Number(req.body.storageMB) || 50;
-        price = Number(req.body.price) || 99;
-      }
-    } else {
-      const settings = await SystemSettings.getSettings();
-      currencySymbol = settings.currencySymbol || '₹';
-      const tier = (settings.tiers || []).find(t => t.id === planId);
-      if (tier) {
-        planName = tier.name;
-        bonusStorageMB = tier.storageMB;
-        price = tier.price;
-      } else {
-        planName = `Storage Tier (+${req.body.storageMB || 50} MB)`;
-        bonusStorageMB = Number(req.body.storageMB) || 50;
-        price = Number(req.body.price) || 99;
-      }
-    }
-
-    // Record verified subscription / storage booster
-    const subscription = new Subscription({
-      user: req.user.userId,
-      planId,
-      planName,
-      bonusStorageMB,
-      price,
-      currency: currencySymbol,
-      status: 'active',
-      paymentMethod: 'Razorpay Payment Gateway',
-      transactionId: razorpay_payment_id,
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id,
-      razorpaySignature: razorpay_signature || 'verified',
-      purchaseType: isStoragePack ? 'storage_booster' : 'subscription',
-      startDate: new Date(),
-      expiresAt: isStoragePack
-        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year for storage booster
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)  // 30 days for subscription plan
-    });
-
-    await subscription.save();
-
-    // If subscription plan, update user tier
-    if (!isStoragePack) {
-      await User.findByIdAndUpdate(req.user.userId, {
-        isSubscribed: true,
-        currentPlan: planName
-      });
-    }
-
-    // Invalidate storage cache so the user sees their new quota instantly
-    invalidateStorageCache(req.user.userId);
-    const updatedStats = await getUserStorageStats(req.user.userId, true);
-
-    res.status(200).json({
-      success: true,
-      message: isStoragePack 
-        ? `Payment verified! Added +${bonusStorageMB} MB storage booster to your workspace.`
-        : `Payment verified! Successfully activated ${planName} (+${bonusStorageMB} MB).`,
-      subscription,
-      stats: updatedStats
-    });
-  } catch (error) {
-    console.error('Payment Verification Error:', error);
-    res.status(500).json({ message: 'Error verifying payment', error: error.message });
-  }
-});
-
-// 7. Direct / Simulated Activation (Fallback)
-router.post('/subscribe', auth, async (req, res) => {
-  try {
-    const { planId, paymentMethod = 'Instant Activation' } = req.body;
-    if (!planId) {
-      return res.status(400).json({ message: 'Plan ID is required to subscribe' });
-    }
+    const { planId } = req.body;
+    if (!planId) return res.status(400).json({ message: 'Plan ID is required' });
 
     const settings = await SystemSettings.getSettings();
-    const tier = (settings.tiers || []).find(t => t.id === planId);
+    const tier = (settings.tiers || []).find((t) => t.id === planId);
+    if (!tier) return res.status(400).json({ message: 'Invalid subscription tier selected' });
 
-    if (!tier) {
-      return res.status(400).json({ message: 'Invalid subscription tier selected' });
-    }
+    const amountInPaise = Math.round(Number(tier.price) * 100);
+    if (!(amountInPaise >= 100)) return res.status(400).json({ message: 'Plan price must be at least ₹1.' });
 
-    const transactionId = `SUB-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    // Price and plan are fixed here on the server and stored on the order — the client cannot change them
+    const order = await razorpayClient.orders.create({
+      amount: amountInPaise,
+      currency: settings.currency || 'INR',
+      receipt: `rcpt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      notes: {
+        userId: req.user.userId.toString(),
+        planId: tier.id,
+        planName: tier.name,
+        storageMB: String(tier.storageMB)
+      }
+    });
 
-    const subscription = new Subscription({
-      user: req.user.userId,
+    res.status(200).json({
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: RAZORPAY_KEY_ID,
       planId: tier.id,
       planName: tier.name,
-      bonusStorageMB: tier.storageMB,
+      storageMB: tier.storageMB,
       price: tier.price,
-      currency: settings.currencySymbol || '₹',
-      status: 'active',
-      paymentMethod,
-      transactionId,
-      purchaseType: 'subscription',
-      startDate: new Date(),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-    });
-
-    await subscription.save();
-
-    await User.findByIdAndUpdate(req.user.userId, {
-      isSubscribed: true,
-      currentPlan: tier.name
-    });
-
-    invalidateStorageCache(req.user.userId);
-    const updatedStats = await getUserStorageStats(req.user.userId, true);
-
-    res.status(201).json({
-      message: `Successfully subscribed to ${tier.name}! Added +${tier.storageMB} MB storage quota.`,
-      subscription,
-      stats: updatedStats
+      mode: razorpayMode,
+      isLive: true
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error processing subscription', error: error.message });
+    const reason = error?.error?.description || error.message;
+    console.error('[Razorpay] Order creation error:', reason);
+    const authFailed = error?.statusCode === 401;
+    res.status(authFailed ? 502 : 500).json({
+      message: authFailed
+        ? 'Razorpay rejected the API keys. Check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in backend/.env.'
+        : 'Could not start the payment. Please try again.',
+      error: reason
+    });
   }
 });
 
-// 8. Get user's subscription & purchase history
+// ── 6. Verify Payment & Activate Storage ─────────────────────────────────
+router.post('/verify-payment', auth, async (req, res) => {
+  try {
+    if (!razorpayClient) {
+      return res.status(503).json({ message: 'Online payments are not configured on the server.' });
+    }
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ message: 'Missing Razorpay payment details.' });
+    }
+
+    // 1. Signature proves this payment id really belongs to this order (signed with our secret)
+    const expected = crypto
+      .createHmac('sha256', RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+    if (!safeEqual(expected, razorpay_signature)) {
+      return res.status(400).json({ message: 'Payment signature verification failed. Transaction rejected for security.' });
+    }
+
+    // 2. Plan and buyer come from the order we created, never from the request body
+    const order = await razorpayClient.orders.fetch(razorpay_order_id);
+    if (order?.notes?.userId !== req.user.userId.toString()) {
+      return res.status(403).json({ message: 'This payment belongs to a different account.' });
+    }
+
+    const { subscription, tier, alreadyRecorded } = await activateSubscription({
+      userId: req.user.userId,
+      planId: order.notes.planId,
+      orderId: razorpay_order_id,
+      paymentId: razorpay_payment_id,
+      signature: razorpay_signature,
+      amountPaise: order.amount
+    });
+
+    const stats = await getUserStorageStats(req.user.userId, true);
+    res.status(200).json({
+      success: true,
+      message: alreadyRecorded
+        ? 'Payment already recorded — storage is active.'
+        : `Payment verified! ✓ ${tier.name} activated — +${tier.storageMB} MB added to your workspace.`,
+      subscription,
+      stats
+    });
+  } catch (error) {
+    console.error('[Verify Payment]', error?.error?.description || error.message);
+    res.status(500).json({ message: 'Payment received but activation failed. Please use "Sync" or contact support.', error: error.message });
+  }
+});
+
+// ── 6b. Razorpay webhook (backup activation if the browser closes after paying) ──
+// Configure in Razorpay Dashboard → Webhooks: URL <your-api>/api/subscription/webhook, event "order.paid",
+// secret = RAZORPAY_WEBHOOK_SECRET.
+router.post('/webhook', async (req, res) => {
+  try {
+    if (!RAZORPAY_WEBHOOK_SECRET || !req.rawBody) return res.status(400).json({ message: 'Webhook not configured' });
+    const expected = crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET).update(req.rawBody).digest('hex');
+    if (!safeEqual(expected, req.header('x-razorpay-signature'))) {
+      return res.status(400).json({ message: 'Invalid webhook signature' });
+    }
+
+    if (req.body.event === 'order.paid') {
+      const order = req.body.payload?.order?.entity;
+      const payment = req.body.payload?.payment?.entity;
+      if (order?.notes?.userId && order?.notes?.planId && payment?.id) {
+        await activateSubscription({
+          userId: order.notes.userId,
+          planId: order.notes.planId,
+          orderId: order.id,
+          paymentId: payment.id,
+          amountPaise: order.amount_paid || order.amount
+        });
+      }
+    }
+    // Always acknowledge so Razorpay does not keep retrying handled/irrelevant events
+    res.json({ received: true });
+  } catch (error) {
+    console.error('[Razorpay Webhook]', error.message);
+    res.status(500).json({ message: 'Webhook processing failed' });
+  }
+});
+
+// ── 7. Download Invoice (HTML → printable PDF) ───────────────────────────
+router.get('/invoice/:subscriptionId', auth, async (req, res) => {
+  try {
+    const sub = await Subscription.findById(req.params.subscriptionId)
+      .populate('user', 'email firstName lastName');
+
+    if (!sub) return res.status(404).json({ message: 'Invoice not found' });
+
+    // Security: only the owner or a superadmin can download the invoice
+    if (
+      sub.user._id.toString() !== req.user.userId.toString() &&
+      req.user.role !== 'superadmin'
+    ) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const invoiceDate = new Date(sub.createdAt || sub.startDate).toLocaleDateString('en-IN', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    });
+    const expiryDate = sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString('en-IN', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }) : 'N/A';
+    const userName = `${sub.user.firstName || ''} ${sub.user.lastName || ''}`.trim() || sub.user.email;
+    const currency = sub.currency || '₹';
+    const invoiceNo = `INV-${sub.transactionId?.slice(-10).toUpperCase() || sub._id.toString().slice(-8).toUpperCase()}`;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invoice ${invoiceNo} — DocuSphere</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #0f172a; }
+    .page { max-width: 750px; margin: 0 auto; padding: 48px 40px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon { width: 44px; height: 44px; background: linear-gradient(135deg,#427c36,#326127); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 18px; }
+    .brand-name { font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    .brand-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .invoice-meta { text-align: right; }
+    .invoice-title { font-size: 26px; font-weight: 900; color: #427c36; letter-spacing: -0.5px; }
+    .invoice-no { font-size: 13px; color: #64748b; margin-top: 4px; font-family: monospace; }
+    .invoice-date { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+    .divider { border: none; border-top: 2px solid #e2e8f0; margin: 24px 0; }
+    .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px; }
+    .party-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .party-name { font-size: 15px; font-weight: 700; color: #0f172a; }
+    .party-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    thead tr { background: #f8fafc; }
+    th { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 14px; font-size: 13px; color: #334155; border-bottom: 1px solid #f1f5f9; }
+    td.bold { font-weight: 700; color: #0f172a; }
+    td.mono { font-family: monospace; font-size: 12px; color: #427c36; }
+    .total-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .total-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px 24px; text-align: right; min-width: 220px; }
+    .total-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .total-amount { font-size: 26px; font-weight: 900; color: #427c36; }
+    .status-badge { display: inline-block; background: #ecfdf5; color: #15803d; border: 1px solid #86efac; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; }
+    .footer p { font-size: 11px; color: #94a3b8; line-height: 1.6; }
+    .payment-info { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; }
+    .payment-info-title { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .payment-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+    .payment-row span:first-child { color: #64748b; }
+    .payment-row span:last-child { font-weight: 600; color: #0f172a; font-family: monospace; }
+    @media print {
+      body { background: #fff; }
+      .page { padding: 32px 28px; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="brand">
+        <div class="brand-icon">DS</div>
+        <div>
+          <div class="brand-name">DocuSphere</div>
+          <div class="brand-sub">Cloud Documentation Platform</div>
+        </div>
+      </div>
+      <div class="invoice-meta">
+        <div class="invoice-title">INVOICE</div>
+        <div class="invoice-no">${invoiceNo}</div>
+        <div class="invoice-date">Date: ${invoiceDate}</div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="parties">
+      <div>
+        <div class="party-label">Billed By</div>
+        <div class="party-name">DocuSphere Platform</div>
+        <div class="party-sub">Cloud Storage &amp; Workspace Services</div>
+        <div class="party-sub" style="margin-top:6px;color:#427c36;font-weight:600;">support@docusphere.app</div>
+      </div>
+      <div>
+        <div class="party-label">Billed To</div>
+        <div class="party-name">${userName}</div>
+        <div class="party-sub">${sub.user.email}</div>
+        <div class="party-sub" style="margin-top:6px;">DocuSphere User Account</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Description</th>
+          <th>Storage</th>
+          <th>Valid Until</th>
+          <th>Status</th>
+          <th style="text-align:right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="bold">1</td>
+          <td class="bold">${sub.planName}</td>
+          <td>+${sub.bonusStorageMB} MB</td>
+          <td>${expiryDate}</td>
+          <td><span class="status-badge">${sub.status || 'active'}</span></td>
+          <td style="text-align:right;font-weight:800;font-size:15px;color:#0f172a;">${currency}${sub.price.toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="total-row">
+      <div class="total-box">
+        <div class="total-label">Total Amount Paid</div>
+        <div class="total-amount">${currency}${sub.price.toFixed(2)}</div>
+      </div>
+    </div>
+
+    <div class="payment-info" style="margin-top:20px;">
+      <div class="payment-info-title">Payment Details</div>
+      <div class="payment-row"><span>Payment Method</span><span>${sub.paymentMethod || 'Razorpay'}</span></div>
+      <div class="payment-row"><span>Transaction ID</span><span>${sub.transactionId}</span></div>
+      ${sub.razorpayOrderId ? `<div class="payment-row"><span>Razorpay Order ID</span><span>${sub.razorpayOrderId}</span></div>` : ''}
+      <div class="payment-row"><span>Payment Date</span><span>${invoiceDate}</span></div>
+      <div class="payment-row"><span>Plan Activation</span><span>${invoiceDate}</span></div>
+      <div class="payment-row"><span>Storage Validity</span><span>${expiryDate}</span></div>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for choosing DocuSphere! This is a computer-generated invoice and does not require a signature.</p>
+      <p style="margin-top:6px;">For support, contact <strong>support@docusphere.app</strong> | Invoice ${invoiceNo}</p>
+    </div>
+  </div>
+
+  <script>
+    // Auto-print dialog when opened standalone
+    if (window.location.search.includes('print=1')) {
+      window.onload = () => window.print();
+    }
+  </script>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `inline; filename="Invoice-${invoiceNo}.html"`);
+    res.send(html);
+  } catch (error) {
+    console.error('[Invoice]', error);
+    res.status(500).json({ message: 'Error generating invoice', error: error.message });
+  }
+});
+
+// ── 8. Subscription history ───────────────────────────────────────────────
 router.get('/history', auth, async (req, res) => {
   try {
     const history = await Subscription.find({ user: req.user.userId })

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -30,6 +30,7 @@ import SlideshowIcon from '@mui/icons-material/Slideshow';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import GroupIcon from '@mui/icons-material/Group';
 import KeyboardDoubleArrowLeftIcon from '@mui/icons-material/KeyboardDoubleArrowLeft';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -69,10 +70,28 @@ export const getTagColor = (tag) => {
 
 const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
   const dispatch = useDispatch();
-  const { documents, openDocuments, searchQuery, status: docStatus } = useSelector((state) => state.documents);
+  const { documents, allUserDocuments, openDocuments, searchQuery, status: docStatus } = useSelector((state) => state.documents);
   const { groups, activeGroupId } = useSelector((state) => state.groups);
+  const groupNameMap = useMemo(() => Object.fromEntries(groups.map((g) => [g.groupId, g.name])), [groups]);
   const { groupStats, userStats } = useSelector((state) => state.subscription);
   const isStorageExceeded = Boolean(groupStats?.isExceeded || userStats?.isExceeded);
+
+  // Extract all unique tags across accessible documents for quick tag filtering
+  const availableTags = useMemo(() => {
+    const tagCountMap = {};
+    const pool = (allUserDocuments && allUserDocuments.length > 0) ? allUserDocuments : documents;
+    pool.forEach(doc => {
+      if (Array.isArray(doc.tags)) {
+        doc.tags.forEach(t => {
+          if (t && typeof t === 'string') {
+            const clean = t.trim();
+            if (clean) tagCountMap[clean] = (tagCountMap[clean] || 0) + 1;
+          }
+        });
+      }
+    });
+    return Object.entries(tagCountMap).map(([tag, count]) => ({ tag, count }));
+  }, [allUserDocuments, documents]);
 
   const activeGroup = groups.find((g) => g.groupId === activeGroupId);
 
@@ -177,17 +196,64 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
     setDraggingId(null);
   };
 
-  const rawFiltered = documents.filter((doc) => {
-    if (!searchQuery) return true;
-    const lowerQuery = searchQuery.toLowerCase();
-    return (
-      (doc.title && doc.title.toLowerCase().includes(lowerQuery)) ||
-      (doc.content && doc.content.toLowerCase().includes(lowerQuery))
-    );
+  const isSearching = Boolean(searchQuery && searchQuery.trim());
+
+  // Search across all accessible user documents if available, otherwise current group documents
+  const searchPool = (isSearching && allUserDocuments && allUserDocuments.length > 0)
+    ? allUserDocuments
+    : documents;
+
+  const rawFiltered = searchPool.filter((doc) => {
+    if (!isSearching) return true;
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+
+    // Support searching with "#" or "tag:" prefix, or plain keyword
+    const isTagPrefixed = trimmedQuery.startsWith('#') || trimmedQuery.startsWith('tag:') || trimmedQuery.startsWith('tags:');
+    const cleanTagQuery = trimmedQuery
+      .replace(/^#+/, '')
+      .replace(/^tags?:\s*/, '')
+      .trim();
+
+    // Check if any tag on the document matches
+    const matchesTag = Array.isArray(doc.tags) && doc.tags.some((tag) => {
+      if (!tag) return false;
+      const lowerTag = String(tag).trim().toLowerCase();
+      return (
+        lowerTag === trimmedQuery ||
+        lowerTag === cleanTagQuery ||
+        lowerTag.includes(trimmedQuery) ||
+        (cleanTagQuery && lowerTag.includes(cleanTagQuery))
+      );
+    });
+
+    if (isTagPrefixed) {
+      if (!cleanTagQuery) {
+        return Array.isArray(doc.tags) && doc.tags.length > 0;
+      }
+      return matchesTag;
+    }
+
+    const matchesTitle = doc.title && doc.title.toLowerCase().includes(trimmedQuery);
+    const matchesContent = doc.content && doc.content.toLowerCase().includes(trimmedQuery);
+
+    return Boolean(matchesTag || matchesTitle || matchesContent);
   });
 
-  // Apply custom order, then put pinned docs first
-  const orderedDocs = docOrder.length > 0
+  // When searching, sort documents that match by tag first, then by recency
+  // If multiple documents have the same tag, ALL of them are retained and listed one by one
+  const sortedSearchResults = isSearching
+    ? [...rawFiltered].sort((a, b) => {
+        const q = searchQuery.trim().toLowerCase().replace(/^#+/, '').replace(/^tags?:\s*/, '');
+        const aHasTag = Array.isArray(a.tags) && a.tags.some(t => String(t).toLowerCase().includes(q));
+        const bHasTag = Array.isArray(b.tags) && b.tags.some(t => String(t).toLowerCase().includes(q));
+        if (aHasTag && !bHasTag) return -1;
+        if (!aHasTag && bHasTag) return 1;
+        return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+      })
+    : null;
+
+  // Apply custom order, then put pinned docs first (for non-search view)
+  const orderedDocs = (!isSearching && docOrder.length > 0)
     ? [...rawFiltered].sort((a, b) => {
       const ai = docOrder.indexOf(a._id);
       const bi = docOrder.indexOf(b._id);
@@ -198,10 +264,12 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
     })
     : rawFiltered;
 
-  const filteredDocuments = [
-    ...orderedDocs.filter(d => pinnedDocs.includes(d._id)),
-    ...orderedDocs.filter(d => !pinnedDocs.includes(d._id)),
-  ];
+  const filteredDocuments = isSearching
+    ? sortedSearchResults
+    : [
+        ...orderedDocs.filter(d => pinnedDocs.includes(d._id)),
+        ...orderedDocs.filter(d => !pinnedDocs.includes(d._id)),
+      ];
 
   const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
   const sidebarFileInputRef = useRef(null);
@@ -295,7 +363,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
       {onToggle && (
         <Box
           onClick={onToggle}
-          className="hidden md:flex absolute cursor-pointer items-center justify-center bg-[#427c36] text-white hover:bg-[#60a5fa] transition-colors"
+          className="hidden md:flex absolute cursor-pointer items-center justify-center bg-[#a8e6c3] text-[#0b1410] hover:bg-[#8fdab2] transition-colors"
           sx={{
             top: '40px',
             right: 0,
@@ -321,9 +389,9 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
           <Box className="flex items-center gap-1.5 min-w-0">
             <Box sx={{
               width: 28, height: 28, borderRadius: '8px',
-              bgcolor: '#427c36', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+              bgcolor: '#a8e6c3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
             }}>
-              <GroupIcon sx={{ fontSize: 15, color: 'white' }} />
+              <GroupIcon sx={{ fontSize: 15, color: '#0b1410' }} />
             </Box>
             <Box className="min-w-0">
               <Typography sx={{ fontWeight: 800, fontSize: '0.82rem', color: '#1f2937', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -357,8 +425,8 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                 sx={{
                   background: isStorageExceeded
                     ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important'
-                    : 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
-                  color: 'white',
+                    : 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
+                  color: isStorageExceeded ? 'white' : '#0b1410',
                   borderRadius: '8px',
                   textTransform: 'none',
                   fontWeight: 700,
@@ -367,15 +435,15 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                   py: 0.6,
                   boxShadow: isStorageExceeded
                     ? '0 2px 8px rgba(239,68,68,0.45)'
-                    : '0 2px 8px rgba(66,124,54,0.35)',
+                    : '0 2px 8px rgba(31, 138, 91, 0.35)',
                   flexShrink: 0,
                   '&:hover': {
                     background: isStorageExceeded
                       ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important'
-                      : 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)',
+                      : 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%)',
                     boxShadow: isStorageExceeded
                       ? '0 4px 14px rgba(239,68,68,0.55)'
-                      : '0 4px 14px rgba(66,124,54,0.45)',
+                      : '0 4px 14px rgba(31, 138, 91, 0.45)',
                     transform: 'translateY(-1px)'
                   },
                   '&.Mui-disabled': { background: '#d1d5db', color: '#9ca3af', boxShadow: 'none' }
@@ -487,12 +555,12 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                     py: 0.3,
                     minWidth: 'auto',
                     whiteSpace: 'nowrap',
-                    bgcolor: isSelected ? '#427c36' : 'rgba(255,255,255,0.8)',
-                    color: isSelected ? 'white' : '#4b5563',
+                    bgcolor: isSelected ? '#a8e6c3' : 'rgba(255,255,255,0.8)',
+                    color: isSelected ? '#0b1410' : '#4b5563',
                     border: '1px solid',
-                    borderColor: isSelected ? '#427c36' : '#e5e7eb',
-                    boxShadow: isSelected ? '0 1px 4px rgba(66,124,54,0.25)' : 'none',
-                    '&:hover': { bgcolor: isSelected ? '#326127' : '#f0fdf4', borderColor: '#427c36' }
+                    borderColor: isSelected ? '#1f8a5b' : '#e5e7eb',
+                    boxShadow: isSelected ? '0 1px 4px rgba(31, 138, 91, 0.25)' : 'none',
+                    '&:hover': { bgcolor: isSelected ? '#8fdab2' : '#f0fdf4', borderColor: '#1f8a5b' }
                   }}
                 >
                   {group.name}
@@ -516,7 +584,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
       <Box className="mb-3 sm:mb-4">
         <TextField
           id="sidebar-search-input"
-          placeholder="Search group documents..."
+          placeholder="Search documents or tag name..."
           size="small"
           fullWidth
           value={searchQuery || ''}
@@ -529,17 +597,84 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                   <SearchIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
                 </InputAdornment>
               ),
+              endAdornment: searchQuery ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={() => dispatch(setSearchQuery(''))}
+                    aria-label="Clear search"
+                    sx={{ p: 0.5 }}
+                  >
+                    <ClearIcon sx={{ fontSize: 16, color: '#9ca3af' }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
               className: 'rounded-xl bg-white/50 text-sm'
             }
           }}
         />
+
+        {/* Quick Tag Filter Chips: clicking any tag filters and lists all documents with that tag one by one */}
+        {availableTags.length > 0 && (
+          <Box className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 custom-scrollbar">
+            <span className="text-[10px] font-bold text-gray-400 shrink-0 uppercase tracking-wider">Tags:</span>
+            {availableTags.map(({ tag, count }) => {
+              const cleanQ = (searchQuery || '').trim().toLowerCase().replace(/^#+/, '').replace(/^tags?:\s*/, '');
+              const isActive = cleanQ === tag.toLowerCase();
+              const tagColor = getTagColor(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => {
+                    if (isActive) {
+                      dispatch(setSearchQuery(''));
+                    } else {
+                      dispatch(setSearchQuery(tag));
+                    }
+                  }}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1 transition-all cursor-pointer ${
+                    isActive
+                      ? 'text-white shadow-xs scale-105'
+                      : 'bg-white/80 hover:bg-white text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                  }`}
+                  style={isActive ? { backgroundColor: tagColor, borderColor: tagColor } : {}}
+                  title={`Click to show all ${count} document(s) tagged #${tag}`}
+                >
+                  <span style={{ color: isActive ? '#fff' : tagColor, fontWeight: 900 }}>#</span>
+                  <span>{tag}</span>
+                  <span className="opacity-75 text-[9px]">({count})</span>
+                </button>
+              );
+            })}
+          </Box>
+        )}
+
+        {/* When searching, show concise results counter */}
+        {isSearching && (
+          <Box className="flex items-center justify-between px-1 pt-2 pb-0.5">
+            <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#1f8a5b' }}>
+              {filteredDocuments.length} {filteredDocuments.length === 1 ? 'document' : 'documents'} found
+              {searchQuery && (
+                <span className="text-gray-500 font-normal ml-1">for "{searchQuery}"</span>
+              )}
+            </Typography>
+            <Button
+              size="small"
+              onClick={() => dispatch(setSearchQuery(''))}
+              sx={{ fontSize: '0.65rem', textTransform: 'none', color: '#6b7280', p: 0, minWidth: 'auto', '&:hover': { color: '#ef4444' } }}
+            >
+              Clear
+            </Button>
+          </Box>
+        )}
       </Box>
 
       {/* Document List */}
       <List id="sidebar-doc-list" aria-label="List of documents" className="flex-1 overflow-y-auto px-0 space-y-2 pb-16 sm:pb-20 custom-scrollbar">
         {!activeGroupId ? (
           <Box className="flex flex-col items-center justify-center p-6 text-center bg-white/40 dark:bg-gray-800/40 rounded-2xl border border-green-100 dark:border-green-900 mt-4">
-            <GroupIcon sx={{ fontSize: 42, color: '#427c36', mb: 1.5, opacity: 0.8 }} />
+            <GroupIcon sx={{ fontSize: 42, color: '#1f8a5b', mb: 1.5, opacity: 0.8 }} />
             <Typography variant="body2" className="font-bold text-gray-700 dark:text-gray-300 mb-1">
               No Group Selected
             </Typography>
@@ -561,12 +696,12 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
           </Box>
         ) : filteredDocuments.length === 0 ? (
           <Box className="flex flex-col items-center justify-center h-40 opacity-75">
-            <DescriptionIcon sx={{ fontSize: 40, color: '#427c36', mb: 1 }} />
+            <DescriptionIcon sx={{ fontSize: 40, color: '#1f8a5b', mb: 1 }} />
             <Typography variant="body2" color="textSecondary" align="center" className="italic font-medium">
-              No documents found in this group.
+              {searchQuery ? `No documents matching "${searchQuery}"` : 'No documents found in this group.'}
             </Typography>
             <Typography variant="caption" color="textSecondary" align="center" className="mt-1">
-              Click '+ New' above to create one.
+              {searchQuery ? 'Try searching by title, content, or tag name.' : "Click '+ New' above to create one."}
             </Typography>
           </Box>
         ) : (
@@ -582,15 +717,18 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                 onDrop={(e) => handleListDrop(e, doc._id)}
                 onDragEnd={handleListDragEnd}
                 onClick={() => {
+                  if (doc.groupId && doc.groupId !== activeGroupId) {
+                    dispatch(setActiveGroupId(doc.groupId));
+                  }
                   dispatch(setOpenDocument(doc._id));
                   if (onSelectDocument) {
                     onSelectDocument(doc._id);
                   }
                 }}
-                className={`group cursor-pointer relative overflow-hidden transition-all duration-300 rounded-xl border p-2.5 sm:p-3 ${isSelected ? 'bg-white dark:bg-gray-900 shadow-md border-l-4 border-l-[#427c36] border-white' : 'bg-white/70 dark:bg-gray-800/70 border-transparent shadow-sm dark:shadow-none hover:bg-white dark:bg-gray-900 hover:shadow'}`}
+                className={`group cursor-pointer relative overflow-hidden transition-all duration-300 rounded-xl border p-2.5 sm:p-3 ${isSelected ? 'bg-white dark:bg-gray-900 shadow-md border-l-4 border-l-[#1f8a5b] border-white' : 'bg-white/70 dark:bg-gray-800/70 border-transparent shadow-sm dark:shadow-none hover:bg-white dark:bg-gray-900 hover:shadow'}`}
                 sx={{
                   opacity: draggingId === doc._id ? 0.4 : 1,
-                  outline: dragOverId === doc._id ? '2px dashed #427c36' : 'none',
+                  outline: dragOverId === doc._id ? '2px dashed #1f8a5b' : 'none',
                   outlineOffset: '2px',
                   transition: 'opacity 0.15s, outline 0.1s',
                 }}
@@ -636,28 +774,28 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                   <Box className="flex items-center overflow-hidden flex-1 mr-1">
                     <Box className={`p-2 rounded-lg mr-2.5 sm:mr-3 shrink-0 relative ${isSelected
                         ? doc.docType === 'sheet'
-                          ? 'bg-emerald-100 dark:bg-emerald-900/60 text-[#326127]'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/60 text-[#0f2e1f]'
                           : doc.docType === 'ppt'
                             ? 'bg-amber-100 dark:bg-amber-900/60 text-[#ea580c]'
-                            : 'bg-green-100 dark:bg-green-900/60 text-[#427c36]'
+                            : 'bg-green-100 dark:bg-green-900/60 text-[#1f8a5b]'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                       }`}>
                       {doc.docType === 'sheet' ? (
-                        <TableChartIcon fontSize="small" sx={{ color: isSelected ? '#326127' : '#10b981' }} />
+                        <TableChartIcon fontSize="small" sx={{ color: isSelected ? '#0f2e1f' : '#10b981' }} />
                       ) : doc.docType === 'ppt' ? (
                         <SlideshowIcon fontSize="small" sx={{ color: isSelected ? '#ea580c' : '#f59e0b' }} />
                       ) : (
-                        <DescriptionIcon fontSize="small" sx={{ color: isSelected ? '#427c36' : '#3b82f6' }} />
+                        <DescriptionIcon fontSize="small" sx={{ color: isSelected ? '#1f8a5b' : '#3b82f6' }} />
                       )}
                       {/* Pin dot indicator */}
                       {pinnedDocs.includes(doc._id) && (
-                        <Box sx={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', bgcolor: '#427c36' }} />
+                        <Box sx={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', bgcolor: '#a8e6c3' }} />
                       )}
                     </Box>
                     <Box className="overflow-hidden min-w-0">
                       <Typography variant="body2" className={`font-bold truncate ${isSelected ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300'}`}>
                         {pinnedDocs.includes(doc._id) && (
-                          <PushPinIcon sx={{ fontSize: 11, color: '#427c36', mr: 0.4, verticalAlign: 'middle', transform: 'rotate(45deg)' }} />
+                          <PushPinIcon sx={{ fontSize: 11, color: '#1f8a5b', mr: 0.4, verticalAlign: 'middle', transform: 'rotate(45deg)' }} />
                         )}
                         {doc.title || 'Untitled'}
                       </Typography>
@@ -671,10 +809,64 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                           }`}>
                           {doc.docType ? doc.docType.toUpperCase() : 'DOC'}
                         </span>
-                        <Typography variant="caption" className={`block ${isSelected ? 'text-[#326127] font-medium' : 'text-gray-500 dark:text-gray-400 dark:text-gray-500'}`}>
+                        {/* Show group name badge if searching across groups */}
+                        {isSearching && doc.groupId && doc.groupId !== activeGroupId && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                            {groupNameMap[doc.groupId] || doc.groupId}
+                          </span>
+                        )}
+
+                        <Typography variant="caption" className={`block ${isSelected ? 'text-[#0f2e1f] font-medium' : 'text-gray-500 dark:text-gray-400 dark:text-gray-500'}`}>
                           {new Date(doc.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                         </Typography>
                       </Box>
+
+                      {/* Document Tag Badges */}
+                      {doc.tags && doc.tags.length > 0 && (
+                        <Box className="flex items-center gap-1 mt-1 flex-wrap">
+                          {doc.tags.map((tag, idx) => {
+                            const cleanQ = (searchQuery || '').trim().toLowerCase().replace(/^#+/, '').replace(/^tags?:\s*/, '');
+                            const isMatched = cleanQ && String(tag).toLowerCase().includes(cleanQ);
+                            const tagColor = getTagColor(tag);
+                            return (
+                              <Box
+                                key={idx}
+                                component="span"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  dispatch(setSearchQuery(`#${tag}`));
+                                }}
+                                title={`Click to filter by tag: #${tag}`}
+                                sx={{
+                                  fontSize: '0.62rem',
+                                  fontWeight: isMatched ? 800 : 600,
+                                  lineHeight: 1,
+                                  px: '5px',
+                                  py: '2px',
+                                  borderRadius: '4px',
+                                  bgcolor: isMatched ? tagColor : 'rgba(0, 0, 0, 0.05)',
+                                  color: isMatched ? '#ffffff' : 'text.secondary',
+                                  border: isMatched ? '1px solid rgba(0,0,0,0.1)' : '1px solid transparent',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                  transition: 'all 0.15s ease-in-out',
+                                  '&:hover': {
+                                    bgcolor: tagColor,
+                                    color: '#ffffff',
+                                    transform: 'scale(1.04)'
+                                  }
+                                }}
+                                className="dark:bg-gray-800/80"
+                              >
+                                <span>#</span>
+                                <span className="truncate max-w-[90px]">{tag}</span>
+                              </Box>
+                            );
+                          })}
+                        </Box>
+                      )}
 
                     </Box>
                   </Box>
@@ -696,7 +888,7 @@ const Sidebar = ({ onSelectDocument, onToggle, isSidebarOpen }) => {
                         size="small"
                         onClick={(e) => togglePin(e, doc._id)}
                         className={`transition-opacity ${pinnedDocs.includes(doc._id) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                        sx={{ color: pinnedDocs.includes(doc._id) ? '#427c36' : '#9ca3af', '&:hover': { bgcolor: '#f0fdf4', color: '#427c36' }, p: '4px' }}
+                        sx={{ color: pinnedDocs.includes(doc._id) ? '#1f8a5b' : '#9ca3af', '&:hover': { bgcolor: '#f0fdf4', color: '#1f8a5b' }, p: '4px' }}
                       >
                         {pinnedDocs.includes(doc._id)
                           ? <PushPinIcon sx={{ fontSize: 14, transform: 'rotate(45deg)' }} />

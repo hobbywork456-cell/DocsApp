@@ -23,6 +23,25 @@ export const fetchDocuments = createAsyncThunk(
   }
 );
 
+export const fetchAllUserDocuments = createAsyncThunk(
+  'documents/fetchAllUserDocuments',
+  async (_, { getState, dispatch, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      if (!token) return [];
+      const response = await axios.get(`${API_URL}?all=true`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.status === 401) {
+        dispatch(logout());
+      }
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch all documents');
+    }
+  }
+);
+
 export const createDocument = createAsyncThunk(
   'documents/createDocument',
   async ({ title, content, groupId, docType = 'doc', tags = [] }, { getState, dispatch, rejectWithValue }) => {
@@ -160,6 +179,7 @@ const documentSlice = createSlice({
   name: 'documents',
   initialState: {
     documents: [],
+    allUserDocuments: [],
     openDocuments: [], // Array of document IDs up to 2
     status: 'idle',
     searchQuery: '',
@@ -210,19 +230,27 @@ const documentSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
+      .addCase(fetchAllUserDocuments.fulfilled, (state, action) => {
+        state.allUserDocuments = action.payload;
+      })
       .addCase(createDocument.fulfilled, (state, action) => {
         state.documents.unshift(action.payload);
+        state.allUserDocuments.unshift(action.payload);
         state.openDocuments = [action.payload._id];
       })
-
       .addCase(updateDocument.fulfilled, (state, action) => {
         const index = state.documents.findIndex(doc => doc._id === action.payload._id);
         if (index !== -1) {
           state.documents[index] = action.payload;
         }
+        const allIdx = state.allUserDocuments.findIndex(doc => doc._id === action.payload._id);
+        if (allIdx !== -1) {
+          state.allUserDocuments[allIdx] = action.payload;
+        }
       })
       .addCase(deleteDocument.fulfilled, (state, action) => {
         state.documents = state.documents.filter(doc => doc._id !== action.payload);
+        state.allUserDocuments = state.allUserDocuments.filter(doc => doc._id !== action.payload);
         state.openDocuments = state.openDocuments.filter(id => id !== action.payload);
       })
       .addCase(uploadAttachment.fulfilled, (state, action) => {

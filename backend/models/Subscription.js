@@ -18,7 +18,7 @@ const SubscriptionSchema = new mongoose.Schema({
   bonusStorageMB: {
     type: Number,
     required: true,
-    default: 50
+    default: 25
   },
   price: {
     type: Number,

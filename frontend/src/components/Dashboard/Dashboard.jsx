@@ -12,7 +12,7 @@ import StorageWarningBanner from '../Subscription/StorageWarningBanner';
 import SEO from '../SEO/SEO';
 import './Dashboard.css';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchDocuments, addOpenDocument, clearOpenDocuments, setGlobalReadMode } from '../../slices/documentSlice';
+import { fetchDocuments, fetchAllUserDocuments, addOpenDocument, clearOpenDocuments, setGlobalReadMode } from '../../slices/documentSlice';
 import { fetchMyGroups, setActiveGroupId } from '../../slices/groupSlice';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import GroupIcon from '@mui/icons-material/Group';
@@ -56,9 +56,10 @@ const Dashboard = () => {
 
   const activeGroup = groups.find((g) => g.groupId === activeGroupId);
 
-  // Fetch groups on mount
+  // Fetch groups and all accessible user documents on mount
   useEffect(() => {
     dispatch(fetchMyGroups());
+    dispatch(fetchAllUserDocuments());
   }, [dispatch]);
 
   // When active group changes, fetch documents for that group and clear previous open docs
@@ -288,7 +289,7 @@ const Dashboard = () => {
           <Tooltip title={isFullscreen ? 'A4 View' : 'Full Screen'}>
             <IconButton
               onClick={() => setIsFullscreen(prev => !prev)}
-              sx={{ bgcolor: '#f0fdf4', color: '#427c36', boxShadow: '0 2px 8px rgba(66, 124, 54, 0.3)', '&:hover': { bgcolor: '#dcfce7' } }}
+              sx={{ bgcolor: '#f0fdf4', color: '#1f8a5b', boxShadow: '0 2px 8px rgba(31, 138, 91, 0.3)', '&:hover': { bgcolor: '#dcfce7' } }}
             >
               {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
             </IconButton>
@@ -296,7 +297,7 @@ const Dashboard = () => {
           <Tooltip title="Exit Read Mode">
             <IconButton
               onClick={() => { dispatch(setGlobalReadMode(false)); setIsFullscreen(false); }}
-              sx={{ bgcolor: '#f0fdf4', color: '#427c36', boxShadow: '0 2px 8px rgba(66, 124, 54, 0.3)', '&:hover': { bgcolor: '#dcfce7' } }}
+              sx={{ bgcolor: '#f0fdf4', color: '#1f8a5b', boxShadow: '0 2px 8px rgba(31, 138, 91, 0.3)', '&:hover': { bgcolor: '#dcfce7' } }}
             >
               <LockIcon />
             </IconButton>
@@ -402,8 +403,8 @@ const Dashboard = () => {
   }
 
   const renderModernLoader = () => (
-    <Box className="flex-1 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
-      <CircularProgress size={48} thickness={4} sx={{ color: '#427c36', mb: 3 }} />
+    <Box className="glass-card flex-1 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-900/60 backdrop-blur-md shadow-sm dark:shadow-none border border-green-100/50 dark:border-gray-800 flex flex-col items-center justify-center p-6 text-center animate-pulse">
+      <CircularProgress size={48} thickness={4} sx={{ color: '#1f8a5b', mb: 3 }} />
       <Typography variant="h6" className="font-extrabold text-gray-800 dark:text-gray-200 mb-1">
         Syncing Workspace
       </Typography>
@@ -438,7 +439,7 @@ const Dashboard = () => {
         {!isSidebarOpen && (
           <Box 
             onClick={() => setIsSidebarOpen(true)}
-            className="hidden md:flex absolute cursor-pointer items-center justify-center bg-[#2a433a] text-white hover:bg-[#427c36] transition-colors"
+            className="hidden md:flex absolute cursor-pointer items-center justify-center bg-[#a8e6c3] text-[#0b1410] hover:bg-[#a8e6c3] transition-colors"
             style={{ zIndex: 9999 }}
             sx={{
               top: '60px',
@@ -459,7 +460,7 @@ const Dashboard = () => {
         <Box 
           id="dashboard-sidebar-container"
           className={`
-            rounded-xl overflow-hidden bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm dark:shadow-none flex flex-col border border-green-100 dark:border-green-900/50
+            glass-card rounded-xl overflow-hidden bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm dark:shadow-none flex flex-col border border-green-100 dark:border-green-900/50
             transition-all duration-300 ease-in-out
             ${mobileView === 'sidebar' || openDocuments.length === 0 ? 'flex w-full' : 'hidden'}
             md:flex ${isSidebarOpen ? 'md:w-1/3 md:shrink-0 md:max-w-[400px] flex-shrink-0' : 'md:w-0 md:max-w-0 md:min-w-0 flex-shrink-0 md:border-none md:opacity-0 pointer-events-none'}
@@ -490,14 +491,14 @@ const Dashboard = () => {
               sx={{ 
                 position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
                 bgcolor: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(4px)',
-                zIndex: 9999, borderRadius: '1rem', border: '3px dashed #427c36',
+                zIndex: 9999, borderRadius: '1rem', border: '3px dashed #1f8a5b',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 10px 40px rgba(66,124,54,0.15)'
+                boxShadow: '0 10px 40px rgba(31, 138, 91, 0.15)'
               }}
             >
               <Box sx={{ pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <EditNoteIcon sx={{ fontSize: 64, color: '#427c36', mb: 2, opacity: 0.8 }} />
-                <Typography variant="h5" sx={{ fontWeight: 800, color: '#326127' }}>
+                <EditNoteIcon sx={{ fontSize: 64, color: '#1f8a5b', mb: 2, opacity: 0.8 }} />
+                <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f2e1f' }}>
                   Drop to Open Document
                 </Typography>
                 {openDocuments.length >= 2 && (
@@ -512,7 +513,7 @@ const Dashboard = () => {
             renderModernLoader()
           ) : openDocuments.length === 0 ? (
             /* Desktop Empty State */
-            <Box id="empty-state-welcome" className="hidden md:flex flex-1 rounded-xl overflow-hidden bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-sm dark:shadow-none border border-green-100 dark:border-green-900/50 flex-col items-center justify-center p-6 text-center">
+            <Box id="empty-state-welcome" className="glass-card hidden md:flex flex-1 rounded-xl overflow-hidden bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-sm dark:shadow-none border border-green-100 dark:border-green-900/50 flex-col items-center justify-center p-6 text-center">
               <EditNoteIcon sx={{ fontSize: 80, color: '#86efac', mb: 2, opacity: 0.8 }} />
               <Typography variant="h5" component="h2" className="font-extrabold text-gray-800 dark:text-gray-200 mb-2">
                 {activeGroup ? `Welcome to ${activeGroup.name}` : 'Ready to Collaborate?'}
@@ -525,9 +526,9 @@ const Dashboard = () => {
 
               {activeGroup && (
                 <Box className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 dark:bg-green-900/40 border border-green-100 dark:border-green-900">
-                  <GroupIcon sx={{ color: '#427c36', fontSize: 18 }} />
+                  <GroupIcon sx={{ color: '#1f8a5b', fontSize: 18 }} />
                   <Typography variant="caption" className="font-bold text-gray-700 dark:text-gray-300">
-                    Group ID: <span className="text-[#326127] font-mono">{activeGroup.groupId}</span>
+                    Group ID: <span className="text-[#0f2e1f] font-mono">{activeGroup.groupId}</span>
                   </Typography>
                 </Box>
               )}
@@ -536,7 +537,7 @@ const Dashboard = () => {
             <>
               {/* Mobile View: Document Tabs when multiple docs are open */}
               {openDocuments.length > 1 && (
-                <Box id="mobile-doc-tabs" role="tablist" aria-label="Open documents" className="flex md:hidden items-center gap-1.5 p-1 mb-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-xl border border-green-100 dark:border-green-900 overflow-x-auto shrink-0">
+                <Box id="mobile-doc-tabs" role="tablist" aria-label="Open documents" className="glass-card flex md:hidden items-center gap-1.5 p-1 mb-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-xl border border-green-100 dark:border-green-900 overflow-x-auto shrink-0">
                   {openDocuments.map((id) => {
                     const doc = documents.find((d) => d._id === id);
                     const isActive = currentMobileDocId === id;
@@ -550,8 +551,8 @@ const Dashboard = () => {
                         onClick={() => setActiveMobileDocId(id)}
                         className={`text-xs font-bold rounded-lg px-3 py-1 truncate max-w-[140px] transition-all ${
                           isActive
-                            ? 'bg-[#427c36] text-white shadow-sm dark:shadow-none'
-                            : 'text-gray-600 dark:text-gray-400 dark:text-gray-500 bg-transparent hover:bg-green-50 dark:bg-green-900/40 hover:text-[#326127]'
+                            ? 'bg-[#a8e6c3] text-[#0b1410] shadow-sm dark:shadow-none'
+                            : 'text-gray-600 dark:text-gray-400 dark:text-gray-500 bg-transparent hover:bg-green-50 dark:bg-green-900/40 hover:text-[#0f2e1f]'
                         }`}
                         sx={{ textTransform: 'none' }}
                       >
@@ -563,7 +564,7 @@ const Dashboard = () => {
               )}
 
               {/* Mobile: Render single active document in full view */}
-              <Box className="flex md:hidden flex-1 rounded-xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0">
+              <Box className="glass-card flex md:hidden flex-1 rounded-xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0">
                 {currentMobileDocId && (
                   <DocumentEditor 
                     documentId={currentMobileDocId} 
@@ -584,7 +585,7 @@ const Dashboard = () => {
               ) : (
                 <>
                   {openDocuments.map((docId) => (
-                    <Box key={docId} className="hidden md:flex flex-1 rounded-xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0 relative">
+                    <Box key={docId} className="glass-card hidden md:flex flex-1 rounded-xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm dark:shadow-none border border-green-100 dark:border-green-900 flex-col min-h-0 relative">
                       <DocumentEditor documentId={docId} />
                     </Box>
                   ))}
@@ -594,13 +595,13 @@ const Dashboard = () => {
                       <Tooltip title="Compare Documents">
                         <IconButton 
                           onClick={() => setIsCompareMode(true)}
-                          className="bg-green-600 hover:bg-green-700 text-white shadow-lg border-2 border-white dark:border-gray-900 transition-transform hover:scale-105"
+                          className="bg-[#a8e6c3] hover:bg-[#8fdab2] text-[#0b1410] shadow-lg border-2 border-white dark:border-gray-900 transition-transform hover:scale-105"
                           sx={{ 
                             width: 40,
                             height: 40,
-                            color: 'white',
-                            backgroundColor: '#427c36',
-                            '&:hover': { backgroundColor: '#326127' }
+                            color: '#0b1410',
+                            backgroundColor: '#a8e6c3',
+                            '&:hover': { backgroundColor: '#8fdab2' }
                           }}
                         >
                           <CompareArrowsIcon fontSize="medium" />

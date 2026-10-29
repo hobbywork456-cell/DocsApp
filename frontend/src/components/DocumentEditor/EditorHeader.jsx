@@ -121,7 +121,7 @@ const EditorHeader = ({
                   onClick={onBackToLibrary}
                   size="small"
                   className="md:hidden shrink-0"
-                  sx={{ color: '#427c36', bgcolor: 'rgba(255,255,255,0.85)', p: '5px', borderRadius: '8px', '&:hover': { bgcolor: '#f0fdf4' } }}
+                  sx={{ color: '#1f8a5b', bgcolor: 'rgba(255,255,255,0.85)', p: '5px', borderRadius: '8px', '&:hover': { bgcolor: '#f0fdf4' } }}
                 >
                   <ArrowBackIcon fontSize="small" />
                 </IconButton>
@@ -196,9 +196,9 @@ const EditorHeader = ({
                       onKeyDown={(e) => { if (e.key === 'Enter') onAddTag(); }}
                       autoFocus
                       slotProps={{ input: { className: 'dark:text-white' } }}
-                      sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#d1d5db' }, '&:hover fieldset': { borderColor: '#427c36' }, '&.Mui-focused fieldset': { borderColor: '#427c36' } } }}
+                      sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#d1d5db' }, '&:hover fieldset': { borderColor: '#1f8a5b' }, '&.Mui-focused fieldset': { borderColor: '#1f8a5b' } } }}
                     />
-                    <Button variant="contained" onClick={onAddTag} sx={{ bgcolor: '#427c36', '&:hover': { bgcolor: '#326127' }, textTransform: 'none', minWidth: '60px' }}>
+                    <Button variant="contained" onClick={onAddTag} sx={{ bgcolor: '#a8e6c3', '&:hover': { bgcolor: '#8fdab2' }, textTransform: 'none', minWidth: '60px' }}>
                       Add
                     </Button>
                   </Box>
@@ -231,10 +231,10 @@ const EditorHeader = ({
           <Tooltip title={docType === 'sheet' ? 'Sheet Read Mode' : docType === 'ppt' ? 'Presentation Read Mode' : 'Read Mode'}>
             <IconButton onClick={onReadModeOpen}
               sx={{ 
-                color: docType === 'sheet' ? '#059669' : docType === 'ppt' ? '#ea580c' : '#427c36', 
-                bgcolor: docType === 'sheet' ? 'rgba(5,150,105,0.08)' : docType === 'ppt' ? 'rgba(234,88,12,0.08)' : 'rgba(66,124,54,0.06)', 
+                color: docType === 'sheet' ? '#059669' : docType === 'ppt' ? '#ea580c' : '#1f8a5b', 
+                bgcolor: docType === 'sheet' ? 'rgba(5,150,105,0.08)' : docType === 'ppt' ? 'rgba(234,88,12,0.08)' : 'rgba(31, 138, 91, 0.06)', 
                 '&:hover': { 
-                  bgcolor: docType === 'sheet' ? 'rgba(5,150,105,0.15)' : docType === 'ppt' ? 'rgba(234,88,12,0.15)' : 'rgba(66,124,54,0.13)', 
+                  bgcolor: docType === 'sheet' ? 'rgba(5,150,105,0.15)' : docType === 'ppt' ? 'rgba(234,88,12,0.15)' : 'rgba(31, 138, 91, 0.13)', 
                   transform: 'translateY(-1px)' 
                 }, 
                 p: '5px', 
@@ -437,12 +437,12 @@ const EditorHeader = ({
                 onClick={() => setIsEditing(true)}
                 startIcon={<EditIcon sx={{ fontSize: 16 }} />}
                 sx={{
-                  color: 'white',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #427c36 100%)',
+                  color: '#0b1410',
+                  background: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #2563eb 0%, #326127 100%)',
+                    background: 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%)',
                     transform: 'translateY(-1px)',
-                    boxShadow: '0 4px 14px rgba(66,124,54,0.4)'
+                    boxShadow: '0 4px 14px rgba(31, 138, 91, 0.4)'
                   },
                   textTransform: 'none',
                   fontWeight: 700,
@@ -450,7 +450,7 @@ const EditorHeader = ({
                   borderRadius: '8px',
                   px: 1.5,
                   py: 0.35,
-                  boxShadow: '0 2px 8px rgba(66,124,54,0.3)',
+                  boxShadow: '0 2px 8px rgba(31, 138, 91, 0.3)',
                   transition: 'all 0.2s'
                 }}
               >
@@ -580,16 +580,16 @@ const EditorHeader = ({
                     size="small"
                     onClick={onSave}
                     disabled={isSaving}
-                    startIcon={isSaving ? <CircularProgress size={14} sx={{ color: 'white' }} /> : <CheckIcon sx={{ fontSize: 16 }} />}
+                    startIcon={isSaving ? <CircularProgress size={14} sx={{ color: '#0b1410' }} /> : <CheckIcon sx={{ fontSize: 16 }} />}
                     sx={{
-                      color: 'white',
+                      color: '#0b1410',
                       background: isSaving
                         ? 'linear-gradient(135deg, #86efac 0%, #4ade80 100%)'
-                        : 'linear-gradient(135deg, #427c36 0%, #326127 100%)',
-                      boxShadow: '0 2px 10px rgba(66,124,54,0.35)',
+                        : 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
+                      boxShadow: '0 2px 10px rgba(31, 138, 91, 0.35)',
                       '&:hover': {
-                        background: 'linear-gradient(135deg, #326127 0%, #1f4d1d 100%)',
-                        boxShadow: '0 4px 14px rgba(66,124,54,0.45)',
+                        background: 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%)',
+                        boxShadow: '0 4px 14px rgba(31, 138, 91, 0.45)',
                         transform: 'translateY(-1px)'
                       },
                       '&.Mui-disabled': { background: '#e5e7eb', color: '#9ca3af', boxShadow: 'none' },

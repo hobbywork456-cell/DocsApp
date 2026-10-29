@@ -124,7 +124,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
   }, [profileDialogOpen, dispatch]);
 
   // Storage calculations for profile
-  const defaultFreeMB = tariff?.freeStorageMB || 50;
+  const defaultFreeMB = tariff?.freeStorageMB || 25;
   const profileStats = userStats || {
     totalUsedMB: 0,
     totalQuotaMB: defaultFreeMB,
@@ -328,13 +328,13 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         position="static"
         color="transparent"
         elevation={0}
-        className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 pt-0 pb-0"
+        className="glass-bar bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 pt-0 pb-0"
       >
         <Toolbar component="nav" id="app-navigation" aria-label="Main Navigation" className="px-2 sm:px-6 min-h-[40px] sm:min-h-[48px] flex items-center justify-between gap-1 sm:gap-4">
           {/* Left Side: Brand Logo, Group Switcher */}
           <Box className="flex items-center overflow-hidden">
             <Box className="flex items-center shrink-0">
-              <MenuBookIcon sx={{ color: '#427c36', mr: 0.75, fontSize: { xs: 22, sm: 26 } }} />
+              <MenuBookIcon sx={{ color: '#1f8a5b', mr: 0.75, fontSize: { xs: 22, sm: 26 } }} />
             <Typography
   variant="h6"
   noWrap
@@ -343,7 +343,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
   sx={{
     display: 'inline-block',
     fontWeight: 900,
-    background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)',
+    background: 'linear-gradient(135deg, #1f8a5b 0%, #0b1410 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     backgroundClip: 'text',
@@ -394,7 +394,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                         sx={{
                           fontSize: '0.85rem',
                           fontWeight: isSelected ? 700 : 500,
-                          color: isSelected ? '#326127' : '#374151'
+                          color: isSelected ? '#0f2e1f' : '#374151'
                         }}
                       >
                         {group.name}
@@ -504,25 +504,25 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     onClick={handleOpenGroupMenu}
                     className="group flex items-center cursor-pointer transition-all duration-200"
                     sx={{
-                      background: 'linear-gradient(135deg, rgba(96,165,250,0.06) 0%, rgba(66,124,54,0.06) 100%)',
-                      border: '1px solid rgba(66,124,54,0.1)',
+                      background: 'linear-gradient(135deg, rgba(168, 230, 195, 0.06) 0%, rgba(31, 138, 91, 0.06) 100%)',
+                      border: '1px solid rgba(31, 138, 91, 0.1)',
                       borderRadius: '10px',
                       padding: { xs: '4px 6px', sm: '6px 12px' },
                       '&:hover': {
-                        background: 'linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(66,124,54,0.12) 100%)',
-                        borderColor: 'rgba(66,124,54,0.3)',
-                        boxShadow: '0 2px 8px rgba(66,124,54,0.1)'
+                        background: 'linear-gradient(135deg, rgba(168, 230, 195, 0.12) 0%, rgba(31, 138, 91, 0.12) 100%)',
+                        borderColor: 'rgba(31, 138, 91, 0.3)',
+                        boxShadow: '0 2px 8px rgba(31, 138, 91, 0.1)'
                       }
                     }}
                   >
                     <Typography
                       variant="caption"
-                      className="font-bold text-[#326127] uppercase tracking-wide truncate max-w-[100px] sm:max-w-[140px] mr-0.5 sm:mr-1 transition-colors"
+                      className="font-bold text-[#0f2e1f] uppercase tracking-wide truncate max-w-[100px] sm:max-w-[140px] mr-0.5 sm:mr-1 transition-colors"
                       sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                     >
                       {currentGroup ? currentGroup.name : 'NO GROUP'}
                     </Typography>
-                    <KeyboardArrowDownIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#427c36', transition: 'transform 0.2s', ...{ '.group:hover &': { transform: 'translateY(1px)' } } }} />
+                    <KeyboardArrowDownIcon sx={{ fontSize: { xs: 16, sm: 18 }, color: '#1f8a5b', transition: 'transform 0.2s', ...{ '.group:hover &': { transform: 'translateY(1px)' } } }} />
                   </Box>
                 </Tooltip>
 
@@ -535,7 +535,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                       <IconButton
                         onClick={handleOpenMembersDialog}
                         size="small"
-                        sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                        sx={{ color: '#1f8a5b', bgcolor: 'rgba(31, 138, 91, 0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(31, 138, 91, 0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
                       >
                         <AdminPanelSettingsIcon sx={{ fontSize: 20 }} />
                       </IconButton>
@@ -546,7 +546,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     <IconButton
                       onClick={handleOpenAddDialog}
                       size="small"
-                      sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                      sx={{ color: '#1f8a5b', bgcolor: 'rgba(31, 138, 91, 0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(31, 138, 91, 0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
                     >
                       <GroupAddIcon sx={{ fontSize: 20 }} />
                     </IconButton>
@@ -556,7 +556,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     <IconButton
                       onClick={handleOpenJoinDialog}
                       size="small"
-                      sx={{ color: '#427c36', bgcolor: 'rgba(66,124,54,0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(66,124,54,0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
+                      sx={{ color: '#1f8a5b', bgcolor: 'rgba(31, 138, 91, 0.04)', p: '8px', borderRadius: '10px', '&:hover': { bgcolor: 'rgba(31, 138, 91, 0.1)', transform: 'translateY(-1px)' }, transition: 'all 0.2s' }}
                     >
                       <GroupIcon sx={{ fontSize: 20 }} />
                     </IconButton>
@@ -589,7 +589,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               <Box
                 onClick={() => setProfileDialogOpen(true)}
                 className="hidden md:flex w-9 h-9 rounded-full items-center justify-center font-bold text-sm cursor-pointer shadow-sm dark:shadow-none border-2 border-white hover:scale-105 transition-transform"
-                sx={{ background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)', color: 'white', ml: 1 }}
+                sx={{ background: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)', color: '#0b1410', ml: 1 }}
               >
                 {user?.email?.charAt(0).toUpperCase() || 'U'}
               </Box>
@@ -619,7 +619,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             }
           }}
         >
-          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#60a5fa]/20 to-[#427c36]/20 dark:from-[#60a5fa]/30 dark:to-[#427c36]/30 pointer-events-none" />
+          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#c8f1da]/20 to-[#93ddb6]/20 dark:from-[#c8f1da]/30 dark:to-[#93ddb6]/30 pointer-events-none" />
 
           <IconButton
             onClick={handleCloseAddDialog}
@@ -632,7 +632,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           <Box component="form" onSubmit={handleCreateGroupSubmit} className="relative z-10 flex flex-col pt-8">
             <DialogTitle className="flex flex-col items-center pb-2 text-center">
-              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center shadow-lg shadow-[#427c36]/30 mb-4 text-white">
+              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#c8f1da] to-[#93ddb6] flex items-center justify-center shadow-lg shadow-[#5cc28f]/30 mb-4 text-[#0b1410]">
                 <GroupAddIcon fontSize="large" />
               </Box>
               <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
@@ -682,7 +682,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                       onClick={handleGenerateId}
                       startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
                       sx={{ textTransform: 'none', py: 0, minHeight: 'auto', fontSize: '0.7rem', fontWeight: 'bold' }}
-                      className="text-[#427c36] dark:text-[#60a5fa] hover:bg-green-50 dark:hover:bg-blue-900/30 rounded-lg px-2 transition-colors"
+                      className="text-[#1f8a5b] dark:text-[#86efac] hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg px-2 transition-colors"
                     >
                       Auto-generate
                     </Button>
@@ -712,7 +712,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 type="submit"
                 fullWidth
                 disabled={actionLoading || !newGroupName.trim()}
-                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#60a5fa] to-[#427c36] hover:from-blue-500 hover:to-green-700 text-white shadow-lg shadow-[#427c36]/25 transition-all transform hover:-translate-y-0.5"
+                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#c8f1da] to-[#93ddb6] hover:from-[#b4ebcc] hover:to-[#7fd4a6] text-[#0b1410] shadow-lg shadow-[#5cc28f]/25 transition-all transform hover:-translate-y-0.5"
                 sx={{ textTransform: 'none' }}
               >
                 {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Create Workspace'}
@@ -749,11 +749,11 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 overflow: 'hidden',
                 position: 'relative'
               },
-              className: 'bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800'
+              className: 'bg-white dark:bg-gray-900 border border-green-100 dark:border-gray-800'
             }
           }}
         >
-          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#60a5fa]/20 to-[#427c36]/20 dark:from-[#60a5fa]/30 dark:to-[#427c36]/30 pointer-events-none" />
+          <Box className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-[#c8f1da]/20 to-[#93ddb6]/20 dark:from-[#c8f1da]/30 dark:to-[#93ddb6]/30 pointer-events-none" />
 
           <IconButton
             onClick={handleCloseJoinDialog}
@@ -766,7 +766,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
           <Box component="form" onSubmit={handleJoinGroupSubmit} className="relative z-10 flex flex-col pt-8">
             <DialogTitle className="flex flex-col items-center pb-2 text-center">
-              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center shadow-lg shadow-[#60a5fa]/30 mb-4 text-white">
+              <Box className="w-16 h-16 rounded-full bg-gradient-to-br from-[#c8f1da] to-[#93ddb6] flex items-center justify-center shadow-lg shadow-[#5cc28f]/30 mb-4 text-[#0b1410]">
                 <GroupIcon fontSize="large" />
               </Box>
               <Typography component="div" variant="h5" className="font-extrabold text-gray-900 dark:text-white mb-1">
@@ -814,7 +814,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 type="submit"
                 fullWidth
                 disabled={actionLoading || !joinInputId.trim()}
-                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#60a5fa] to-[#427c36] hover:from-blue-500 hover:to-green-700 text-white shadow-lg shadow-[#60a5fa]/25 transition-all transform hover:-translate-y-0.5"
+                className="rounded-2xl py-3 font-bold text-base bg-gradient-to-r from-[#c8f1da] to-[#93ddb6] hover:from-[#b4ebcc] hover:to-[#7fd4a6] text-[#0b1410] shadow-lg shadow-[#5cc28f]/25 transition-all transform hover:-translate-y-0.5"
                 sx={{ textTransform: 'none' }}
               >
                 {actionLoading ? <CircularProgress size={24} color="inherit" /> : 'Join Workspace'}
@@ -852,7 +852,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         >
           <DialogTitle className="flex justify-between items-center pb-2">
             <Box className="flex items-center gap-2">
-              <Box className="p-2 rounded-xl bg-green-50 dark:bg-green-900/40 text-[#427c36] border border-green-100 dark:border-green-900">
+              <Box className="p-2 rounded-xl bg-green-50 dark:bg-green-900/40 text-[#1f8a5b] border border-green-100 dark:border-green-900">
                 <PeopleIcon fontSize="small" />
               </Box>
               <Box>
@@ -874,7 +874,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             <Box className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 dark:border-green-900 mb-4 shadow-sm dark:shadow-none">
               <Box>
                 <Typography variant="body2" className="font-bold text-gray-700 dark:text-gray-300">
-                  Total Members: <span className="text-[#326127]">{currentGroupMembers.length}</span>
+                  Total Members: <span className="text-[#0f2e1f]">{currentGroupMembers.length}</span>
                 </Typography>
                 <Typography variant="caption" className="text-gray-500 dark:text-gray-400 dark:text-gray-500">
                   {isCurrentUserAdmin ? 'You are the Group Admin.' : 'You are a Member of this group.'}
@@ -885,7 +885,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                   icon={<AdminPanelSettingsIcon sx={{ fontSize: 16 }} />}
                   label="Group Admin"
                   size="small"
-                  className="bg-gradient-to-r from-green-400 to-[#427c36] text-white font-bold text-xs shadow-sm dark:shadow-none"
+                  className="bg-gradient-to-r from-green-400 to-[#93ddb6] text-[#0b1410] font-bold text-xs shadow-sm dark:shadow-none"
                 />
               )}
             </Box>
@@ -897,7 +897,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
             {membersLoading ? (
               <Box className="flex justify-center py-6">
-                <CircularProgress size={32} sx={{ color: '#427c36' }} />
+                <CircularProgress size={32} sx={{ color: '#1f8a5b' }} />
               </Box>
             ) : (
               <List className="p-0 space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
@@ -908,7 +908,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     className="p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-green-50 dark:border-green-800 flex items-center justify-between shadow-sm dark:shadow-none"
                   >
                     <Box className="flex items-center gap-3 overflow-hidden flex-1">
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#427c36' : '#e0e7ff', color: member.isAdmin ? 'white' : '#4338ca', fontSize: 13, fontWeight: 'bold' }}>
+                      <Avatar sx={{ width: 32, height: 32, bgcolor: member.isAdmin ? '#a8e6c3' : '#e0e7ff', color: member.isAdmin ? '#0b1410' : '#4338ca', fontSize: 13, fontWeight: 'bold' }}>
                         {member.email?.[0]?.toUpperCase() || 'U'}
                       </Avatar>
                       <Box className="overflow-hidden">
@@ -926,7 +926,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                         <Chip
                           label="Admin"
                           size="small"
-                          className="bg-green-100 dark:bg-green-900/60 text-[#326127] font-bold text-[10px] h-5"
+                          className="bg-green-100 dark:bg-green-900/60 text-[#0f2e1f] font-bold text-[10px] h-5"
                         />
                       ) : (
                         isCurrentUserAdmin && (
@@ -975,7 +975,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                         </Typography>
                       </Box>
                       <Box className="flex items-center justify-end gap-1 shrink-0 ml-auto pl-2">
-                        <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: '#326127', bgcolor: '#f0fdf4', '&:hover': { bgcolor: '#dcfce3' } }}>
+                        <IconButton size="small" onClick={() => handleAcceptRequest(req._id)} sx={{ color: '#0f2e1f', bgcolor: '#f0fdf4', '&:hover': { bgcolor: '#dcfce3' } }}>
                           <CheckCircleIcon fontSize="small" />
                         </IconButton>
                         <IconButton size="small" onClick={() => handleRejectRequest(req._id)} sx={{ color: '#ef4444', bgcolor: '#fef2f2', '&:hover': { bgcolor: '#fee2e2' } }}>
@@ -992,7 +992,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
             {isCurrentUserAdmin && (
               <Box className="mt-4 pt-4 border-t border-green-100 dark:border-green-900">
                 <Box className="p-3.5 rounded-xl bg-gradient-to-r from-green-50 to-white border border-green-100 dark:border-green-900 flex flex-col items-start gap-2 shadow-sm dark:shadow-none">
-                  <Typography variant="subtitle2" className="font-extrabold text-[#326127] flex items-center gap-1">
+                  <Typography variant="subtitle2" className="font-extrabold text-[#0f2e1f] flex items-center gap-1">
                     <LinkIcon fontSize="small" /> Share Invite Link
                   </Typography>
                   <Typography variant="caption" className="text-gray-600 dark:text-gray-400 dark:text-gray-500 leading-relaxed">
@@ -1003,7 +1003,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                     size="small"
                     startIcon={<ContentCopyIcon />}
                     onClick={handleCopyInviteLink}
-                    sx={{ mt: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', borderColor: '#ffb6d8', color: '#326127', '&:hover': { borderColor: '#427c36', bgcolor: '#f0fdf4' } }}
+                    sx={{ mt: 1, borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', borderColor: '#ffb6d8', color: '#0f2e1f', '&:hover': { borderColor: '#1f8a5b', bgcolor: '#f0fdf4' } }}
                   >
                     Copy Link
                   </Button>
@@ -1154,7 +1154,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
         slotProps={{ paper: { className: 'rounded-3xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden m-4 max-w-[480px] w-full' } }}
       >
         {/* Cover Photo Area */}
-        <Box className="h-32 relative bg-gradient-to-r from-blue-100 to-green-100 dark:from-blue-900/40 dark:to-green-900/40">
+        <Box className="h-32 relative bg-gradient-to-r from-green-50 to-emerald-100 dark:from-green-900/40 dark:to-green-900/40">
           <Box className="absolute inset-0 opacity-30 mix-blend-multiply dark:mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, rgba(0,0,0,0.1) 2px, transparent 0)', backgroundSize: '24px 24px' }} />
           <IconButton
             onClick={() => setProfileDialogOpen(false)}
@@ -1172,11 +1172,11 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               width: 100,
               height: 100,
               bgcolor: 'white',
-              color: '#427c36',
+              color: '#1f8a5b',
               fontSize: 36,
               fontWeight: 800,
               border: '6px solid white',
-              boxShadow: '0 8px 24px rgba(66,124,54,0.15)'
+              boxShadow: '0 8px 24px rgba(31, 138, 91, 0.15)'
             }}
             className="dark:border-gray-900"
           >
@@ -1215,10 +1215,10 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           </Box>
 
           {/* Workspace Storage & Subscription Section (Moved to My Profile in blue & green gradient theme) */}
-          <Box className="w-full mt-4 bg-gradient-to-br from-blue-50/80 via-white to-green-50/80 dark:from-gray-800/90 dark:via-gray-800/60 dark:to-green-950/40 rounded-2xl p-4 border border-green-100 dark:border-green-900/50 shadow-xs">
+          <Box className="w-full mt-4 bg-gradient-to-br from-green-50/80 via-white to-green-50/80 dark:from-gray-800/90 dark:via-gray-800/60 dark:to-green-950/40 rounded-2xl p-4 border border-green-100 dark:border-green-900/50 shadow-xs">
             <Box className="flex items-center justify-between mb-3">
               <Box className="flex items-center gap-2.5">
-                <Box className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#60a5fa] to-[#427c36] flex items-center justify-center text-white shadow-sm shadow-[#427c36]/20">
+                <Box className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#c8f1da] to-[#93ddb6] flex items-center justify-center text-[#0b1410] shadow-sm shadow-[#5cc28f]/20">
                   <CloudQueueIcon sx={{ fontSize: 18 }} />
                 </Box>
                 <Box>
@@ -1232,16 +1232,16 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               </Box>
 
               <Chip
-                label={profileStats.currentPlan || 'Free Tier (50 MB)'}
+                label={profileStats.currentPlan || `Free Tier (${defaultFreeMB} MB)`}
                 size="small"
                 sx={{
-                  background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
-                  color: '#ffffff',
+                  background: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
+                  color: '#0b1410',
                   fontWeight: 800,
                   fontSize: '0.68rem',
                   height: '22px',
                   borderRadius: '6px',
-                  boxShadow: '0 2px 6px rgba(66, 124, 54, 0.25)'
+                  boxShadow: '0 2px 6px rgba(31, 138, 91, 0.25)'
                 }}
               />
             </Box>
@@ -1255,7 +1255,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 <Typography
                   variant="caption"
                   className="font-extrabold"
-                  sx={{ color: profileIsExceeded ? '#ef4444' : profilePercent > 80 ? '#f59e0b' : '#326127' }}
+                  sx={{ color: profileIsExceeded ? '#ef4444' : profilePercent > 80 ? '#f59e0b' : '#0f2e1f' }}
                 >
                   {profilePercent}%
                 </Typography>
@@ -1272,7 +1272,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                       ? 'linear-gradient(90deg, #ef4444, #dc2626)'
                       : profilePercent > 80
                         ? 'linear-gradient(90deg, #f59e0b, #ea580c)'
-                        : 'linear-gradient(90deg, #60a5fa 0%, #427c36 100%)',
+                        : 'linear-gradient(90deg, #a8e6c3 0%, #5cc28f 100%)',
                     borderRadius: 4
                   }
                 }}
@@ -1293,7 +1293,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                 <Typography variant="caption" className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-bold block">
                   Bonus Storage
                 </Typography>
-                <Typography variant="body2" className="font-extrabold text-[#326127] dark:text-green-400 text-xs">
+                <Typography variant="body2" className="font-extrabold text-[#0f2e1f] dark:text-green-400 text-xs">
                   +{profileStats.bonusStorageMB || 0} MB
                 </Typography>
               </Box>
@@ -1311,15 +1311,15 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
               sx={{
                 mt: 2.5,
                 py: 1,
-                background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%) !important',
-                color: '#ffffff !important',
+                background: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%) !important',
+                color: '#0b1410 !important',
                 fontWeight: 700,
                 fontSize: '0.82rem',
                 textTransform: 'none',
                 borderRadius: '12px',
-                boxShadow: '0 3px 12px rgba(66, 124, 54, 0.25)',
+                boxShadow: '0 3px 12px rgba(31, 138, 91, 0.25)',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%) !important',
+                  background: 'linear-gradient(135deg, #b4ebcc 0%, #7fd4a6 100%) !important',
                   transform: 'translateY(-1px)'
                 },
                 transition: 'all 0.2s'
@@ -1347,14 +1347,14 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
                   const isActive = g.groupId === activeGroupId;
                   return (
                     <Box key={g.groupId} className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${isActive ? 'bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700/50 border border-transparent'}`}>
-                      <Box className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isActive ? 'bg-[#427c36] text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                      <Box className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isActive ? 'bg-[#a8e6c3] text-[#0b1410]' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
                         <GroupIcon sx={{ fontSize: 16 }} />
                       </Box>
-                      <Typography variant="body2" className={`font-bold truncate flex-1 ${isActive ? 'text-[#326127] dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                      <Typography variant="body2" className={`font-bold truncate flex-1 ${isActive ? 'text-[#0f2e1f] dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
                         {g.name}
                       </Typography>
                       {isActive && (
-                        <Chip label="Active" size="small" sx={{ height: 20, fontSize: '0.65rem' }} className="bg-[#427c36] text-white font-bold" />
+                        <Chip label="Active" size="small" sx={{ height: 20, fontSize: '0.65rem' }} className="bg-[#a8e6c3] text-[#0b1410] font-bold" />
                       )}
                     </Box>
                   );
@@ -1394,7 +1394,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           onClick={() => onToggleMobileView && onToggleMobileView('sidebar')}
           sx={{
             display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
-            color: mobileView === 'sidebar' ? '#427c36' : '#9ca3af',
+            color: mobileView === 'sidebar' ? '#1f8a5b' : '#9ca3af',
             '&:hover': { bgcolor: 'transparent' }
           }}
         >
@@ -1408,7 +1408,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
           }}
           sx={{
             display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5,
-            color: hasOpenDocuments ? (mobileView === 'editor' ? '#427c36' : '#9ca3af') : '#d1d5db',
+            color: hasOpenDocuments ? (mobileView === 'editor' ? '#1f8a5b' : '#9ca3af') : '#d1d5db',
             '&:hover': { bgcolor: 'transparent' }
           }}
         >
@@ -1418,7 +1418,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         <Button
           onClick={handleOpenAddDialog}
-          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#1f8a5b' } }}
         >
           <GroupAddIcon sx={{ fontSize: 22, mb: 0.2 }} />
           <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Add</Typography>
@@ -1426,7 +1426,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         <Button
           onClick={handleOpenJoinDialog}
-          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#1f8a5b' } }}
         >
           <GroupIcon sx={{ fontSize: 22, mb: 0.2 }} />
           <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Join</Typography>
@@ -1434,7 +1434,7 @@ const Navbar = ({ mobileView, onToggleMobileView, hasOpenDocuments }) => {
 
         <Button
           onClick={() => setProfileDialogOpen(true)}
-          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#427c36' } }}
+          sx={{ display: 'flex', flexDirection: 'column', minWidth: '60px', px: 1, py: 0.5, color: '#9ca3af', '&:hover': { bgcolor: 'transparent', color: '#1f8a5b' } }}
         >
           <PersonIcon sx={{ fontSize: 22, mb: 0.2 }} />
           <Typography sx={{ fontSize: '0.6rem', fontWeight: 500, textTransform: 'none' }}>Profile</Typography>

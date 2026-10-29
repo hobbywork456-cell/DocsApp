@@ -17,6 +17,8 @@ import {
 } from '@mui/material';
 
 // Standard MUI Icons
+import UndoIcon from '@mui/icons-material/Undo';
+import RedoIcon from '@mui/icons-material/Redo';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -151,6 +153,10 @@ const PresentationToolbar = ({
   showNotes,
   setShowNotes,
   onStartPresentation,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
   readOnly = false
 }) => {
   // Menu anchors
@@ -193,6 +199,7 @@ const PresentationToolbar = ({
   // Format Painter state
   const [formatPainterActive, setFormatPainterActive] = useState(false);
   const copiedFormatRef = useRef(null);
+  const painterSourceRef = useRef(null);
 
   // Dictation Speech Recognition
   const [isListening, setIsListening] = useState(false);
@@ -254,19 +261,21 @@ const PresentationToolbar = ({
   // Clear Formatting
   const handleClearFormatting = () => {
     if (readOnly || !onUpdateSlide) return;
-    onUpdateSlide('fontFamily', 'Calibri');
-    onUpdateSlide('fontSize', '24');
-    onUpdateSlide('isBold', false);
-    onUpdateSlide('isItalic', false);
-    onUpdateSlide('isUnderline', false);
-    onUpdateSlide('isShadow', false);
-    onUpdateSlide('isStrike', false);
-    onUpdateSlide('letterSpacing', 'normal');
-    onUpdateSlide('textAlign', 'left');
-    onUpdateSlide('textTransform', 'none');
-    onUpdateSlide('customColor', null);
-    onUpdateSlide('highlightColor', null);
-    onUpdateSlide('lineSpacing', '1.2');
+    onUpdateSlide({
+      fontFamily: undefined,
+      fontSize: undefined,
+      isBold: false,
+      isItalic: false,
+      isUnderline: false,
+      isShadow: false,
+      isStrike: false,
+      letterSpacing: 'normal',
+      textAlign: 'left',
+      textTransform: 'none',
+      customColor: null,
+      highlightColor: null,
+      lineSpacing: undefined
+    });
   };
 
   // Character Spacing
@@ -399,6 +408,7 @@ const PresentationToolbar = ({
         letterSpacing: activeSlide?.letterSpacing,
         lineSpacing: activeSlide?.lineSpacing
       };
+      painterSourceRef.current = activeSlide?.id;
       setFormatPainterActive(true);
     } else {
       setFormatPainterActive(false);
@@ -408,10 +418,12 @@ const PresentationToolbar = ({
 
   // Apply Format Painter when slide changes
   useEffect(() => {
-    if (formatPainterActive && copiedFormatRef.current && onUpdateSlide) {
+    if (formatPainterActive && copiedFormatRef.current && onUpdateSlide && activeSlide?.id !== painterSourceRef.current) {
+      const patch = {};
       Object.entries(copiedFormatRef.current).forEach(([k, v]) => {
-        if (v !== undefined) onUpdateSlide(k, v);
+        if (v !== undefined) patch[k] = v;
       });
+      onUpdateSlide(patch);
       setFormatPainterActive(false);
       copiedFormatRef.current = null;
     }
@@ -553,6 +565,33 @@ const PresentationToolbar = ({
 
   return (
     <Box className="ppt-ribbon-container">
+      {/* 0. UNDO / REDO */}
+      <Box className="ppt-ribbon-group">
+        <Box className="ppt-ribbon-group-content">
+          <Box className="ppt-stacked-column">
+            <Tooltip title="Undo (Ctrl+Z)">
+              <span>
+                <button className="ppt-btn-stacked" onClick={onUndo} disabled={readOnly || !canUndo}>
+                  <UndoIcon sx={{ fontSize: 14, color: '#6b7280' }} />
+                  <span>Undo</span>
+                </button>
+              </span>
+            </Tooltip>
+            <Tooltip title="Redo (Ctrl+Y)">
+              <span>
+                <button className="ppt-btn-stacked" onClick={onRedo} disabled={readOnly || !canRedo}>
+                  <RedoIcon sx={{ fontSize: 14, color: '#6b7280' }} />
+                  <span>Redo</span>
+                </button>
+              </span>
+            </Tooltip>
+          </Box>
+        </Box>
+        <Box className="ppt-ribbon-group-label">
+          <span>Undo</span>
+        </Box>
+      </Box>
+
       {/* 1. CLIPBOARD GROUP */}
       <Box className="ppt-ribbon-group">
         <Box className="ppt-ribbon-group-content">

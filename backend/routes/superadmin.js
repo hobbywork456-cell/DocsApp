@@ -7,7 +7,7 @@ const Group = require('../models/Group');
 const Document = require('../models/Document');
 const SystemSettings = require('../models/SystemSettings');
 const Subscription = require('../models/Subscription');
-const { getUserStorageStats, getDocumentSizeBytes } = require('../utils/storage');
+const { getUserStorageStats, getDocumentSizeBytes, invalidateStorageCache } = require('../utils/storage');
 
 // Apply auth and superadmin middleware to all routes in this router
 router.use(auth, superadmin);
@@ -80,7 +80,7 @@ router.get('/users', async (req, res) => {
             role: u.role,
             isSubscribed: false,
             currentPlan: 'Free',
-            totalQuotaMB: 50,
+            totalQuotaMB: 25,
             totalUsedMB: 0,
             percentUsed: 0,
             isExceeded: false,
@@ -218,6 +218,7 @@ router.put('/tariff', async (req, res) => {
     settings.updatedAt = new Date();
 
     await settings.save();
+    invalidateStorageCache();
 
     res.json({
       message: 'Tariff and storage settings updated successfully! New rates are now active for all application users.',

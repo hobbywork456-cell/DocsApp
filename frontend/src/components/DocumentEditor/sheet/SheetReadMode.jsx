@@ -18,8 +18,6 @@ const SheetReadMode = ({
   isDarkMode,
   onClose
 }) => {
-  if (!doc) return null;
-
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -29,6 +27,8 @@ const SheetReadMode = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
+  if (!doc) return null;
 
   const handleDownloadXlsx = () => {
     downloadSheetAsXlsx(doc.title || 'Spreadsheet', doc.content);

@@ -11,6 +11,7 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import CloseIcon from '@mui/icons-material/Close';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
+import { SlideShapesLayer } from './SlideShape';
 
 const SlideshowModal = ({
   open,
@@ -30,7 +31,14 @@ const SlideshowModal = ({
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
         setSlideshowIndex(prev => Math.min(deck.slides.length - 1, prev + 1));
-      } else if (e.key === 'ArrowLeft') {
+      } else if (e.key === 'PageDown' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSlideshowIndex(prev => Math.min(deck.slides.length - 1, prev + 1));
+      } else if (e.key === 'Home') {
+        setSlideshowIndex(0);
+      } else if (e.key === 'End') {
+        setSlideshowIndex(deck.slides.length - 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'ArrowUp' || e.key === 'Backspace') {
         e.preventDefault();
         setSlideshowIndex(prev => Math.max(0, prev - 1));
       } else if (e.key === 'Escape') {
@@ -267,6 +275,11 @@ const SlideshowModal = ({
               </Typography>
             </Box>
           )}
+        </Box>
+
+        {/* Inserted shapes, positioned on a centred 16:9 frame like the editor canvas */}
+        <Box className="slideshow-shapes-frame" key={`shapes-${slideshowIndex}`}>
+          <SlideShapesLayer shapes={currentSlide.shapes || []} defaultTextColor={activeTheme.textColor} />
         </Box>
 
         {/* Floating Navigation Pill at bottom */}

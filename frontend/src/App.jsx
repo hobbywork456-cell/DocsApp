@@ -10,8 +10,10 @@ import { fetchCurrentProfile } from './slices/authSlice';
 
 // Protected route for normal user workspace (Dashboard)
 function UserWorkspaceRoute({ children }) {
-  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role === 'superadmin') return <Navigate to="/superadmin" replace />;
+  return children;
 }
 
 // Protected route strictly for Super Admin Dashboard

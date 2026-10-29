@@ -1,6 +1,19 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 export const PALETTES = {
+  forest: {
+    id: 'forest',
+    name: 'Pastel Mint & White',
+    badge: 'DocuSphere Standard',
+    primary: '#1f8a5b',
+    primaryDark: '#0f2e1f',
+    primaryLight: '#a8e6c3',
+    accent: '#5cc28f',
+    gradient: 'linear-gradient(135deg, #c8f1da 0%, #93ddb6 100%)',
+    borderGlow: 'rgba(92, 194, 143, 0.3)',
+    cardBg: 'rgba(255, 255, 255, 0.7)',
+    bodyBg: '#f6fbf8'
+  },
   royal: {
     id: 'royal',
     name: 'Royal Amethyst & Gold',
@@ -69,7 +82,9 @@ export const PALETTES = {
 };
 
 export const applyPaletteToDom = (paletteId, isSuperAdmin = false) => {
-  const p = PALETTES[paletteId] || PALETTES.royal;
+  const p = isSuperAdmin
+    ? PALETTES.forest
+    : (PALETTES[paletteId] || PALETTES.forest);
   const root = document.documentElement;
 
   root.style.setProperty('--theme-palette-primary', p.primary);
@@ -78,8 +93,8 @@ export const applyPaletteToDom = (paletteId, isSuperAdmin = false) => {
   root.style.setProperty('--theme-palette-accent', p.accent);
   root.style.setProperty('--theme-palette-gradient', p.gradient);
   root.style.setProperty('--theme-palette-glow', p.borderGlow);
-  root.style.setProperty('--color-theme-main', p.primary);
-  root.style.setProperty('--color-theme-main-dark', p.primaryDark);
+  root.style.setProperty('--color-theme-main', '#1f8a5b');
+  root.style.setProperty('--color-theme-main-dark', '#0f2e1f');
 
   if (isSuperAdmin) {
     root.classList.add('superadmin-theme');
@@ -89,10 +104,10 @@ export const applyPaletteToDom = (paletteId, isSuperAdmin = false) => {
     document.body.classList.remove('superadmin-body');
   }
 
-  root.setAttribute('data-palette', paletteId);
+  root.setAttribute('data-palette', isSuperAdmin ? 'forest' : paletteId);
 };
 
-const savedPalette = localStorage.getItem('app_palette') || 'royal';
+const savedPalette = localStorage.getItem('app_palette') || 'forest';
 
 const initialState = {
   isDarkMode: localStorage.getItem('theme') === 'dark' || false,

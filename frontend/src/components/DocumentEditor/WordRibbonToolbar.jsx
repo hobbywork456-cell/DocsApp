@@ -62,6 +62,8 @@ import HorizontalRuleIcon from '@mui/icons-material/HorizontalRule';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
+import InsertPageBreakIcon from '@mui/icons-material/InsertPageBreak';
+import { Quill } from 'react-quill-new';
 
 import './WordRibbonToolbar.css';
 
@@ -183,6 +185,7 @@ const WordRibbonToolbar = ({
   const [matchCase, setMatchCase] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [replaceInfo, setReplaceInfo] = useState('');
   const matchRangesRef = useRef([]);
 
   // Document Statistics Dialog
@@ -268,7 +271,7 @@ const WordRibbonToolbar = ({
   const handleCut = async () => {
     if (!quillRef.current) return;
     const quill = quillRef.current.getEditor();
-    const range = quill.getSelection();
+    const range = quill.getSelection(true);
     if (!range || range.length === 0) return;
     const text = quill.getText(range.index, range.length);
     try {
@@ -283,7 +286,7 @@ const WordRibbonToolbar = ({
   const handleCopy = async () => {
     if (!quillRef.current) return;
     const quill = quillRef.current.getEditor();
-    const range = quill.getSelection();
+    const range = quill.getSelection(true);
     if (!range || range.length === 0) return;
     const text = quill.getText(range.index, range.length);
     try {
@@ -296,7 +299,7 @@ const WordRibbonToolbar = ({
   const handleFormatPainter = (isDoubleClick = false) => {
     if (!quillRef.current) return;
     const quill = quillRef.current.getEditor();
-    const range = quill.getSelection();
+    const range = quill.getSelection(true);
 
     if (formatPainterActive && !isDoubleClick) {
       setFormatPainter(null);
@@ -348,14 +351,14 @@ const WordRibbonToolbar = ({
     setCaseMenuAnchor(null);
     if (!quillRef.current) return;
     const quill = quillRef.current.getEditor();
-    const range = quill.getSelection();
+    const range = quill.getSelection(true);
     if (!range || range.length === 0) return;
 
     const text = quill.getText(range.index, range.length);
     let newText = text;
 
     if (caseType === 'sentence') {
-      newText = text.replace(/(^\s*\w|[\.\!\?]\s*\w)/g, (c) => c.toUpperCase());
+      newText = text.toLowerCase().replace(/(^\s*\w|[.!?]\s*\w)/g, (c) => c.toUpperCase());
     } else if (caseType === 'lower') {
       newText = text.toLowerCase();
     } else if (caseType === 'upper') {
@@ -366,16 +369,27 @@ const WordRibbonToolbar = ({
       newText = text.split('').map((c) => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase())).join('');
     }
 
-    const currentFmt = quill.getFormat(range);
-    quill.deleteText(range.index, range.length, 'user');
-    quill.insertText(range.index, newText, currentFmt, 'user');
-    quill.setSelection(range.index, newText.length, 'user');
+    // Replace run by run so bold/italic/colour on parts of the selection survive
+    const Delta = Quill.import('delta');
+    let delta = new Delta().retain(range.index);
+    let offset = 0;
+    quill.getContents(range.index, range.length).ops.forEach((op) => {
+      if (typeof op.insert === 'string') {
+        delta = delta.delete(op.insert.length).insert(newText.slice(offset, offset + op.insert.length), op.attributes);
+        offset += op.insert.length;
+      } else {
+        delta = delta.retain(1);
+        offset += 1;
+      }
+    });
+    quill.updateContents(delta, 'user');
+    quill.setSelection(range.index, range.length, 'user');
   };
 
   const handleClearFormatting = () => {
     if (!quillRef.current) return;
     const quill = quillRef.current.getEditor();
-    const range = quill.getSelection();
+    const range = quill.getSelection(true);
     if (range) {
       quill.removeFormat(range.index, range.length, 'user');
     }
@@ -459,7 +473,18 @@ const WordRibbonToolbar = ({
   const toggleChecklist = () => {
     if (!quillRef.current) return;
     const quill = quillRef.current.getEditor();
-    quill.format('list', activeFormats.list === 'check' ? false : 'check', 'user');
+    const isChecklist = activeFormats.list === 'checked' || activeFormats.list === 'unchecked';
+    quill.format('list', isChecklist ? false : 'unchecked', 'user');
+  };
+
+  const applyListStyle = (listType, style) => {
+    setBulletMenuAnchor(null);
+    setNumberMenuAnchor(null);
+    if (!quillRef.current) return;
+    const quill = quillRef.current.getEditor();
+    quill.getSelection(true);
+    quill.format('list', listType, 'user');
+    quill.format('listStyle', style || false, 'user');
   };
 
   const handleIndent = (dir) => {
@@ -468,20 +493,36 @@ const WordRibbonToolbar = ({
     quill.format('indent', dir === 'more' ? '+1' : '-1', 'user');
   };
 
+  // Sorts whole paragraphs (with their formatting) inside the selection, like Word's Sort
   const handleSortLines = () => {
     if (!quillRef.current) return;
     const quill = quillRef.current.getEditor();
-    const range = quill.getSelection();
+    const range = quill.getSelection(true);
     if (!range || range.length === 0) return;
+    const lines = quill.getLines(range.index, range.length);
+    if (lines.length < 2) return;
+    const start = quill.getIndex(lines[0]);
+    const last = lines[lines.length - 1];
+    const end = quill.getIndex(last) + last.length();
+    const Delta = Quill.import('delta');
+    const paragraphs = lines.map((line) => {
+      const idx = quill.getIndex(line);
+      return { text: quill.getText(idx, line.length()), delta: quill.getContents(idx, line.length()) };
+    });
+    paragraphs.sort((a, b) => a.text.localeCompare(b.text, undefined, { numeric: true, sensitivity: 'base' }));
+    let sorted = new Delta();
+    paragraphs.forEach((para) => { sorted = sorted.concat(para.delta); });
+    quill.updateContents(new Delta().retain(start).delete(end - start).concat(sorted), 'user');
+    quill.setSelection(start, end - start, 'user');
+  };
 
-    const text = quill.getText(range.index, range.length);
-    const lines = text.split('\n');
-    lines.sort((a, b) => a.localeCompare(b));
-    const sortedText = lines.join('\n');
-
-    quill.deleteText(range.index, range.length, 'user');
-    quill.insertText(range.index, sortedText, 'user');
-    quill.setSelection(range.index, sortedText.length, 'user');
+  // Insert a block embed (divider / page break) on its own line at the cursor
+  const insertBlockEmbed = (type) => {
+    if (!quillRef.current) return;
+    const quill = quillRef.current.getEditor();
+    const range = quill.getSelection(true) || { index: quill.getLength() };
+    quill.insertEmbed(range.index, type, true, 'user');
+    quill.setSelection(range.index + 1, 0, 'user');
   };
 
   const handleAlign = (alignment) => {
@@ -509,16 +550,16 @@ const WordRibbonToolbar = ({
     if (!quillRef.current) return;
     const quill = quillRef.current.getEditor();
     if (borderType === 'horizontal-line') {
-      const range = quill.getSelection(true);
-      quill.insertEmbed(range.index, 'divider', true, 'user');
-      quill.insertText(range.index + 1, '\n', 'user');
-      quill.setSelection(range.index + 2, 0, 'user');
+      insertBlockEmbed('divider');
     } else if (borderType === 'bottom') {
-      quill.format('blockBorder', 'none none 1px solid #94a3b8', 'user');
+      quill.format('blockBorder', false, 'user');
+      quill.format('blockBorderBottom', '1px solid #94a3b8', 'user');
     } else if (borderType === 'all') {
+      quill.format('blockBorderBottom', false, 'user');
       quill.format('blockBorder', '1px solid #94a3b8', 'user');
     } else if (borderType === 'none') {
       quill.format('blockBorder', false, 'user');
+      quill.format('blockBorderBottom', false, 'user');
     }
   };
 
@@ -529,11 +570,22 @@ const WordRibbonToolbar = ({
     setActiveStyle(styleObj.id);
     if (!quillRef.current) return;
     const quill = quillRef.current.getEditor();
-    const range = quill.getSelection();
-
-    Object.keys(styleObj.formats).forEach((key) => {
-      quill.format(key, styleObj.formats[key], 'user');
+    const range = quill.getSelection(true) || { index: 0, length: 0 };
+    const lines = quill.getLines(range.index, Math.max(range.length, 1));
+    if (!lines.length) return;
+    const start = quill.getIndex(lines[0]);
+    const last = lines[lines.length - 1];
+    const length = quill.getIndex(last) + last.length() - start;
+    // Reset paragraph-level style first so switching styles never stacks (e.g. Quote -> Normal)
+    const blockFormats = { header: false, blockquote: false, lineHeight: false };
+    const inlineFormats = { font: false, size: false, bold: false, italic: false, color: false };
+    Object.entries(styleObj.formats).forEach(([key, val]) => {
+      if (key === 'header' || key === 'blockquote' || key === 'lineHeight') blockFormats[key] = val;
+      else inlineFormats[key] = val;
     });
+    quill.formatLine(start, length, blockFormats, 'user');
+    quill.formatText(start, Math.max(0, length - 1), inlineFormats, 'user');
+    quill.setSelection(range.index, range.length, 'silent');
   };
 
   // --------------------------------------------------------------------------
@@ -558,6 +610,7 @@ const WordRibbonToolbar = ({
 
     matchRangesRef.current = ranges;
     setMatchCount(ranges.length);
+    setReplaceInfo(ranges.length ? '' : 'No matches');
     if (ranges.length > 0) {
       setCurrentMatchIndex(0);
       quill.setSelection(ranges[0].index, ranges[0].length);
@@ -590,8 +643,9 @@ const WordRibbonToolbar = ({
     const activeRange = matchRangesRef.current[currentMatchIndex];
     if (!activeRange) return;
 
+    const fmt = quill.getFormat(activeRange.index, Math.max(1, activeRange.length));
     quill.deleteText(activeRange.index, activeRange.length, 'user');
-    quill.insertText(activeRange.index, replaceQuery, 'user');
+    quill.insertText(activeRange.index, replaceQuery, fmt, 'user');
     handleFind();
   };
 
@@ -599,10 +653,19 @@ const WordRibbonToolbar = ({
     if (!quillRef.current || !findQuery) return;
     const quill = quillRef.current.getEditor();
     const text = quill.getText();
-    const regex = new RegExp(findQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), matchCase ? 'g' : 'gi');
-    const newText = text.replace(regex, replaceQuery);
-    quill.setText(newText, 'user');
+    const needle = matchCase ? findQuery : findQuery.toLowerCase();
+    const hay = matchCase ? text : text.toLowerCase();
+    const hits = [];
+    for (let i = hay.indexOf(needle); i !== -1; i = hay.indexOf(needle, i + needle.length)) hits.push(i);
+    // Replace from the end so earlier indexes stay valid; each replacement keeps its own formatting
+    for (let k = hits.length - 1; k >= 0; k--) {
+      const fmt = quill.getFormat(hits[k], needle.length);
+      quill.deleteText(hits[k], needle.length, 'user');
+      quill.insertText(hits[k], replaceQuery, fmt, 'user');
+    }
+    matchRangesRef.current = [];
     setMatchCount(0);
+    setReplaceInfo(hits.length ? `Replaced ${hits.length}` : 'No matches');
   };
 
   // --------------------------------------------------------------------------
@@ -647,11 +710,17 @@ const WordRibbonToolbar = ({
     setLinkDialogOpen(false);
     if (!quillRef.current || !linkUrl) return;
     const quill = quillRef.current.getEditor();
-    const range = quill.getSelection(true) || { index: quill.getLength() };
+    const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+    const url = /^(https?:|mailto:|tel:|#|\/)/i.test(linkUrl) ? linkUrl : `https://${linkUrl}`;
     const textToInsert = linkText || linkUrl;
-
-    quill.insertText(range.index, textToInsert, { link: linkUrl }, 'user');
-    quill.setSelection(range.index + textToInsert.length, 0, 'user');
+    if (range.length && quill.getText(range.index, range.length) === textToInsert) {
+      quill.formatText(range.index, range.length, 'link', url, 'user');
+      quill.setSelection(range.index + range.length, 0, 'user');
+    } else {
+      if (range.length) quill.deleteText(range.index, range.length, 'user');
+      quill.insertText(range.index, textToInsert, { link: url }, 'user');
+      quill.setSelection(range.index + textToInsert.length, 0, 'user');
+    }
     setLinkText('');
     setLinkUrl('');
   };
@@ -669,12 +738,62 @@ const WordRibbonToolbar = ({
     }
   };
 
+  // --------------------------------------------------------------------------
+  // Keyboard shortcuts: Ctrl+L/E/R/J align, Ctrl+K link, Ctrl+F/H find,
+  // Ctrl+Shift+> / < (or Ctrl+] / [) font size, Ctrl+Enter page break
+  // --------------------------------------------------------------------------
+  // Pre-fill the link dialog with the selected text, like Word
+  const openLinkDialog = () => {
+    if (quillRef.current) {
+      const quill = quillRef.current.getEditor();
+      const range = quill.getSelection(true);
+      if (range && range.length) {
+        setLinkText(quill.getText(range.index, range.length));
+        setLinkUrl(quill.getFormat(range).link || '');
+      }
+    }
+    setLinkDialogOpen(true);
+  };
+
+  const shortcutRef = useRef(null);
+  useEffect(() => {
+    shortcutRef.current = (e) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const k = e.key.toLowerCase();
+      const run = (fn) => { e.preventDefault(); e.stopPropagation(); fn(); };
+      if (k === 'l' && !e.shiftKey) return run(() => handleAlign('left'));
+      if (k === 'e' && !e.shiftKey) return run(() => handleAlign('center'));
+      if (k === 'r' && !e.shiftKey) return run(() => handleAlign('right'));
+      if (k === 'j' && !e.shiftKey) return run(() => handleAlign('justify'));
+      if (k === 'k') return run(() => openLinkDialog());
+      if (k === 'f' || k === 'h') return run(() => setFindBarOpen(true));
+      if (k === 'enter') return run(() => insertBlockEmbed('pagebreak'));
+      if (e.shiftKey && (e.key === '>' || e.key === '.')) return run(handleGrowFont);
+      if (e.shiftKey && (e.key === '<' || e.key === ',')) return run(handleShrinkFont);
+      if (e.key === ']') return run(handleGrowFont);
+      if (e.key === '[') return run(handleShrinkFont);
+    };
+  });
+  useEffect(() => {
+    if (!quillRef.current) return undefined;
+    const root = quillRef.current.getEditor().root;
+    const onKey = (e) => shortcutRef.current?.(e);
+    root.addEventListener('keydown', onKey, true);
+    return () => root.removeEventListener('keydown', onKey, true);
+  }, [quillRef]);
+
   const currentStyleObj = STYLES_GALLERY.find((s) => s.id === activeStyle) || STYLES_GALLERY[0];
 
   return (
     <Box className="word-ribbon-container">
       {/* ── Main Compact Ribbon Body (38px height) ─────────────────────────── */}
-      <Box className="word-ribbon-body">
+      <Box
+        className="word-ribbon-body"
+        onMouseDown={(e) => {
+          if (!e.target.closest('input, textarea, select')) e.preventDefault();
+        }}
+      >
         {/* Undo / Redo */}
         <Tooltip title="Undo (Ctrl+Z)">
           <button type="button" className="ribbon-btn" onClick={() => quillRef.current?.getEditor().history.undo()}>
@@ -991,9 +1110,11 @@ const WordRibbonToolbar = ({
           </button>
         </div>
         <Menu anchorEl={bulletMenuAnchor} open={Boolean(bulletMenuAnchor)} onClose={() => setBulletMenuAnchor(null)}>
-          <MenuItem onClick={() => { toggleBulletList(); setBulletMenuAnchor(null); }}>● Disc Bullet</MenuItem>
-          <MenuItem onClick={() => { toggleBulletList(); setBulletMenuAnchor(null); }}>○ Circle Bullet</MenuItem>
-          <MenuItem onClick={() => { toggleBulletList(); setBulletMenuAnchor(null); }}>■ Square Bullet</MenuItem>
+          <MenuItem onClick={() => applyListStyle('bullet', null)}>●&nbsp;&nbsp;Disc</MenuItem>
+          <MenuItem onClick={() => applyListStyle('bullet', 'circle')}>○&nbsp;&nbsp;Circle</MenuItem>
+          <MenuItem onClick={() => applyListStyle('bullet', 'square')}>▪&nbsp;&nbsp;Square</MenuItem>
+          <MenuItem onClick={() => applyListStyle('bullet', 'dash')}>–&nbsp;&nbsp;Dash</MenuItem>
+          <MenuItem onClick={() => applyListStyle('bullet', 'arrow')}>➢&nbsp;&nbsp;Arrow</MenuItem>
         </Menu>
 
         {/* Numbering */}
@@ -1008,14 +1129,16 @@ const WordRibbonToolbar = ({
           </button>
         </div>
         <Menu anchorEl={numberMenuAnchor} open={Boolean(numberMenuAnchor)} onClose={() => setNumberMenuAnchor(null)}>
-          <MenuItem onClick={() => { toggleNumberedList(); setNumberMenuAnchor(null); }}>1. 2. 3. Numbers</MenuItem>
-          <MenuItem onClick={() => { toggleNumberedList(); setNumberMenuAnchor(null); }}>a. b. c. Letters</MenuItem>
-          <MenuItem onClick={() => { toggleNumberedList(); setNumberMenuAnchor(null); }}>i. ii. iii. Roman</MenuItem>
+          <MenuItem onClick={() => applyListStyle('ordered', null)}>1. 2. 3.</MenuItem>
+          <MenuItem onClick={() => applyListStyle('ordered', 'paren')}>1) 2) 3)</MenuItem>
+          <MenuItem onClick={() => applyListStyle('ordered', 'alpha')}>a. b. c.</MenuItem>
+          <MenuItem onClick={() => applyListStyle('ordered', 'upper-alpha')}>A. B. C.</MenuItem>
+          <MenuItem onClick={() => applyListStyle('ordered', 'roman')}>i. ii. iii.</MenuItem>
         </Menu>
 
         {/* Checklist */}
         <Tooltip title="Checklist">
-          <button type="button" className={`ribbon-btn ${activeFormats.list === 'check' ? 'active' : ''}`} onClick={toggleChecklist}>
+          <button type="button" className={`ribbon-btn ${activeFormats.list === 'checked' || activeFormats.list === 'unchecked' ? 'active' : ''}`} onClick={toggleChecklist}>
             <ChecklistIcon sx={{ fontSize: 16 }} />
           </button>
         </Tooltip>
@@ -1178,6 +1301,12 @@ const WordRibbonToolbar = ({
           </Box>
         </Popover>
 
+        <Tooltip title="Page Break (Ctrl+Enter)">
+          <button type="button" className="ribbon-btn" onClick={() => insertBlockEmbed('pagebreak')}>
+            <InsertPageBreakIcon sx={{ fontSize: 16, color: '#64748b' }} />
+          </button>
+        </Tooltip>
+
         <Tooltip title="Insert Image / Picture">
           <button type="button" className="ribbon-btn" onClick={onInsertImage}>
             <AddPhotoAlternateIcon sx={{ fontSize: 16, color: '#2563eb' }} />
@@ -1185,7 +1314,7 @@ const WordRibbonToolbar = ({
         </Tooltip>
 
         <Tooltip title="Insert Hyperlink (Ctrl+K)">
-          <button type="button" className="ribbon-btn" onClick={() => setLinkDialogOpen(true)}>
+          <button type="button" className="ribbon-btn" onClick={openLinkDialog}>
             <InsertLinkIcon sx={{ fontSize: 16, color: '#d97706' }} />
           </button>
         </Tooltip>
@@ -1283,9 +1412,17 @@ const WordRibbonToolbar = ({
             value={findQuery}
             onChange={(e) => {
               setFindQuery(e.target.value);
+              matchRangesRef.current = [];
+              setMatchCount(0);
+              setReplaceInfo('');
             }}
+            autoFocus
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleFind();
+              if (e.key === 'Enter') {
+                if (matchCount > 0 && matchRangesRef.current.length) (e.shiftKey ? handlePrevMatch : handleNextMatch)();
+                else handleFind();
+              }
+              if (e.key === 'Escape') setFindBarOpen(false);
             }}
             sx={{ fontSize: '0.82rem', width: 160, bgcolor: 'rgba(0,0,0,0.04)', px: 1, py: 0.2, borderRadius: 1 }}
           />
@@ -1309,11 +1446,15 @@ const WordRibbonToolbar = ({
             Replace All
           </Button>
 
-          {matchCount > 0 && (
+          {matchCount > 0 ? (
             <Typography variant="caption" sx={{ fontWeight: 600, color: '#3b82f6' }}>
               {currentMatchIndex + 1} of {matchCount}
             </Typography>
-          )}
+          ) : replaceInfo ? (
+            <Typography variant="caption" sx={{ fontWeight: 600, color: replaceInfo === 'No matches' ? '#dc2626' : '#16a34a' }}>
+              {replaceInfo}
+            </Typography>
+          ) : null}
 
           <IconButton size="small" onClick={handlePrevMatch} disabled={matchCount === 0}>
             <NavigateBeforeIcon fontSize="small" />

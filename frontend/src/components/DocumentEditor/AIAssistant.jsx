@@ -1,255 +1,377 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Draggable from 'react-draggable';
-import { Paper, Box, Typography, IconButton, Menu, MenuItem, TextField, CircularProgress, Button, Tooltip, Divider, Chip } from '@mui/material';
+import { Paper, Box, Typography, IconButton, Menu, MenuItem, TextField, Button, Tooltip, Chip, ListItemText } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import TuneIcon from '@mui/icons-material/Tune';
 import SendIcon from '@mui/icons-material/Send';
-const AIAssistant = ({
-  open,
-  onClose,
-  aiModel,
-  setAiModel,
-  aiPrompt,
-  setAiPrompt,
-  aiResult,
-  isAiLoading,
-  onGenerate,
-  onInsert
-}) => {
+import StopIcon from '@mui/icons-material/StopCircleOutlined';
+import ReplayIcon from '@mui/icons-material/Replay';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import AddIcon from '@mui/icons-material/AddCircleOutlined';
+import TextSnippetOutlinedIcon from '@mui/icons-material/TextSnippetOutlined';
+import HighlightAltIcon from '@mui/icons-material/HighlightAlt';
+import './AIAssistant.css';
+
+const API_BASE = `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/api/ai`;
+const MODEL_STORAGE_KEY = 'ai-assistant-model';
+
+// One-click actions per editor type: label + the instruction sent to the model
+const QUICK_ACTIONS = {
+  doc: [
+    { label: 'Improve writing', prompt: 'Improve the writing: make it clearer, more concise and better structured, keeping the meaning.' },
+    { label: 'Fix grammar', prompt: 'Fix all spelling, grammar and punctuation mistakes. Change nothing else.' },
+    { label: 'Summarize', prompt: 'Summarize the key points as a short bulleted list.' },
+    { label: 'Make shorter', prompt: 'Rewrite it to be about half as long without losing important information.' },
+    { label: 'Make longer', prompt: 'Expand it with more detail, examples and explanation.' },
+    { label: 'Professional tone', prompt: 'Rewrite it in a polished, professional business tone.' },
+    { label: 'Continue writing', prompt: 'Continue writing from where the text ends, in the same style and tone. Return only the new text.' },
+    { label: 'Outline', prompt: 'Create a clear outline with headings and sub-points for this topic.' }
+  ],
+  sheet: [
+    { label: 'Analyse data', prompt: 'Analyse this spreadsheet data: key insights, trends and anything unusual, as bullet points.' },
+    { label: 'Summarize figures', prompt: 'Summarize the most important numbers and totals in a short paragraph.' },
+    { label: 'Suggest formulas', prompt: 'Suggest useful spreadsheet formulas for this data (Excel syntax) and explain what each does.' },
+    { label: 'Write a report', prompt: 'Write a short business report based on this data with a title, summary and key findings.' }
+  ],
+  ppt: [
+    { label: 'Speaker notes', prompt: 'Write concise speaker notes for each slide, labelled by slide number.' },
+    { label: 'Improve slides', prompt: 'Suggest clearer, punchier titles and bullet points for each slide.' },
+    { label: 'Summarize deck', prompt: 'Summarize this presentation in 5 bullet points.' },
+    { label: 'Add a slide', prompt: 'Draft the content (title and 3-5 bullets) for one more slide that would strengthen this deck.' }
+  ]
+};
+
+const parseSse = (buffer, onEvent) => {
+  const events = buffer.split('\n\n');
+  const rest = events.pop();
+  events.forEach((block) => {
+    const line = block.split('\n').find((l) => l.startsWith('data: '));
+    if (!line) return;
+    try {
+      onEvent(JSON.parse(line.slice(6)));
+    } catch {
+      // ignore malformed keep-alive lines
+    }
+  });
+  return rest;
+};
+
+const AIAssistant = ({ open, onClose, docType = 'doc', getContext, selectionText = '', onInsert, canInsert = true }) => {
+  const nodeRef = useRef(null);
+  const inputRef = useRef(null);
+  const abortRef = useRef(null);
+  const outputRef = useRef(null);
+
+  const [models, setModels] = useState([]);
+  const [model, setModel] = useState(() => {
+    try {
+      return localStorage.getItem(MODEL_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
   const [anchorEl, setAnchorEl] = useState(null);
+  const [prompt, setPrompt] = useState('');
+  const [lastRequest, setLastRequest] = useState(null); // { prompt, usedSelection }
+  const [streamText, setStreamText] = useState('');
+  const [resultHtml, setResultHtml] = useState('');
+  const [modelUsed, setModelUsed] = useState('');
+  const [status, setStatus] = useState('idle'); // idle | waiting | streaming | done | error
+  const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
-  if (!open) return null;
+  const busy = status === 'waiting' || status === 'streaming';
+  const hasSelection = Boolean(selectionText && selectionText.trim());
 
-  const handleModelMenuOpen = (event) => setAnchorEl(event.currentTarget);
-  const handleModelMenuClose = () => setAnchorEl(null);
+  // Load the model list once the panel is first opened
+  useEffect(() => {
+    if (!open || models.length) return;
+    const token = localStorage.getItem('token');
+    fetch(`${API_BASE}/models`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        setModels(data.models || []);
+        setModel((m) => (data.models || []).some((x) => x.id === m) ? m : data.defaultModel);
+        if (!data.configured) setError('The AI assistant is not configured on the server (GEMINI_API_KEY missing).');
+      })
+      .catch(() => {});
+  }, [open, models.length]);
 
-  const handleModelSelect = (modelValue) => {
-    setAiModel(modelValue);
-    handleModelMenuClose();
-  };
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+  }, [open]);
 
-  const handleCopy = () => {
-    // Strip HTML tags for clean copying if needed, but since it's rich text we copy as is
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = aiResult;
-    navigator.clipboard.writeText(tempDiv.textContent || tempDiv.innerText || "");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // Stop any request when the panel closes or unmounts
+  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => {
+    if (!open) abortRef.current?.abort();
+  }, [open]);
 
-  const getModelLabel = () => {
-    switch (aiModel) {
-      case 'gemma-4-26b-a4b-it': return 'Gemma 4 26B (Reliable)';
-      case 'gemma-4-31b-it': return 'Gemma 4 31B';
-      case 'gemini-3.8-flash': return 'Gemini 3.8 Flash (Fastest)';
-      case 'gemini-3.6-flash': return 'Gemini 3.6 Flash';
-      case 'gemini-flash-lite-latest': return 'Gemini Flash Lite';
-      case 'deep-research-preview-04-2026': return 'Deep Research';
-      default: return 'AI Model';
+  useEffect(() => {
+    if (status === 'streaming' && outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight;
+  }, [streamText, status]);
+
+  const run = useCallback(async (instruction) => {
+    const text = (instruction ?? prompt).trim();
+    if (!text || busy) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const context = getContext ? getContext() : {};
+    setLastRequest({ prompt: text, usedSelection: Boolean(context.selection && context.selection.trim()) });
+    setStreamText('');
+    setResultHtml('');
+    setModelUsed('');
+    setError('');
+    setStatus('waiting');
+    if (instruction === undefined) setPrompt('');
+
+    try {
+      const response = await fetch(`${API_BASE}/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ prompt: text, model, context }),
+        signal: controller.signal
+      });
+      if (!response.ok || !response.body) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || `Request failed (${response.status})`);
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finished = false;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        buffer = parseSse(buffer, (evt) => {
+          if (evt.type === 'model') {
+            setModelUsed(evt.label || evt.model);
+            setStatus('streaming');
+          } else if (evt.type === 'chunk') {
+            setStreamText((t) => t + evt.text);
+          } else if (evt.type === 'done') {
+            finished = true;
+            setResultHtml(evt.html);
+            setStreamText(evt.text);
+            setStatus('done');
+          } else if (evt.type === 'error') {
+            finished = true;
+            setError(evt.message);
+            setStatus('error');
+          }
+        });
+      }
+      if (!finished) throw new Error('The connection ended before the answer was complete. Please retry.');
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        // Stopped by the user: keep whatever already arrived
+        setStatus((s) => (s === 'streaming' ? 'done' : 'idle'));
+        return;
+      }
+      setError(err.message || 'Something went wrong. Please try again.');
+      setStatus('error');
+    }
+  }, [prompt, busy, getContext, model]);
+
+  const stop = () => abortRef.current?.abort();
+
+  const outputHtml = resultHtml || '';
+  const outputText = streamText;
+
+  const handleCopy = async () => {
+    try {
+      if (outputHtml && window.ClipboardItem) {
+        await navigator.clipboard.write([new window.ClipboardItem({
+          'text/html': new Blob([outputHtml], { type: 'text/html' }),
+          'text/plain': new Blob([outputText], { type: 'text/plain' })
+        })]);
+      } else {
+        await navigator.clipboard.writeText(outputText);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError('Could not access the clipboard. Select the text and press Ctrl+C.');
     }
   };
 
+  // Stopped early → no server HTML yet: insert the plain text with paragraph breaks
+  const insertable = () => outputHtml || outputText.split(/\n{2,}/).map((p) => `<p>${p.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/\n/g, '<br>')}</p>`).join('');
+
+  const handleInsert = (replace) => {
+    onInsert?.(insertable(), { replace });
+  };
+
+  const selectModel = (id) => {
+    setModel(id);
+    try {
+      localStorage.setItem(MODEL_STORAGE_KEY, id);
+    } catch {
+      // ignore storage errors
+    }
+    setAnchorEl(null);
+  };
+
+  if (!open) return null;
+
+  const actions = QUICK_ACTIONS[docType] || QUICK_ACTIONS.doc;
+  const currentModel = models.find((m) => m.id === model);
+  const showOutput = status !== 'idle' || outputText;
+
   return (
-    <Draggable handle=".ai-drag-handle" bounds="body">
-      <Paper 
+    <Draggable nodeRef={nodeRef} handle=".ai-drag-handle" bounds="body" cancel=".ai-no-drag">
+      <Paper
+        ref={nodeRef}
         elevation={24}
-        className="bg-white/95 dark:bg-gray-900/95"
-        sx={{ 
-          position: 'fixed', 
-          bottom: 24,
-          right: 24,
-          left: 'auto',
-          width: 380,
-          height: 560,
-          zIndex: 99999, 
-          display: 'flex', 
-          flexDirection: 'column',
-          borderRadius: '16px',
-          border: '1px solid',
-          borderColor: 'rgba(66,124,54,0.2)',
-          backdropFilter: 'blur(16px)',
-          overflow: 'hidden',
-          transition: 'width 0.3s, height 0.3s, top 0.3s, left 0.3s, bottom 0.3s, right 0.3s'
+        className="ai-panel"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            if (busy) stop();
+            else onClose();
+          }
         }}
       >
-        {/* Header / Drag Handle */}
-        <Box 
-          className="ai-drag-handle" 
-          sx={{ 
-            p: 1.5, 
-            background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
-            color: 'white', 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            cursor: 'grab',
-            '&:active': { cursor: 'grabbing' },
-            boxShadow: '0 4px 12px rgba(66,124,54,0.2)'
-          }}
-        >
-          <Typography sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1, fontSize: '15px', letterSpacing: '0.02em' }}>
-            <AutoAwesomeIcon fontSize="small" /> AI Assistant
+        {/* Header / drag handle */}
+        <Box className="ai-drag-handle ai-header">
+          <Typography className="ai-title">
+            <AutoAwesomeIcon sx={{ fontSize: 18 }} /> AI Assistant
           </Typography>
-          
-          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-            <Tooltip title={`Current Model: ${getModelLabel()}`}>
-              <IconButton size="small" onClick={handleModelMenuOpen} sx={{ color: 'white', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}>
-                <TuneIcon fontSize="small" />
+          <Box className="ai-no-drag" sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+            <Tooltip title={`Model: ${currentModel?.label || 'Default'}`}>
+              <button type="button" className="ai-model-pill" onClick={(e) => setAnchorEl(e.currentTarget)}>
+                <TuneIcon sx={{ fontSize: 14 }} /> {currentModel?.label?.replace('Gemini ', '') || 'Model'}
+              </button>
+            </Tooltip>
+            <Tooltip title="Close (Esc)">
+              <IconButton size="small" onClick={onClose} sx={{ color: '#0b1410', p: 0.5 }}>
+                <CloseIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <IconButton size="small" onClick={onClose} sx={{ color: 'white', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
           </Box>
         </Box>
 
-        {/* AI Model Dropdown Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleModelMenuClose}
-          PaperProps={{ sx: { width: 250, mt: 1, borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' } }}
-        >
-          <MenuItem selected={aiModel === 'gemma-4-26b-a4b-it'} onClick={() => handleModelSelect('gemma-4-26b-a4b-it')} sx={{ fontSize: '13px', fontWeight: 600 }}>Gemma 4 26B (Reliable)</MenuItem>
-          <MenuItem selected={aiModel === 'gemma-4-31b-it'} onClick={() => handleModelSelect('gemma-4-31b-it')} sx={{ fontSize: '13px', fontWeight: 600 }}>Gemma 4 31B</MenuItem>
-          <MenuItem selected={aiModel === 'gemini-3.8-flash'} onClick={() => handleModelSelect('gemini-3.8-flash')} sx={{ fontSize: '13px', fontWeight: 600 }}>Gemini 3.8 Flash (Fastest)</MenuItem>
-          <MenuItem selected={aiModel === 'gemini-3.6-flash'} onClick={() => handleModelSelect('gemini-3.6-flash')} sx={{ fontSize: '13px', fontWeight: 600 }}>Gemini 3.6 Flash</MenuItem>
-          <MenuItem selected={aiModel === 'gemini-flash-lite-latest'} onClick={() => handleModelSelect('gemini-flash-lite-latest')} sx={{ fontSize: '13px', fontWeight: 600 }}>Gemini Flash Lite</MenuItem>
-          <MenuItem selected={aiModel === 'deep-research-preview-04-2026'} onClick={() => handleModelSelect('deep-research-preview-04-2026')} sx={{ fontSize: '13px', fontWeight: 600 }}>Deep Research (Preview)</MenuItem>
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} sx={{ zIndex: 100000 }}
+          slotProps={{ paper: { sx: { width: 260, borderRadius: '12px' } } }}>
+          {models.map((m) => (
+            <MenuItem key={m.id} selected={m.id === model} onClick={() => selectModel(m.id)}>
+              <ListItemText primary={m.label} secondary={m.hint}
+                slotProps={{ primary: { sx: { fontSize: 13, fontWeight: 600 } }, secondary: { sx: { fontSize: 11.5 } } }} />
+            </MenuItem>
+          ))}
         </Menu>
 
-        {/* Content Area */}
-        <Box className="bg-transparent dark:bg-transparent" sx={{ p: 2, display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }}>
-          
-          <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1, alignItems: 'flex-start' }}>
+        <Box className="ai-body ai-no-drag">
+          {/* What the AI will read */}
+          <Box className={`ai-context ${hasSelection ? 'has-selection' : ''}`}>
+            {hasSelection ? <HighlightAltIcon sx={{ fontSize: 15 }} /> : <TextSnippetOutlinedIcon sx={{ fontSize: 15 }} />}
+            <span>
+              {hasSelection
+                ? `Working on your selection (${selectionText.trim().split(/\s+/).length} words)`
+                : `Working on the whole ${docType === 'sheet' ? 'spreadsheet' : docType === 'ppt' ? 'presentation' : 'document'}`}
+            </span>
+          </Box>
+
+          {/* Quick actions */}
+          <Box className="ai-chips">
+            {actions.map((a) => (
+              <Chip key={a.label} label={a.label} size="small" disabled={busy} onClick={() => run(a.prompt)} className="ai-chip" />
+            ))}
+          </Box>
+
+          {/* Output */}
+          {showOutput ? (
+            <Box className="ai-output-wrap">
+              {lastRequest && <div className="ai-request">“{lastRequest.prompt.length > 110 ? `${lastRequest.prompt.slice(0, 110)}…` : lastRequest.prompt}”</div>}
+              <Box ref={outputRef} className="ai-output">
+                {status === 'waiting' && (
+                  <div className="ai-thinking"><span /><span /><span /> <em>Thinking…</em></div>
+                )}
+                {outputHtml ? (
+                  <div className="ai-result custom-quill" dangerouslySetInnerHTML={{ __html: outputHtml }} />
+                ) : outputText ? (
+                  <div className="ai-result ai-streaming">{outputText}<span className="ai-caret" /></div>
+                ) : null}
+                {error && <div className="ai-error">{error}</div>}
+              </Box>
+              {modelUsed && status !== 'waiting' && <div className="ai-meta">{modelUsed}{status === 'streaming' ? ' · writing…' : ''}</div>}
+
+              {(status === 'done' || (status === 'error' && outputText)) && outputText && (
+                <Box className="ai-actions">
+                  {canInsert && lastRequest?.usedSelection && (
+                    <Button size="small" variant="contained" startIcon={<SwapHorizIcon />} onClick={() => handleInsert(true)} className="ai-primary-btn">
+                      Replace selection
+                    </Button>
+                  )}
+                  {canInsert && (
+                    <Button size="small" variant={lastRequest?.usedSelection ? 'outlined' : 'contained'} startIcon={<AddIcon />}
+                      onClick={() => handleInsert(false)} className={lastRequest?.usedSelection ? 'ai-secondary-btn' : 'ai-primary-btn'}>
+                      {lastRequest?.usedSelection ? 'Insert below' : 'Insert'}
+                    </Button>
+                  )}
+                  <Tooltip title={copied ? 'Copied' : 'Copy'}>
+                    <IconButton size="small" onClick={handleCopy} className="ai-icon-btn">
+                      {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Try again">
+                    <IconButton size="small" onClick={() => lastRequest && run(lastRequest.prompt)} className="ai-icon-btn">
+                      <ReplayIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
+              {!canInsert && status === 'done' && (
+                <div className="ai-hint">Copy the result and paste it where you need it.</div>
+              )}
+            </Box>
+          ) : (
+            <Box className="ai-empty">
+              <AutoAwesomeIcon sx={{ fontSize: 40, color: '#1f8a5b', opacity: 0.25 }} />
+              <Typography variant="body2">
+                Pick a quick action or describe what you need. Select text first to work on just that part.
+              </Typography>
+            </Box>
+          )}
+
+          {/* Prompt */}
+          <Box className="ai-input-row">
             <TextField
+              inputRef={inputRef}
               fullWidth
               multiline
               minRows={1}
-              maxRows={4}
-              placeholder="Ask the AI to draft content..."
-              variant="outlined"
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
+              maxRows={5}
+              placeholder={hasSelection ? 'What should I do with the selection?' : 'Ask AI to write, edit or explain…'}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  if (aiPrompt.trim() && !isAiLoading) {
-                    onGenerate();
-                  }
+                  run();
                 }
               }}
-              disabled={isAiLoading}
-              InputProps={{
-                className: 'bg-gray-50 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100',
-                sx: { fontSize: '14px', py: 1.5, px: 2, borderRadius: '12px', '& fieldset': { borderColor: 'rgba(0,0,0,0.1)' } }
-              }}
+              slotProps={{ input: { className: 'ai-input' } }}
             />
-            <Button
-              variant="contained"
-              onClick={onGenerate}
-              disabled={!aiPrompt.trim() || isAiLoading}
-              sx={{
-                minWidth: '100px',
-                height: '46px',
-                background: aiPrompt.trim() ? 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)' : '#e5e7eb',
-                color: aiPrompt.trim() ? 'white' : '#9ca3af',
-                '&:hover': { background: aiPrompt.trim() ? 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)' : '#e5e7eb' },
-                textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: '12px',
-                boxShadow: aiPrompt.trim() ? '0 4px 10px rgba(66,124,54,0.3)' : 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5
-              }}
-            >
-              {isAiLoading ? <CircularProgress size={18} color="inherit" /> : <><SendIcon fontSize="small" /> Submit</>}
-            </Button>
+            {busy ? (
+              <Tooltip title="Stop">
+                <IconButton onClick={stop} className="ai-send-btn stop"><StopIcon /></IconButton>
+              </Tooltip>
+            ) : (
+              <Tooltip title="Send (Enter)">
+                <span>
+                  <IconButton onClick={() => run()} disabled={!prompt.trim()} className="ai-send-btn"><SendIcon fontSize="small" /></IconButton>
+                </span>
+              </Tooltip>
+            )}
           </Box>
-
-          <Divider sx={{ my: 2, borderColor: 'rgba(0,0,0,0.05)' }} className="dark:border-gray-700" />
-
-          {!aiResult && (
-            <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 2, textAlign: 'center' }}>
-              <AutoAwesomeIcon sx={{ fontSize: 48, color: '#427c36', mb: 2, opacity: 0.3 }} />
-              <Typography variant="body2" sx={{ mb: 3 }} className="text-gray-500 dark:text-gray-400 font-medium">
-                Ask the AI to draft content, fix grammar, summarize, or generate ideas.
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
-                {['Summarize this document', 'Fix grammar & spelling', 'Make it professional', 'Generate an outline'].map(suggestion => (
-                  <Chip
-                    key={suggestion}
-                    label={suggestion}
-                    onClick={() => setAiPrompt(suggestion)}
-                    sx={{ 
-                      bgcolor: 'rgba(66,124,54,0.08)', 
-                      color: '#427c36',
-                      fontWeight: 600,
-                      fontSize: '12px',
-                      '&:hover': { bgcolor: 'rgba(66,124,54,0.15)' }
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {aiResult && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }}>
-              <Box 
-                className="bg-gray-50 dark:bg-gray-800/50 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700"
-                sx={{ 
-                  p: 2, 
-                  borderRadius: '12px', 
-                  fontSize: '14px', 
-                  flexGrow: 1,
-                  overflowY: 'auto',
-                  border: '1px solid',
-                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
-                }} 
-              >
-                <div className="custom-quill" dangerouslySetInnerHTML={{ __html: aiResult }} />
-              </Box>
-              
-              <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
-                <Button 
-                  size="small" 
-                  variant="contained" 
-                  startIcon={<CheckIcon />}
-                  onClick={onInsert}
-                  sx={{ 
-                    background: 'linear-gradient(135deg, #60a5fa 0%, #427c36 100%)',
-                    '&:hover': { background: 'linear-gradient(135deg, #3b82f6 0%, #326127 100%)', boxShadow: '0 4px 12px rgba(66,124,54,0.3)' },
-                    textTransform: 'none', 
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 8px rgba(66,124,54,0.2)'
-                  }}
-                >
-                  Add to page
-                </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
-                  onClick={handleCopy}
-                  className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  sx={{ 
-                    textTransform: 'none', 
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                  }}
-                >
-                  {copied ? 'Copied!' : 'Copy text'}
-                </Button>
-              </Box>
-            </Box>
-          )}
         </Box>
       </Paper>
     </Draggable>

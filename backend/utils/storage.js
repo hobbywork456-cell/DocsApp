@@ -76,7 +76,8 @@ async function getUserStorageStats(userId, forceRefresh = false) {
     SystemSettings.getSettings(),
     User.findById(userId).lean(),
     Group.find({ createdBy: userId }).select('_id groupId name members').lean(),
-    Subscription.find({ user: userId, status: 'active' }).lean()
+    // Expired monthly packs no longer add storage
+    Subscription.find({ user: userId, status: 'active', $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gt: new Date() } }] }).lean()
   ]);
 
   if (!user) {
@@ -129,7 +130,7 @@ async function getUserStorageStats(userId, forceRefresh = false) {
     bonusStorageMB += sub.bonusStorageMB || 0;
   }
 
-  const freeStorageMB = settings.freeStorageMB || 50;
+  const freeStorageMB = settings.freeStorageMB || 25;
   let totalQuotaMB = freeStorageMB + bonusStorageMB;
 
   // Custom override by super admin if present

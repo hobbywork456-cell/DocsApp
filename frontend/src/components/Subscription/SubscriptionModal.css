@@ -256,7 +256,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #3b82f6;
+  background: #5cc28f;
   display: inline-block;
 }
 
@@ -300,13 +300,13 @@
 
 /* Current Plan / Featured Elevated Card */
 .sub-pricing-card.is-current-plan {
-  border: 2px solid #3b82f6 !important;
-  box-shadow: 0 12px 30px -4px rgba(59, 130, 246, 0.22), 0 4px 10px rgba(0, 0, 0, 0.04) !important;
+  border: 2px solid #5cc28f !important;
+  box-shadow: 0 12px 30px -4px rgba(92, 194, 143, 0.22), 0 4px 10px rgba(0, 0, 0, 0.04) !important;
 }
 
 .dark .sub-pricing-card.is-current-plan {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 12px 30px -4px rgba(59, 130, 246, 0.35) !important;
+  border-color: #5cc28f !important;
+  box-shadow: 0 12px 30px -4px rgba(92, 194, 143, 0.35) !important;
 }
 
 .plan-top-badge {
@@ -332,19 +332,19 @@
 }
 
 .badge-blue {
-  background: #eff6ff;
-  color: #2563eb;
+  background: #eefaf3;
+  color: #1f8a5b;
 }
 
 .dark .badge-blue {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  background: rgba(92, 194, 143, 0.2);
+  color: #86efac;
 }
 
 .plan-current-tag {
-  border: 1px solid #93c5fd;
-  background: #eff6ff;
-  color: #2563eb;
+  border: 1px solid #86efac;
+  background: #eefaf3;
+  color: #1f8a5b;
   font-size: 0.7rem;
   font-weight: 700;
   padding: 2px 10px;
@@ -353,9 +353,9 @@
 }
 
 .dark .plan-current-tag {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: #3b82f6;
-  color: #93c5fd;
+  background: rgba(92, 194, 143, 0.2);
+  border-color: #5cc28f;
+  color: #86efac;
 }
 
 .plan-card-title {
@@ -394,15 +394,15 @@
 }
 
 .subpill-blue {
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
+  background: #eefaf3;
+  color: #1f8a5b;
+  border: 1px solid #bfe9d2;
 }
 
 .dark .subpill-blue {
-  background: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
-  border-color: rgba(59, 130, 246, 0.3);
+  background: rgba(92, 194, 143, 0.15);
+  color: #86efac;
+  border-color: rgba(92, 194, 143, 0.3);
 }
 
 .plan-card-desc {
@@ -466,15 +466,15 @@
 }
 
 .is-current-plan .plan-storage-capsule {
-  background: #f0f9ff;
-  border-color: #bfdbfe;
+  background: #f0fdf4;
+  border-color: #bfe9d2;
   color: #0284c7;
 }
 
 .dark .is-current-plan .plan-storage-capsule {
   background: rgba(2, 132, 199, 0.15);
   border-color: rgba(2, 132, 199, 0.4);
-  color: #7dd3fc;
+  color: #86efac;
 }
 
 /* Features List */
@@ -511,7 +511,7 @@
 }
 
 .plan-check-blue {
-  color: #3b82f6 !important;
+  color: #5cc28f !important;
 }
 
 /* Plan Action Buttons */
