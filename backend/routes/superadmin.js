@@ -7,7 +7,7 @@ const Group = require('../models/Group');
 const Document = require('../models/Document');
 const SystemSettings = require('../models/SystemSettings');
 const Subscription = require('../models/Subscription');
-const { getUserStorageStats, getDocumentSizeBytes, invalidateStorageCache } = require('../utils/storage');
+const { getUserStorageStats, sumDocumentBytesByGroup, invalidateStorageCache } = require('../utils/storage');
 const { decorateSubscription, isSampleTierSet } = require('../utils/subscriptionView');
 
 // Apply auth and superadmin middleware to all routes in this router
@@ -18,22 +18,25 @@ router.get('/stats', async (req, res) => {
   try {
     const settings = await SystemSettings.getSettings();
 
-    const [totalUsers, totalGroups, totalDocs, subscriptions] = await Promise.all([
-      User.find({}),
-      Group.find({}).populate('createdBy', 'email'),
-      Document.find({}),
+    const [totalUsers, totalGroups, docSizes, subscriptions] = await Promise.all([
+      User.find({}).select('_id isSubscribed').lean(),
+      Group.countDocuments({}),
+      // Summed in MongoDB so no document content is loaded into memory
+      sumDocumentBytesByGroup({}),
       Subscription.find({ status: 'active', $or: [{ expiresAt: { $exists: false } }, { expiresAt: null }, { expiresAt: { $gt: new Date() } }] })
     ]);
 
     // Calculate total application storage used
     let totalApplicationBytes = 0;
-    for (const doc of totalDocs) {
-      totalApplicationBytes += getDocumentSizeBytes(doc);
+    let totalDocumentCount = 0;
+    for (const agg of Object.values(docSizes)) {
+      totalApplicationBytes += agg.bytes;
+      totalDocumentCount += agg.count;
     }
     const totalApplicationMB = parseFloat((totalApplicationBytes / (1024 * 1024)).toFixed(3));
 
     // Calculate revenue
-    const allSubscriptions = await Subscription.find({});
+    const allSubscriptions = await Subscription.find({}).select('price').lean();
     const totalRevenue = allSubscriptions.reduce((sum, s) => sum + (s.price || 0), 0);
 
     // Active subscribers set
@@ -45,8 +48,8 @@ router.get('/stats', async (req, res) => {
       totalUsers: totalUsers.length,
       freeUsersCount,
       subscribedCount,
-      totalGroups: totalGroups.length,
-      totalDocuments: totalDocs.length,
+      totalGroups,
+      totalDocuments: totalDocumentCount,
       totalApplicationBytes,
       totalApplicationMB,
       totalSubscriptions: allSubscriptions.length,
@@ -153,20 +156,19 @@ router.get('/groups', async (req, res) => {
       .populate('members', 'email')
       .sort({ createdAt: -1 });
 
+    // One aggregation for all workspaces instead of loading every document
+    const sizes = await sumDocumentBytesByGroup({});
     const groupsWithStorage = await Promise.all(
       groups.map(async (group) => {
-        const docs = await Document.find({ groupId: group.groupId });
-        let bytes = 0;
-        for (const doc of docs) {
-          bytes += getDocumentSizeBytes(doc);
-        }
+        const agg = sizes[group.groupId] || { bytes: 0, count: 0 };
+        const bytes = agg.bytes;
         return {
           _id: group._id,
           groupId: group.groupId,
           name: group.name,
           createdBy: group.createdBy,
           memberCount: (group.members || []).length,
-          docCount: docs.length,
+          docCount: agg.count,
           storageUsedMB: parseFloat((bytes / (1024 * 1024)).toFixed(3)),
           createdAt: group.createdAt
         };

@@ -53,6 +53,43 @@ function getDocumentSizeBytes(doc) {
 }
 
 /**
+ * Size of a document computed inside MongoDB, so document content never has to be
+ * loaded into server memory (base64 images can make documents several MB each).
+ * Uses the stored sizeBytes; falls back to the text length for old documents.
+ */
+const strBytes = (field) => ({
+  $cond: [{ $eq: [{ $type: field }, 'string'] }, { $strLenBytes: field }, 0]
+});
+const DOC_BYTES_EXPR = {
+  $cond: [
+    { $gt: [{ $ifNull: ['$sizeBytes', 0] }, 0] },
+    '$sizeBytes',
+    {
+      $add: [
+        strBytes('$title'),
+        strBytes('$content'),
+        { $sum: { $map: { input: { $ifNull: ['$attachments', []] }, as: 'a', in: { $ifNull: ['$$a.size', 0] } } } }
+      ]
+    }
+  ]
+};
+
+/**
+ * Sums document sizes per group without reading document content into Node.
+ * @param {Object} match MongoDB filter for documents
+ * @returns {Promise<Object>} { [groupId]: { bytes, count } }
+ */
+async function sumDocumentBytesByGroup(match = {}) {
+  const rows = await Document.aggregate([
+    { $match: match },
+    { $group: { _id: '$groupId', bytes: { $sum: DOC_BYTES_EXPR }, count: { $sum: 1 } } }
+  ]);
+  const out = {};
+  for (const r of rows) out[r._id] = { bytes: r.bytes || 0, count: r.count || 0 };
+  return out;
+}
+
+/**
  * Calculates storage consumption for a workspace owner (user).
  * All groups created by this user consume their storage quota.
  *
@@ -87,13 +124,10 @@ async function getUserStorageStats(userId, forceRefresh = false) {
 
   const groupIds = groups.map(g => g.groupId);
 
-  // Optimized documents query: only select size-relevant fields with .lean()
-  let documents = [];
-  if (groupIds.length > 0) {
-    documents = await Document.find({ groupId: { $in: groupIds } })
-      .select('groupId title tags attachments sizeBytes content')
-      .lean();
-  }
+  // Sizes are summed inside MongoDB — document content is never loaded here
+  const perGroup = groupIds.length > 0
+    ? await sumDocumentBytesByGroup({ groupId: { $in: groupIds } })
+    : {};
 
   // Compute group breakdown and total bytes
   const groupMap = {};
@@ -110,13 +144,13 @@ async function getUserStorageStats(userId, forceRefresh = false) {
   }
 
   let totalUsedBytes = 0;
-  for (const doc of documents) {
-    const docSize = getDocumentSizeBytes(doc);
-    totalUsedBytes += docSize;
-
-    if (groupMap[doc.groupId]) {
-      groupMap[doc.groupId].docCount += 1;
-      groupMap[doc.groupId].usedBytes += docSize;
+  let documentsCount = 0;
+  for (const [gid, agg] of Object.entries(perGroup)) {
+    totalUsedBytes += agg.bytes;
+    documentsCount += agg.count;
+    if (groupMap[gid]) {
+      groupMap[gid].docCount = agg.count;
+      groupMap[gid].usedBytes = agg.bytes;
     }
   }
 
@@ -176,7 +210,7 @@ async function getUserStorageStats(userId, forceRefresh = false) {
     isWarning,
     isExceeded,
     groupsCount: groups.length,
-    documentsCount: documents.length,
+    documentsCount,
     groupsBreakdown,
     activeSubscriptions: decoratedActive,
     planExpiresAt,
@@ -222,6 +256,7 @@ async function getGroupStorageStats(groupId, forceRefresh = false) {
 
 module.exports = {
   getDocumentSizeBytes,
+  sumDocumentBytesByGroup,
   getUserStorageStats,
   getGroupStorageStats,
   invalidateStorageCache
