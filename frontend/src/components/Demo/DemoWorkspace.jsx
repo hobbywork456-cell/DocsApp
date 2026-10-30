@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Box, Button, IconButton, Menu, MenuItem, ListItemText, Tooltip, Dialog, DialogTitle,
-  DialogContent, DialogActions, Typography, CircularProgress, Snackbar, Alert
+  DialogContent, DialogActions, Typography, CircularProgress, Snackbar, Alert, useMediaQuery
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import GridOnOutlinedIcon from '@mui/icons-material/GridOnOutlined';
 import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
@@ -30,6 +32,7 @@ import {
   downloadPptAsPptx, downloadPptAsPdf
 } from '../../utils/documentExporter';
 import { DEMO_TYPES, DEMO_LIMIT, getTypeMeta, createDemoDoc, loadDemoDocs, persistDemoDocs } from './demoStore';
+import DemoTool, { DEMO_TOOLS } from './tools/DemoTools';
 import './Demo.css';
 
 const TYPE_ICONS = {
@@ -150,6 +153,44 @@ const DemoWorkspace = () => {
   const [downloadAnchor, setDownloadAnchor] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  // tools live only in memory; /demo?tool=img2pdf opens a tool directly (used by the landing page)
+  const [activeTool, setActiveTool] = useState(() => {
+    try {
+      const t = new URLSearchParams(window.location.search).get('tool');
+      return DEMO_TOOLS.some((x) => x.id === t) ? t : null;
+    } catch {
+      return null;
+    }
+  });
+  // Phones and tablets: card home screen, and the chosen file or tool opens full screen
+  const isCompact = useMediaQuery('(max-width: 960px)');
+  const [mobileOpen, setMobileOpen] = useState(() => Boolean(activeTool));
+  const pushedRef = useRef(false);
+
+  // The phone's back button/gesture closes the full-screen view instead of leaving the demo
+  useEffect(() => {
+    const onPop = () => {
+      if (pushedRef.current) {
+        pushedRef.current = false;
+        setMobileOpen(false);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const openFullScreen = () => {
+    setMobileOpen(true);
+    if (!pushedRef.current) {
+      window.history.pushState({ demoItem: true }, '');
+      pushedRef.current = true;
+    }
+  };
+  const closeFullScreen = () => {
+    if (pushedRef.current) window.history.back(); // popstate handler closes the view
+    else setMobileOpen(false);
+  };
+
   const [toast, setToastState] = useState(null);
   const [toastOpen, setToastOpen] = useState(false);
   const setToast = useCallback((t) => {
@@ -197,6 +238,7 @@ const DemoWorkspace = () => {
   }, [setToast]);
 
   const handleCreate = (type) => {
+    setActiveTool(null);
     const existing = docs.find((d) => d.type === type);
     if (existing) {
       setActiveId(existing.id);
@@ -272,6 +314,213 @@ const DemoWorkspace = () => {
 
   const usedCount = docs.length;
 
+  const editorSurface = activeDoc ? (
+    <div className="demo-editor-surface">
+      {activeDoc.type === 'sheet' ? (
+        <SpreadsheetEditor
+          key={activeDoc.id}
+          content={activeDoc.content}
+          onChange={(content) => updateActive({ content })}
+        />
+      ) : activeDoc.type === 'ppt' ? (
+        <PresentationEditor
+          key={activeDoc.id}
+          content={activeDoc.content}
+          docTitle={activeDoc.title}
+          onChange={(content) => updateActive({ content })}
+        />
+      ) : (
+        <DemoDocEditor
+          key={activeDoc.id}
+          content={activeDoc.content}
+          onChange={(content, userEdit) => updateActive({ content }, userEdit)}
+        />
+      )}
+    </div>
+  ) : null;
+
+  const downloadMenu = activeDoc ? (
+    <Menu anchorEl={downloadAnchor} open={Boolean(downloadAnchor)} onClose={() => setDownloadAnchor(null)}>
+      {activeMeta.formats.map((f) => (
+        <MenuItem key={f.id} onClick={() => handleDownload(f.id)}>
+          <ListItemText primary={f.label} />
+        </MenuItem>
+      ))}
+    </Menu>
+  ) : null;
+
+  const docStatus = (doc) => (dirtyIds.has(doc.id) ? 'Unsaved changes' : doc.savedAt ? `Saved ${formatTime(doc.savedAt)}` : 'Not saved yet');
+
+  const deleteDialog = (
+    <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)}>
+      <DialogTitle sx={{ fontWeight: 800 }}>Delete this demo file?</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" color="text.secondary">
+          It is removed from this tab for good. You can then create a new one in its place.
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+        <Button color="error" variant="contained" disableElevation onClick={handleDelete}>Delete</Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  const toastEl = (
+    <Snackbar
+      open={toastOpen}
+      autoHideDuration={5000}
+      onClose={() => setToast(null)}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >
+      <Alert severity={toast?.severity || 'info'} variant="filled" onClose={() => setToast(null)}>{toast?.message || ''}</Alert>
+    </Snackbar>
+  );
+
+  /* ── Phones & tablets ─────────────────────────────────── */
+  if (isCompact) {
+    const openTool = (id) => { setActiveTool(id); openFullScreen(); };
+    const openDoc = (type) => { handleCreate(type); openFullScreen(); };
+    const fullTool = mobileOpen && activeTool ? DEMO_TOOLS.find((t) => t.id === activeTool) : null;
+    const fullDoc = mobileOpen && !activeTool ? activeDoc : null;
+
+    return (
+      <Box className="demo-root demo-m">
+        <SEO title="Free Demo Workspace" description="Try DocsApp free: create a document, a spreadsheet and a presentation, or use free PDF and image tools, without signing up." />
+
+        {fullTool || fullDoc ? (
+          /* ── Full-screen file or tool ── */
+          <div className="demo-m-full" role="dialog" aria-modal="true" aria-label={fullTool ? fullTool.label : (fullDoc.title || activeMeta.label)}>
+            <header className="demo-m-bar">
+              <IconButton onClick={closeFullScreen} aria-label="Back to all files and tools" edge="start">
+                <ArrowBackIcon />
+              </IconButton>
+              {fullTool ? (
+                <strong className="demo-m-bar-title">{fullTool.label}</strong>
+              ) : (
+                <>
+                  <input
+                    className="demo-title-input demo-m-title-input"
+                    value={fullDoc.title}
+                    onChange={(e) => updateActive({ title: e.target.value })}
+                    aria-label="File name"
+                    maxLength={120}
+                  />
+                  <IconButton
+                    onClick={handleSave}
+                    disabled={!isDirty && Boolean(fullDoc.savedAt)}
+                    aria-label="Save"
+                    className={isDirty ? 'demo-m-dirty' : ''}
+                  >
+                    <SaveOutlinedIcon />
+                  </IconButton>
+                  <IconButton
+                    onClick={(e) => setDownloadAnchor(e.currentTarget)}
+                    disabled={downloading || (!fullDoc.savedAt && !isDirty)}
+                    aria-label="Download"
+                    color="primary"
+                  >
+                    {downloading ? <CircularProgress size={20} /> : <FileDownloadOutlinedIcon />}
+                  </IconButton>
+                  {downloadMenu}
+                </>
+              )}
+            </header>
+            {fullDoc && (
+              <div className={`demo-m-status ${isDirty ? 'is-dirty' : ''}`}>
+                {isDirty ? 'Unsaved changes — tap save to keep them in this tab' : fullDoc.savedAt ? 'Saved in this tab. Download to keep a copy.' : 'Not saved yet'}
+              </div>
+            )}
+            <div className="demo-m-content">
+              {fullTool ? <DemoTool key={fullTool.id} toolId={fullTool.id} notify={setToast} /> : editorSurface}
+            </div>
+          </div>
+        ) : (
+          /* ── Home: cards ── */
+          <>
+            <header className="demo-topbar">
+              <RouterLink to="/" className="demo-brand">
+                <span className="demo-brand-mark"><MenuBookIcon sx={{ fontSize: 20 }} /></span>
+                <span className="demo-brand-name">DocsApp</span>
+              </RouterLink>
+              <div className="demo-topbar-spacer" />
+              <Button variant="text" size="small" onClick={() => navigate('/login')} sx={{ color: 'var(--c-ink)', fontWeight: 700 }}>Sign in</Button>
+              <Button variant="contained" size="small" disableElevation onClick={() => navigate('/login?mode=signup')} sx={{ fontWeight: 700 }}>Sign up</Button>
+            </header>
+
+            <div className="demo-m-home">
+              <div className="demo-m-intro">
+                <h1>Demo workspace</h1>
+                <p>No sign-up needed. Everything stays in this browser tab and is erased when you close it, so download what you want to keep.</p>
+              </div>
+
+              <section aria-labelledby="demo-m-files">
+                <div className="demo-m-section-head">
+                  <h2 id="demo-m-files">Your files</h2>
+                  <span className="demo-count">{usedCount}/{DEMO_LIMIT}</span>
+                </div>
+                <div className="demo-m-grid">
+                  {DEMO_TYPES.map((meta) => {
+                    const Icon = TYPE_ICONS[meta.type];
+                    const doc = docs.find((d) => d.type === meta.type);
+                    return (
+                      <div key={meta.type} className={`demo-m-card demo-slot-${meta.type} ${doc ? 'is-used' : ''}`}>
+                        <button type="button" className="demo-m-card-main" onClick={() => openDoc(meta.type)}>
+                          <span className="demo-slot-icon"><Icon sx={{ fontSize: 24 }} /></span>
+                          <span className="demo-m-card-text">
+                            <strong>{doc ? (doc.title || meta.defaultTitle) : meta.label}</strong>
+                            <span>{doc ? docStatus(doc) : meta.blurb}</span>
+                          </span>
+                          <span className="demo-m-card-cta">{doc ? 'Open' : 'Create'}{doc ? <ChevronRightIcon sx={{ fontSize: 18 }} /> : <AddIcon sx={{ fontSize: 18 }} />}</span>
+                        </button>
+                        {doc && (
+                          <IconButton size="small" className="demo-m-card-delete" onClick={() => setConfirmDelete(doc.id)} aria-label={`Delete ${meta.label}`}>
+                            <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section aria-labelledby="demo-m-tools">
+                <div className="demo-m-section-head">
+                  <h2 id="demo-m-tools">Free tools</h2>
+                </div>
+                <div className="demo-m-grid">
+                  {DEMO_TOOLS.map((t) => {
+                    const Icon = t.icon;
+                    return (
+                      <div key={t.id} className="demo-m-card demo-slot-tool">
+                        <button type="button" className="demo-m-card-main" onClick={() => openTool(t.id)}>
+                          <span className="demo-slot-icon"><Icon sx={{ fontSize: 24 }} /></span>
+                          <span className="demo-m-card-text">
+                            <strong>{t.label}</strong>
+                            <span>{t.blurb}</span>
+                          </span>
+                          <span className="demo-m-card-cta">Open<ChevronRightIcon sx={{ fontSize: 18 }} /></span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <p className="demo-m-foot">
+                The demo allows one document, one spreadsheet and one presentation.{' '}
+                <RouterLink to="/login?mode=signup">Create a free account</RouterLink> for unlimited files and 25 MB of cloud storage.
+              </p>
+            </div>
+          </>
+        )}
+
+        {deleteDialog}
+        {toastEl}
+      </Box>
+    );
+  }
+
   return (
     <Box className="demo-root">
       <SEO title="Free Demo Workspace" description="Try DocsApp free: create a document, a spreadsheet and a presentation without signing up." />
@@ -294,8 +543,8 @@ const DemoWorkspace = () => {
       <div className="demo-notice" role="note">
         <InfoOutlinedIcon sx={{ fontSize: 18 }} />
         <span>
-          <strong>Demo mode — no sign-up needed.</strong> Your files stay only in this browser tab and are never uploaded or stored in our database.
-          Closing the tab or browser erases them, so <strong>save and download</strong> anything you want to keep.
+          <strong>Demo mode — no sign-up needed.</strong> Your files and tool results stay only in this browser tab and are never uploaded or stored in our database.
+          Closing the tab or browser erases them, so <strong>download</strong> anything you want to keep.
         </span>
         <RouterLink to="/login?mode=signup" className="demo-notice-link">Get 25 MB free cloud storage →</RouterLink>
       </div>
@@ -310,7 +559,7 @@ const DemoWorkspace = () => {
           {DEMO_TYPES.map((meta) => {
             const Icon = TYPE_ICONS[meta.type];
             const doc = docs.find((d) => d.type === meta.type);
-            const isActive = doc && doc.id === activeId;
+            const isActive = !activeTool && doc && doc.id === activeId;
             return (
               <div
                 key={meta.type}
@@ -338,6 +587,23 @@ const DemoWorkspace = () => {
               </div>
             );
           })}
+          <div className="demo-sidebar-head demo-tools-head">
+            <span>Free tools</span>
+          </div>
+          {DEMO_TOOLS.map((t) => {
+            const Icon = t.icon;
+            return (
+              <div key={t.id} className={`demo-slot demo-slot-tool is-used ${activeTool === t.id ? 'is-active' : ''}`}>
+                <button type="button" className="demo-slot-main" onClick={() => setActiveTool(t.id)}>
+                  <span className="demo-slot-icon"><Icon sx={{ fontSize: 22 }} /></span>
+                  <span className="demo-slot-text">
+                    <span className="demo-slot-title">{t.label}</span>
+                    <span className="demo-slot-sub">{t.blurb}</span>
+                  </span>
+                </button>
+              </div>
+            );
+          })}
           <div className="demo-sidebar-foot">
             The free demo allows one document, one spreadsheet and one presentation.
             <RouterLink to="/login?mode=signup"> Create an account</RouterLink> for unlimited files, groups and cloud saving.
@@ -346,7 +612,9 @@ const DemoWorkspace = () => {
 
         {/* ── Editor ── */}
         <main className="demo-main">
-          {!activeDoc ? (
+          {activeTool ? (
+            <DemoTool key={activeTool} toolId={activeTool} notify={setToast} />
+          ) : !activeDoc ? (
             <div className="demo-empty">
               <h1>Pick something to create</h1>
               <p>Everything works like the full app — edit, format, then save and download. No account needed.</p>
@@ -358,6 +626,18 @@ const DemoWorkspace = () => {
                       <span className="demo-slot-icon"><Icon sx={{ fontSize: 28 }} /></span>
                       <strong>{meta.label}</strong>
                       <span>{meta.blurb}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <h2 className="demo-empty-sub">Or use a free tool</h2>
+              <div className="demo-empty-tools">
+                {DEMO_TOOLS.map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <button key={t.id} type="button" className="demo-tool-chip" onClick={() => setActiveTool(t.id)}>
+                      <Icon sx={{ fontSize: 20 }} />
+                      <span><strong>{t.label}</strong><em>{t.blurb}</em></span>
                     </button>
                   );
                 })}
@@ -402,63 +682,17 @@ const DemoWorkspace = () => {
                     </Button>
                   </span>
                 </Tooltip>
-                <Menu anchorEl={downloadAnchor} open={Boolean(downloadAnchor)} onClose={() => setDownloadAnchor(null)}>
-                  {activeMeta.formats.map((f) => (
-                    <MenuItem key={f.id} onClick={() => handleDownload(f.id)}>
-                      <ListItemText primary={f.label} />
-                    </MenuItem>
-                  ))}
-                </Menu>
+                {downloadMenu}
               </div>
 
-              <div className="demo-editor-surface">
-                {activeDoc.type === 'sheet' ? (
-                  <SpreadsheetEditor
-                    key={activeDoc.id}
-                    content={activeDoc.content}
-                    onChange={(content) => updateActive({ content })}
-                  />
-                ) : activeDoc.type === 'ppt' ? (
-                  <PresentationEditor
-                    key={activeDoc.id}
-                    content={activeDoc.content}
-                    docTitle={activeDoc.title}
-                    onChange={(content) => updateActive({ content })}
-                  />
-                ) : (
-                  <DemoDocEditor
-                    key={activeDoc.id}
-                    content={activeDoc.content}
-                    onChange={(content, userEdit) => updateActive({ content }, userEdit)}
-                  />
-                )}
-              </div>
+              {editorSurface}
             </div>
           )}
         </main>
       </div>
 
-      <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Delete this demo file?</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            It is removed from this tab for good. You can then create a new one in its place.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
-          <Button color="error" variant="contained" disableElevation onClick={handleDelete}>Delete</Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={toastOpen}
-        autoHideDuration={5000}
-        onClose={() => setToast(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity={toast?.severity || 'info'} variant="filled" onClose={() => setToast(null)}>{toast?.message || ''}</Alert>
-      </Snackbar>
+      {deleteDialog}
+      {toastEl}
     </Box>
   );
 };

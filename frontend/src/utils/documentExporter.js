@@ -137,7 +137,7 @@ export const normalizeDocHtml = (html) => {
 };
 
 // Typography mirrors the editor's A4 view so the download looks like the page on screen
-const DOC_EXPORT_CSS = `
+export const DOC_EXPORT_CSS = `
   .doc-export { width: ${A4.width - A4.margin * 2}mm; box-sizing: border-box; background: #ffffff; color: #000000;
     font-family: ${DOC_FONT}; font-size: 11pt; line-height: 1.3; text-align: left; white-space: normal;
     word-wrap: break-word; overflow-wrap: break-word; tab-size: 4; }
